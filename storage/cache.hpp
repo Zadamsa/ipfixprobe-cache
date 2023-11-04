@@ -59,10 +59,12 @@ struct __attribute__((packed)) flow_key {
 struct __attribute__((packed)) flow_key_v4 : public flow_key<4> {
     flow_key_v4& operator=(const Packet& pkt) noexcept;
     flow_key_v4& save_reversed(const Packet& pkt) noexcept;
+    flow_key_v4& save_sorted(const Packet& pkt) noexcept;
 };
 struct __attribute__((packed)) flow_key_v6 : public flow_key<16> {
     flow_key_v6& operator=(const Packet& pkt) noexcept;
     flow_key_v6& save_reversed(const Packet& pkt) noexcept;
+    flow_key_v6& save_sorted(const Packet& pkt) noexcept;
 };
 
 #ifdef FLOW_CACHE_STATS
@@ -223,7 +225,7 @@ protected:
     std::unique_ptr<FlowRecord[]> m_flow_records;
 
     virtual void flush(Packet& pkt, size_t flow_index, int ret, bool source_flow);
-    bool create_hash_key(const Packet& pkt) noexcept;
+    virtual bool create_hash_key(const Packet& pkt) noexcept;
     void export_flow(size_t index);
     static uint8_t get_export_reason(Flow& flow);
     void finish() override;
@@ -260,6 +262,8 @@ class NHTFlowCache<true> : public NHTFlowCache<false> {
     uint64_t m_lookups;
     uint64_t m_lookups2;
     uint64_t m_put_time;
+    uint64_t m_sort_time;
+    uint64_t m_copy_time;
     void init(const char* params) override;
     ~NHTFlowCache() override;
     int put_pkt(Packet& pkt) override;
@@ -276,6 +280,7 @@ class NHTFlowCache<true> : public NHTFlowCache<false> {
     void prepare_and_export(uint32_t flow_index) noexcept override;
     void prepare_and_export(uint32_t flow_index, uint32_t reason) noexcept override;
     void print_report() const noexcept;
+    bool create_hash_key(const Packet& pkt) noexcept override;
 
 };
 

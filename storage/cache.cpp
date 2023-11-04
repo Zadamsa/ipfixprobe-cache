@@ -87,6 +87,23 @@ flow_key_v4& flow_key_v4::save_reversed(const Packet& pkt) noexcept
     return *this;
 }
 
+flow_key_v4& flow_key_v4::save_sorted(const Packet& pkt) noexcept
+{
+    flow_key::operator=(pkt);
+    ip_version = IP::v4;
+    if ( *reinterpret_cast<uint32_t*>(src_ip.data()) < *reinterpret_cast<uint32_t*>(dst_ip.data())) {
+        memcpy(src_ip.data(), &pkt.src_ip.v4, 4);
+        memcpy(dst_ip.data(), &pkt.dst_ip.v4, 4);
+    }else{
+        memcpy(src_ip.data(), &pkt.dst_ip.v4, 4);
+        memcpy(dst_ip.data(), &pkt.src_ip.v4, 4);
+        auto tmp = src_port;
+        src_port = dst_port;
+        dst_port = tmp;
+    }
+    return *this;
+}
+
 flow_key_v6& flow_key_v6::operator=(const Packet& pkt) noexcept
 {
     flow_key::operator=(pkt);
@@ -102,6 +119,29 @@ flow_key_v6& flow_key_v6::save_reversed(const Packet& pkt) noexcept
     ip_version = IP::v6;
     memcpy(src_ip.data(), pkt.dst_ip.v6, 16);
     memcpy(dst_ip.data(), pkt.src_ip.v6, 16);
+    return *this;
+}
+
+flow_key_v6& flow_key_v6::save_sorted(const Packet& pkt) noexcept
+{
+    flow_key::operator=(pkt);
+    ip_version = IP::v6;
+    //Compare 2 ipv6 addresses from end to begin
+    if ( [](const uint8_t* addr1,const  uint8_t* addr2)->int8_t {
+        for (auto i = 0; i < 16 ; i++)
+            if (addr1[15-i] != addr2[15-i])
+                return (int8_t)(addr1[15-i] - addr2[15-i]);
+        return 0;
+    }(pkt.src_ip.v6,pkt.dst_ip.v6) < 0 ) {
+        memcpy(src_ip.data(), pkt.dst_ip.v6, 16);
+        memcpy(dst_ip.data(), pkt.src_ip.v6, 16);
+    }else{
+        memcpy(src_ip.data(), pkt.src_ip.v6, 16);
+        memcpy(dst_ip.data(), pkt.dst_ip.v6, 16);
+        auto tmp = src_port;
+        src_port = dst_port;
+        dst_port = tmp;
+    }
     return *this;
 }
 
@@ -672,12 +712,12 @@ int NHTFlowCache<NEED_FLOW_CACHE_STATS>::put_pkt(Packet& pkt)
 }
 
 
-    int NHTFlowCache<true>::put_pkt(Packet& pkt){
-        auto start = std::chrono::high_resolution_clock::now();
-        auto res = NHTFlowCache<false>::put_pkt(pkt);
-        m_put_time += std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::high_resolution_clock::now() - start).count();
-        return res;
-    }
+int NHTFlowCache<true>::put_pkt(Packet& pkt){
+    auto start = std::chrono::high_resolution_clock::now();
+    auto res = NHTFlowCache<false>::put_pkt(pkt);
+    m_put_time += std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::high_resolution_clock::now() - start).count();
+    return res;
+}
 
 template<bool NEED_FLOW_CACHE_STATS>
 uint8_t NHTFlowCache<NEED_FLOW_CACHE_STATS>::get_export_reason(Flow& flow)
@@ -701,6 +741,14 @@ void NHTFlowCache<NEED_FLOW_CACHE_STATS>::export_expired(time_t ts)
     }
     m_timeout_idx = (m_timeout_idx + m_line_new_idx) & (m_cache_size - 1);
 }
+
+bool NHTFlowCache<true>::create_hash_key(const Packet& pkt) noexcept{
+    auto start = std::chrono::high_resolution_clock::now();
+    auto res = NHTFlowCache<false>::create_hash_key(pkt);
+    m_copy_time += std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::high_resolution_clock::now() - start).count();
+    return res;
+}
+
 // saves key value and key length into attributes NHTFlowCache::keyand NHTFlowCache::m_keylen
 template<bool NEED_FLOW_CACHE_STATS>
 bool NHTFlowCache<NEED_FLOW_CACHE_STATS>::create_hash_key(const Packet& pkt) noexcept
@@ -708,18 +756,22 @@ bool NHTFlowCache<NEED_FLOW_CACHE_STATS>::create_hash_key(const Packet& pkt) noe
     if (pkt.ip_version == IP::v4) {
         auto key_v4 = reinterpret_cast<struct flow_key_v4*>(m_key);
         auto key_v4_inv = reinterpret_cast<struct flow_key_v4*>(m_key_inv);
-
-        *key_v4 = pkt;
-        key_v4_inv->save_reversed(pkt);
+        if (m_split_biflow) {
+            *key_v4 = pkt;
+            //key_v4_inv->save_reversed(pkt);
+        }else
+            key_v4->save_sorted(pkt);
         m_keylen = sizeof(flow_key_v4);
         return true;
     }
     if (pkt.ip_version == IP::v6) {
         auto key_v6 = reinterpret_cast<struct flow_key_v6*>(m_key);
         auto key_v6_inv = reinterpret_cast<struct flow_key_v6*>(m_key_inv);
-
-        *key_v6 = pkt;
-        key_v6_inv->save_reversed(pkt);
+        if (m_split_biflow) {
+            *key_v6 = pkt;
+            key_v6_inv->save_reversed(pkt);
+        }else
+            key_v6->save_sorted(pkt);
         m_keylen = sizeof(flow_key_v6);
         return true;
     }
@@ -737,6 +789,7 @@ void NHTFlowCache<true>::print_report() const noexcept
     std::cout << "Average Lookup:  " << tmp << std::endl;
     std::cout << "Variance Lookup: " << float(m_lookups2) / m_hits - tmp * tmp << std::endl;
     std::cout << "Spent in put_pkt: " << m_put_time << " us" << std::endl;
+    std::cout << "Spent in copying packet to local buffer: " << m_copy_time << " us" << std::endl;
 }
 
 } // namespace ipxp

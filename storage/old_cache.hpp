@@ -233,6 +233,8 @@ private:
     uint64_t m_flushed;
     uint64_t m_lookups;
     uint64_t m_lookups2;
+    uint64_t m_put_time;
+    uint64_t m_copy_time;
 #endif /* FLOW_CACHE_STATS */
     uint32_t m_active;
     uint32_t m_inactive;
