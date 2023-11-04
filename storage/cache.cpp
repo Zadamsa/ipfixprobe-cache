@@ -40,6 +40,7 @@
 #include <fstream>
 #include <iomanip>
 #include <ipfixprobe/ring.h>
+#include <rte_thash.h>
 
 namespace ipxp {
 
@@ -572,7 +573,29 @@ bool NHTFlowCache<NEED_FLOW_CACHE_STATS>::flush_and_update_flow(
     }
     return false;
 }
+template<bool NEED_FLOW_CACHE_STATS>
+uint32_t NHTFlowCache<NEED_FLOW_CACHE_STATS>::toeplitzHash(const Packet& pkt) const noexcept{
+    uint8_t key[RTE_THASH_V4_L3_LEN] = {0};
+    if (pkt.ip_proto == IP::v4){
+        rte_ipv4_tuple  orig ;
+        orig.src_addr = pkt.src_ip.v4;
+        orig.dst_addr = pkt.dst_ip.v4;
+        orig.sport = pkt.src_port;
+        orig.dport = pkt.dst_port;
+        return rte_softrss((uint32_t*)&orig, RTE_THASH_V4_L3_LEN,key);
+    }else{
+        rte_ipv6_tuple orig ;
+        memcpy(orig.src_addr, pkt.src_ip.v6,16);
+        memcpy(orig.dst_addr, pkt.dst_ip.v6,16);
+        orig.sport = pkt.src_port;
+        orig.dport = pkt.dst_port;
+        return rte_softrss((uint32_t*)&orig, RTE_THASH_V6_L3_LEN,key);
+    }
 
+    //rte_thash_tuple targ;
+    //rte_thash_load_v6_addrs(&orig, &targ);
+    return 666;
+}
 template<bool NEED_FLOW_CACHE_STATS>
 int NHTFlowCache<NEED_FLOW_CACHE_STATS>::put_pkt(Packet& pkt)
 {
@@ -581,7 +604,8 @@ int NHTFlowCache<NEED_FLOW_CACHE_STATS>::put_pkt(Packet& pkt)
     if (!create_hash_key(pkt))
         return 0;
     /* Calculates hash value from key created before. */
-    uint64_t hashval = XXH64(m_key, m_keylen, 0);
+    //uint64_t hashval = XXH64(m_key, m_keylen, 0);
+    uint32_t hashval = toeplitzHash(pkt);
     bool source_flow = true;
 
     /* Get index of flow line. */
@@ -594,7 +618,8 @@ int NHTFlowCache<NEED_FLOW_CACHE_STATS>::put_pkt(Packet& pkt)
 
     /* Find inversed flow. */
     if (!found && !m_split_biflow) {
-        uint64_t hashval_inv = XXH64(m_key_inv, m_keylen, 0);
+        //uint64_t hashval_inv = XXH64(m_key_inv, m_keylen, 0);
+        uint32_t hashval_inv = toeplitzHash(pkt);
         uint64_t line_index_inv = hashval_inv & m_line_mask;
         uint64_t next_line_inv = line_index_inv + m_line_size;
         res = find_existing_record(line_index_inv, next_line_inv, hashval_inv);
