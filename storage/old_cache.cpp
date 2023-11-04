@@ -36,6 +36,7 @@
 #include <iomanip>
 #include <iostream>
 #include <sys/time.h>
+#include <chrono>
 
 #include "old_cache.hpp"
 #include "xxhash.h"
@@ -314,6 +315,9 @@ void OldNHTFlowCache::flush(Packet& pkt, size_t flow_index, int ret, bool source
 
 int OldNHTFlowCache::put_pkt(Packet& pkt)
 {
+#ifdef FLOW_CACHE_STATS
+    auto start = std::chrono::high_resolution_clock::now();
+#endif
     int ret = plugins_pre_create(pkt);
 
     if (!create_hash_key(pkt)) { // saves key value and key length into attributes NHTFlowCache::key
@@ -426,6 +430,9 @@ int OldNHTFlowCache::put_pkt(Packet& pkt)
         m_flow_table[flow_index]->m_flow.end_reason = FLOW_END_EOF;
         export_flow(flow_index);
         put_pkt(pkt);
+#ifdef FLOW_CACHE_STATS
+        m_put_time += std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::high_resolution_clock::now() - start).count();
+#endif
         return 0;
     }
 
@@ -448,6 +455,9 @@ int OldNHTFlowCache::put_pkt(Packet& pkt)
 #ifdef FLOW_CACHE_STATS
             m_expired++;
 #endif /* FLOW_CACHE_STATS */
+#ifdef FLOW_CACHE_STATS
+            m_put_time += std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::high_resolution_clock::now() - start).count();
+#endif
             return put_pkt(pkt);
         }
 
@@ -459,12 +469,18 @@ int OldNHTFlowCache::put_pkt(Packet& pkt)
 #ifdef FLOW_CACHE_STATS
             m_expired++;
 #endif /* FLOW_CACHE_STATS */
+#ifdef FLOW_CACHE_STATS
+            m_put_time += std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::high_resolution_clock::now() - start).count();
+#endif
             return put_pkt(pkt);
         }
 
         ret = plugins_pre_update(flow->m_flow, pkt);
         if (ret & FLOW_FLUSH) {
             flush(pkt, flow_index, ret, source_flow);
+#ifdef FLOW_CACHE_STATS
+            m_put_time += std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::high_resolution_clock::now() - start).count();
+#endif
             return 0;
         } else {
             flow->update(pkt, source_flow);
@@ -472,12 +488,18 @@ int OldNHTFlowCache::put_pkt(Packet& pkt)
 
             if (ret & FLOW_FLUSH) {
                 flush(pkt, flow_index, ret, source_flow);
+#ifdef FLOW_CACHE_STATS
+                m_put_time += std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::high_resolution_clock::now() - start).count();
+#endif
                 return 0;
             }
         }
     }
 
     export_expired(pkt.ts.tv_sec);
+#ifdef FLOW_CACHE_STATS
+    m_put_time += std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::high_resolution_clock::now() - start).count();
+#endif
     return 0;
 }
 
@@ -510,6 +532,9 @@ void OldNHTFlowCache::export_expired(time_t ts)
 
 bool OldNHTFlowCache::create_hash_key(Packet& pkt)
 {
+#ifdef FLOW_CACHE_STATS
+    auto start = std::chrono::high_resolution_clock::now();
+#endif /* FLOW_CACHE_STATS */
     if (pkt.ip_version == IP::v4) {
         struct flow_key_v4_t* key_v4 = reinterpret_cast<struct flow_key_v4_t*>(m_key);
         struct flow_key_v4_t* key_v4_inv = reinterpret_cast<struct flow_key_v4_t*>(m_key_inv);
@@ -531,6 +556,9 @@ bool OldNHTFlowCache::create_hash_key(Packet& pkt)
         key_v4_inv->vlan_id = pkt.vlan_id;
 
         m_keylen = sizeof(flow_key_v4_t);
+#ifdef FLOW_CACHE_STATS
+        m_copy_time += std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::high_resolution_clock::now() - start).count();
+#endif /* FLOW_CACHE_STATS */
         return true;
     } else if (pkt.ip_version == IP::v6) {
         struct flow_key_v6_t* key_v6 = reinterpret_cast<struct flow_key_v6_t*>(m_key);
@@ -553,6 +581,9 @@ bool OldNHTFlowCache::create_hash_key(Packet& pkt)
         key_v6_inv->vlan_id = pkt.vlan_id;
 
         m_keylen = sizeof(flow_key_v6_t);
+#ifdef FLOW_CACHE_STATS
+        m_copy_time += std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::high_resolution_clock::now() - start).count();
+#endif /* FLOW_CACHE_STATS */
         return true;
     }
 
@@ -571,6 +602,8 @@ void OldNHTFlowCache::print_report()
     std::cout << "Flushed: " << m_flushed << std::endl;
     std::cout << "Average Lookup:  " << tmp << std::endl;
     std::cout << "Variance Lookup: " << float(m_lookups2) / m_hits - tmp * tmp << std::endl;
+    std::cout << "Spent in put_pkt: " << m_put_time << " us" << std::endl;
+    std::cout << "Spent in copying packet to local buffer: " << m_copy_time << " us" << std::endl;
 }
 #endif /* FLOW_CACHE_STATS */
 } // namespace old_cache
