@@ -607,6 +607,8 @@ int NHTFlowCache<NEED_FLOW_CACHE_STATS>::put_pkt(Packet& pkt)
     uint32_t hashval = toeplitzHash(pkt);
     if (!hashval)
         return 0;
+    //std::cerr<< hashval << std::endl;
+
     bool source_flow = true;
 
     /* Get index of flow line. */
