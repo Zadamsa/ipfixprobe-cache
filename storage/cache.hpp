@@ -251,6 +251,8 @@ protected:
 
     static void test_attributes();
     uint32_t toeplitzHash(const Packet& pkt) const noexcept;
+    uint32_t my_hash(Packet& pkt) const noexcept;
+
 };
 template<>
 class NHTFlowCache<true> : public NHTFlowCache<false> {

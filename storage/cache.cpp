@@ -615,25 +615,32 @@ bool NHTFlowCache<NEED_FLOW_CACHE_STATS>::flush_and_update_flow(
 }
 template<bool NEED_FLOW_CACHE_STATS>
 uint32_t NHTFlowCache<NEED_FLOW_CACHE_STATS>::toeplitzHash(const Packet& pkt) const noexcept{
-    uint8_t key[RTE_THASH_V4_L3_LEN] = {0};
+    uint32_t  key[]= {0x11223344, 0x55667788, 0x99AABBCC, 0xDDEEFF00};
     if (pkt.ip_proto == IP::v4){
         rte_ipv4_tuple  orig ;
         orig.src_addr = pkt.src_ip.v4;
         orig.dst_addr = pkt.dst_ip.v4;
         orig.sport = pkt.src_port;
         orig.dport = pkt.dst_port;
-        return rte_softrss((uint32_t*)&orig, RTE_THASH_V4_L3_LEN,key);
+        return rte_softrss((uint32_t*)&orig, RTE_THASH_V4_L3_LEN,(uint8_t*)key);
     }else if (pkt.ip_proto == IP::v6){
         rte_ipv6_tuple orig ;
         memcpy(orig.src_addr, pkt.src_ip.v6,16);
         memcpy(orig.dst_addr, pkt.dst_ip.v6,16);
         orig.sport = pkt.src_port;
         orig.dport = pkt.dst_port;
-        return rte_softrss((uint32_t*)&orig, RTE_THASH_V6_L3_LEN,key);
+        return rte_softrss((uint32_t*)&orig, RTE_THASH_V6_L3_LEN,(uint8_t*)key);
     }
     //rte_thash_tuple targ;
     //rte_thash_load_v6_addrs(&orig, &targ);
     return 666;
+}
+template<bool NEED_FLOW_CACHE_STATS>
+uint32_t NHTFlowCache<NEED_FLOW_CACHE_STATS>::my_hash(Packet& pkt) const noexcept{
+    return  ((((uint8_t*)&pkt.src_ip.v4)[3] << 24) + (((uint8_t*)&pkt.dst_ip.v4)[3] << 16 ) + (((uint8_t*)&pkt.src_port)[1] << 8) +((uint8_t*)&pkt.dst_port)[1]);
+    //auto res = ((res >> 16) ^ res) * 0x45d9f3b;
+    //res = ((res >> 16) ^ res) * 0x45d9f3b;
+    //return res = (res >> 16) ^ res;
 }
 template<bool NEED_FLOW_CACHE_STATS>
 int NHTFlowCache<NEED_FLOW_CACHE_STATS>::put_pkt(Packet& pkt)
@@ -644,8 +651,10 @@ int NHTFlowCache<NEED_FLOW_CACHE_STATS>::put_pkt(Packet& pkt)
         return 0;
     /* Calculates hash value from key created before. */
     //uint64_t hashval = XXH64(m_key, m_keylen, 0);
-    uint32_t hashval = toeplitzHash(pkt);
-    if (!hashval)
+    //uint32_t hashval = toeplitzHash(pkt);
+    //uint32_t hashval = aes(pkt);
+    uint32_t hashval = my_hash(pkt);
+    if (hashval ==666)
         return 0;
     //std::cerr<< hashval << std::endl;
 
