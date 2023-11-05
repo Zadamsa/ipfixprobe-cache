@@ -614,27 +614,11 @@ bool NHTFlowCache<NEED_FLOW_CACHE_STATS>::flush_and_update_flow(
     }
     return false;
 }
-uint32_t rte_softrss_bex(uint32_t *input_tuple, uint32_t input_len,
-const uint8_t *rss_key)
-{
-        uint32_t i, j, ret = 0;
 
-        for (j = 0; j < input_len; j++) {
-            for (i = 0; i < 32; i++) {
-                if (input_tuple[j] & (1 << (31 - i))) {
-                    ret ^= ((const uint32_t *)rss_key)[j] << i |
-                        (uint32_t)((uint64_t)(((const uint32_t *)rss_key)[j + 1]) >> (32 - i));
-                }
-            }
-        }
-    return ret;
-}
 template<bool NEED_FLOW_CACHE_STATS>
 uint32_t NHTFlowCache<NEED_FLOW_CACHE_STATS>::toeplitz_hash(const Packet& pkt) const noexcept{
-    //uint8_t key[RTE_THASH_V4_L3_LEN] = {0};
     rte_thash_tuple tuple = {0};
     if (pkt.ip_version == IP::v4){
-        //rte_ipv4_tuple  orig ;
         if (!m_split_biflow){
             if (pkt.src_ip.v4 <= pkt.dst_ip.v4){
                 tuple.v4.src_addr = pkt.src_ip.v4;
@@ -653,7 +637,7 @@ uint32_t NHTFlowCache<NEED_FLOW_CACHE_STATS>::toeplitz_hash(const Packet& pkt) c
             tuple.v4.sport = pkt.src_port;
             tuple.v4.dport = pkt.dst_port;
         }
-        return rte_softrss_bex((uint32_t*)&tuple.v4, RTE_THASH_V4_L3_LEN,(uint8_t*)m_rss_key);
+        return rte_softrss_be((uint32_t*)&tuple.v4, RTE_THASH_V4_L3_LEN,(uint8_t*)m_rss_key);
     }else if (pkt.ip_version == IP::v6){
         //m_rss_key;
         rte_ipv6_hdr hdr = {0};
@@ -678,25 +662,21 @@ uint32_t NHTFlowCache<NEED_FLOW_CACHE_STATS>::toeplitz_hash(const Packet& pkt) c
             tuple.v6.sport = pkt.src_port;
             tuple.v6.dport = pkt.dst_port;
         }
-        return rte_softrss_bex((uint32_t*)&tuple.v6, RTE_THASH_V6_L3_LEN,(uint8_t*)m_rss_key);
+        return rte_softrss_be((uint32_t*)&tuple.v6, RTE_THASH_V6_L3_LEN,(uint8_t*)m_rss_key);
     }
-    return 666;
+    return 0;
 }
 template<bool NEED_FLOW_CACHE_STATS>
 int NHTFlowCache<NEED_FLOW_CACHE_STATS>::put_pkt(Packet& pkt)
 {
     plugins_pre_create(pkt);
 
-    //if (!create_hash_key(pkt))
-    //    return 0;
-    /* Calculates hash value from key created before. */
-    //uint64_t hashval = XXH64(m_key, m_keylen, 0);
+    /* Calculates hash value. */
     uint32_t hashval = toeplitz_hash(pkt);
 
-    if (hashval == 666)
+    if (!hashval)
         return 0;
     //std::cout<<hashval << std::endl;
-    //std::cerr<< hashval << std::endl;
 
     bool source_flow = true;
 
@@ -709,7 +689,7 @@ int NHTFlowCache<NEED_FLOW_CACHE_STATS>::put_pkt(Packet& pkt)
     uint32_t flow_index = res.second;
 
     /* Find inversed flow. */
-    if (!found && !m_split_biflow) {
+    /*if (!found && !m_split_biflow) {
         //uint64_t hashval_inv = XXH64(m_key_inv, m_keylen, 0);
         uint32_t hashval_inv = toeplitz_hash(pkt);
         uint64_t line_index_inv = hashval_inv & m_line_mask;
@@ -722,7 +702,7 @@ int NHTFlowCache<NEED_FLOW_CACHE_STATS>::put_pkt(Packet& pkt)
             hashval = hashval_inv;
             line_index = line_index_inv;
         }
-    }
+    }*/
 
     /* Existing flow record was found, put flow record at the first index of flow line. */
     if (found) {
