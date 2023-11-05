@@ -41,7 +41,7 @@
 #include <ipfixprobe/options.hpp>
 #include <ipfixprobe/storage.hpp>
 #include <ipfixprobe/utils.hpp>
-
+#include <rte_thash.h>
 namespace ipxp {
 
 template<uint16_t IPSize>
@@ -217,6 +217,8 @@ protected:
     uint32_t m_timeout_idx;
     uint32_t m_active;
     uint32_t m_inactive;
+    static constexpr const uint32_t m_key_size = 10;
+    uint32_t m_rss_key[m_key_size];
     bool m_split_biflow;
     uint8_t m_keylen;
     char m_key[max<size_t>(sizeof(flow_key_v4), sizeof(flow_key_v6))];
@@ -250,7 +252,7 @@ protected:
     virtual void prepare_and_export(uint32_t flow_index, uint32_t reason) noexcept;
 
     static void test_attributes();
-    uint32_t toeplitzHash(const Packet& pkt) const noexcept;
+    uint32_t toeplitz_hash(const Packet& pkt) const noexcept;
 };
 template<>
 class NHTFlowCache<true> : public NHTFlowCache<false> {
