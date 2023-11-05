@@ -614,27 +614,11 @@ bool NHTFlowCache<NEED_FLOW_CACHE_STATS>::flush_and_update_flow(
     }
     return false;
 }
-uint32_t rte_softrss_bex(uint32_t *input_tuple, uint32_t input_len,
-const uint8_t *rss_key)
-{
-        uint32_t i, j, ret = 0;
 
-        for (j = 0; j < input_len; j++) {
-            for (i = 0; i < 32; i++) {
-                if (input_tuple[j] & (1 << (31 - i))) {
-                    ret ^= ((const uint32_t *)rss_key)[j] << i |
-                        (uint32_t)((uint64_t)(((const uint32_t *)rss_key)[j + 1]) >> (32 - i));
-                }
-            }
-        }
-    return ret;
-}
 template<bool NEED_FLOW_CACHE_STATS>
 uint32_t NHTFlowCache<NEED_FLOW_CACHE_STATS>::toeplitz_hash(const Packet& pkt, bool reversed_order) const noexcept{
-    //uint8_t key[RTE_THASH_V4_L3_LEN] = {0};
     rte_thash_tuple tuple = {0};
     if (pkt.ip_version == IP::v4){
-        //rte_ipv4_tuple  orig ;
         if (!reversed_order) {
             tuple.v4.src_addr = pkt.src_ip.v4;
             tuple.v4.dst_addr = pkt.dst_ip.v4;
@@ -646,9 +630,8 @@ uint32_t NHTFlowCache<NEED_FLOW_CACHE_STATS>::toeplitz_hash(const Packet& pkt, b
             tuple.v4.sport = pkt.dst_port;
             tuple.v4.dport = pkt.src_port;
         }
-        return rte_softrss_bex((uint32_t*)&tuple.v4, RTE_THASH_V4_L3_LEN,(uint8_t*)m_rss_key);
+        return rte_softrss_be((uint32_t*)&tuple.v4, RTE_THASH_V4_L3_LEN,(uint8_t*)m_rss_key);
     }else if (pkt.ip_version == IP::v6){
-        //m_rss_key;
         rte_ipv6_hdr hdr = {0};
         if (!reversed_order) {
             memcpy(hdr.src_addr, pkt.src_ip.v6, 16);
@@ -663,27 +646,21 @@ uint32_t NHTFlowCache<NEED_FLOW_CACHE_STATS>::toeplitz_hash(const Packet& pkt, b
             tuple.v6.sport = pkt.dst_port;
             tuple.v6.dport = pkt.src_port;
         }
-        return rte_softrss_bex((uint32_t*)&tuple.v6, RTE_THASH_V6_L3_LEN,(uint8_t*)m_rss_key);
+        return rte_softrss_be((uint32_t*)&tuple.v6, RTE_THASH_V6_L3_LEN,(uint8_t*)m_rss_key);
     }
-    //rte_thash_tuple targ;
-    //rte_thash_load_v6_addrs(&orig, &targ);
-    return 666;
+    return 0;
 }
 template<bool NEED_FLOW_CACHE_STATS>
 int NHTFlowCache<NEED_FLOW_CACHE_STATS>::put_pkt(Packet& pkt)
 {
     plugins_pre_create(pkt);
 
-    //if (!create_hash_key(pkt))
-    //    return 0;
-    /* Calculates hash value from key created before. */
-    //uint64_t hashval = XXH64(m_key, m_keylen, 0);
+    /* Calculates hash . */
     uint32_t hashval = toeplitz_hash(pkt,false);
 
-    if (hashval == 666)
+    if (!hashval)
         return 0;
     //std::cout<<hashval << std::endl;
-    //std::cerr<< hashval << std::endl;
 
     bool source_flow = true;
 
@@ -791,7 +768,7 @@ bool NHTFlowCache<NEED_FLOW_CACHE_STATS>::create_hash_key(const Packet& pkt) noe
 {
     if (pkt.ip_version == IP::v4) {
         auto key_v4 = reinterpret_cast<struct flow_key_v4*>(m_key);
-        auto key_v4_inv = reinterpret_cast<struct flow_key_v4*>(m_key_inv);
+        //auto key_v4_inv = reinterpret_cast<struct flow_key_v4*>(m_key_inv);
         if (m_split_biflow) {
             *key_v4 = pkt;
             //key_v4_inv->save_reversed(pkt);
