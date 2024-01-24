@@ -283,8 +283,22 @@ uint32_t NHTFlowCache::put_into_free_place(
     m_flow_table[flow_new_index] = flow;
     return flow_new_index;
 }
+uint32_t NHTFlowCache::shift_records(
+    uint32_t flow_index,
+    uint32_t line_begin,
+    uint32_t line_end) noexcept
+{
+    prepare_and_export(end_line - 1, FLOW_END_NO_RES);
+    uint32_t flow_new_index = line_begin + m_line_new_idx;
 
-uint32_t NHTFlowCache<true>::put_into_free_place(
+    auto flow = m_flow_table[flow_index];
+    for (decltype(flow_index) j = flow_index; j > flow_new_index; j--)
+        m_flow_table[j] = m_flow_table[j - 1];
+    m_flow_table[flow_new_index] = flow;
+    return flow_new_index;
+}
+
+/*uint32_t NHTFlowCache<true>::put_into_free_place(
     uint32_t flow_index,
     bool empty_place_found,
     uint32_t begin_line,
@@ -299,10 +313,9 @@ uint32_t NHTFlowCache<true>::put_into_free_place(
         empty_place_found,
         begin_line,
         end_line);
-}
+}*/
 
-
-bool NHTFlowCache::process_last_tcp_packet(
+bool NHTFlowCache::tcp_connection_reset(
     Packet& pkt,
     uint32_t flow_index) noexcept
 {
@@ -349,13 +362,7 @@ bool NHTFlowCache::update_flow(
     return false;
 }
 
-
-int NHTFlowCache::insert_pkt(Packet& pkt)
-{
-    plugins_pre_create(pkt);
-
-    if (!create_hash_key(pkt))
-        return 0;
+std::tuple<bool,size_t,size_t,size_t,size_t> NHTFlowCache::find_flow_position(Packet& pkt) noexcept{
     /* Calculates hash value from key created before. */
     uint64_t hashval = XXH64(m_key, m_keylen, 0);
     bool source_flow = true;
@@ -364,59 +371,84 @@ int NHTFlowCache::insert_pkt(Packet& pkt)
     uint32_t line_index = hashval & m_line_mask;
     uint32_t next_line = line_index + m_line_size;
 
-    auto res = find_existing_record(line_index, next_line, hashval);
-    bool found = res.first;
-    uint32_t flow_index = res.second;
+    auto [found,flow_index] = find_existing_record(line_index, next_line, hashval);
+    //bool  = res.first;
+    //uint32_t  = res.second;
 
     /* Find inversed flow. */
     if (!found && !m_split_biflow) {
         uint64_t hashval_inv = XXH64(m_key_inv, m_keylen, 0);
         uint64_t line_index_inv = hashval_inv & m_line_mask;
         uint64_t next_line_inv = line_index_inv + m_line_size;
-        res = find_existing_record(line_index_inv, next_line_inv, hashval_inv);
-        found = res.first;
+        [found,flow_index] = find_existing_record(line_index_inv, next_line_inv, hashval_inv);
+        //found = res.first;
         if (found) {
-            flow_index = res.second;
+            //flow_index = res.second;
             source_flow = false;
             hashval = hashval_inv;
             line_index = line_index_inv;
         }
     }
-
-    /* Existing flow record was found, put flow record at the first index of flow line. */
-    if (found) {
-        flow_index = enhance_existing_flow_record(flow_index, line_index);
-        /* Existing flow record was not found. Find free place in flow line or replace some existing
-         * record. */
-    } else {
-        res = find_empty_place(line_index, next_line);
-        bool empty_place_found = res.first;
-        flow_index = res.second;
-        flow_index = put_into_free_place(flow_index, empty_place_found, line_index, next_line);
-    }
-
     pkt.source_pkt = source_flow;
-    if (process_last_tcp_packet(pkt, flow_index))
+    return {found,line_index,flow_index,next_line,hashval};
+
+}
+size_t make_place_for_record(line_index, next_line) noexcept{
+    /* Existing flow record was not found. Find free place in flow line or replace some existing
+         * record. */
+    auto [empty_place_found,flow_index] = find_empty_place(line_index, next_line);
+    //bool empty_place_found = res.first;
+    //flow_index = res.second;
+    if (empty_place_found){
+        m_empty++;
+    }else{
+        m_not_empty++;
+        flow_index = shift_records(flow_index,line_index,next_line);
+    }
+    return flow_index;
+    //put_into_free_place(flow_index, empty_place_found, line_index, next_line);
+}
+int NHTFlowCache::insert_pkt(Packet& pkt)
+{
+    plugins_pre_create(pkt);
+
+    if (!create_hash_key(pkt))
+        return 0;
+    auto [record_found,line_index,flow_index,next_line] = find_flow_position(pkt);
+    /* Existing flow record was found, put flow record at the first index of flow line. */
+    flow_index = record_found ? enhance_existing_flow_record(flow_index, line_index) : make_place_for_record(line_index, next_line);
+    /*if (found)
+        flow_index = enhance_existing_flow_record(flow_index, line_index);
+    else
+        flow_index = make_place_for_record(line_index, next_line);*/
+
+    if (tcp_connection_reset(pkt, flow_index))
         return 0;
 
     if (m_flow_table[flow_index]->is_empty())
         create_new_flow(flow_index, pkt, hashval);
     else {
-        /* Check if flow record is expired (inactive timeout). */
-        if (pkt.ts.tv_sec - m_flow_table[flow_index]->m_flow.time_last.tv_sec >= m_inactive) {
-            prepare_and_export(flow_index);
+        /*Checks active and inactive timeouts*/
+        if (timeouts_expired(pkt,flow_index))
             return insert_pkt(pkt);
-        }
-        /* Check if flow record is expired (active timeout). */
-        if (pkt.ts.tv_sec - m_flow_table[flow_index]->m_flow.time_first.tv_sec >= m_active) {
-            prepare_and_export(flow_index, FLOW_END_ACTIVE);
-            return insert_pkt(pkt);
-        }
-        if (flush_and_update_flow(flow_index, pkt))
+        if (update_flow(flow_index, pkt))
             return 0;
     }
     export_expired(pkt.ts.tv_sec);
     return 0;
+}
+bool NHTFlowCache::timeouts_expired(Packet& pkt,size_t flow_index) noexcept{
+    /* Check if flow record is expired (inactive timeout). */
+    if (pkt.ts.tv_sec - m_flow_table[flow_index]->m_flow.time_last.tv_sec >= m_inactive) {
+        prepare_and_export(flow_index, has_tcp_eof_flags(m_flow_table[flow_index]->m_flow) ? ipxp::FlowEndReason::FLOW_END_EOF : ipxp::FlowEndReason::FLOW_END_INACTIVE);
+        return true;
+    }
+    /* Check if flow record is expired (active timeout). */
+    if (pkt.ts.tv_sec - m_flow_table[flow_index]->m_flow.time_first.tv_sec >= m_active) {
+        prepare_and_export(flow_index, FLOW_END_ACTIVE);
+        return true;
+    }
+    return false;
 }
 
 int NHTFlowCache::put_pkt(Packet& pkt)
@@ -428,23 +460,26 @@ int NHTFlowCache::put_pkt(Packet& pkt)
                       .count();
     return res;
 }
-
-uint8_t NHTFlowCache::get_export_reason(Flow& flow)
+static bool NHTFlowCache::has_tcp_eof_flags(const Flow& flow) noexcept{
+    // When FIN or RST is set, TCP connection ended naturally
+    return (flow.src_tcp_flags | flow.dst_tcp_flags) & (0x01 | 0x04);
+}
+/*uint8_t NHTFlowCache::get_export_reason(Flow& flow)
 {
     if ((flow.src_tcp_flags | flow.dst_tcp_flags) & (0x01 | 0x04)) {
-        // When FIN or RST is set, TCP connection ended naturally
+
         return ipxp::FlowEndReason::FLOW_END_EOF;
     } else {
         return ipxp::FlowEndReason::FLOW_END_INACTIVE;
     }
-}
+}*/
 
 void NHTFlowCache::export_expired(time_t ts)
 {
-    for (decltype(m_timeout_idx) i = m_timeout_idx; i < m_timeout_idx + m_line_new_idx; i++) {
+    for (size_t m_timeout_idx i = m_timeout_idx; i < m_timeout_idx + m_line_new_idx; i++) {
         if (!m_flow_table[i]->is_empty()
             && ts - m_flow_table[i]->m_flow.time_last.tv_sec >= m_inactive) {
-            prepare_and_export(i);
+            prepare_and_export(i, has_tcp_eof_flags(m_flow_table[flow_index]->m_flow) ? ipxp::FlowEndReason::FLOW_END_EOF : ipxp::FlowEndReason::FLOW_END_INACTIVE);
         }
     }
     m_timeout_idx = (m_timeout_idx + m_line_new_idx) & (m_cache_size - 1);
@@ -454,21 +489,21 @@ void NHTFlowCache::export_expired(time_t ts)
 bool NHTFlowCache::create_hash_key(const Packet& pkt) noexcept
 {
     if (pkt.ip_version == IP::v4) {
-        auto key_v4 = reinterpret_cast<struct flow_key_v4*>(m_key);
-        auto key_v4_inv = reinterpret_cast<struct flow_key_v4*>(m_key_inv);
+        auto key_v4 = reinterpret_cast<FlowKeyV4*>(m_key);
+        auto key_v4_inv = reinterpret_cast<FlowKeyV4*>(m_key_inv);
 
         *key_v4 = pkt;
         key_v4_inv->save_reversed(pkt);
-        m_keylen = sizeof(flow_key_v4);
+        m_keylen = sizeof(FlowKeyV4);
         return true;
     }
     if (pkt.ip_version == IP::v6) {
-        auto key_v6 = reinterpret_cast<struct flow_key_v6*>(m_key);
-        auto key_v6_inv = reinterpret_cast<struct flow_key_v6*>(m_key_inv);
+        auto key_v6 = reinterpret_cast<struct FlowKeyV6*>(m_key);
+        auto key_v6_inv = reinterpret_cast<struct FlowKeyV6*>(m_key_inv);
 
         *key_v6 = pkt;
         key_v6_inv->save_reversed(pkt);
-        m_keylen = sizeof(flow_key_v6);
+        m_keylen = sizeof(FlowKeyV6);
         return true;
     }
     return false;
