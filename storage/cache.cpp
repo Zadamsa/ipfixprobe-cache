@@ -61,14 +61,14 @@ std::string NHTFlowCache::get_name() const noexcept {
 NHTFlowCache::NHTFlowCache()
 {
     test_attributes();
-    //std::thread periodic_statistics([this](){this->export_periodic_statistics(std::cout);});
+    m_statistics_thread = std::make_unique<std::thread>(&NHTFlowCache::export_periodic_statistics,this,std::ref(std::cout));
 }
 
 NHTFlowCache::~NHTFlowCache()
 {
     *m_exit = true;
+    m_statistics_thread->join();
     print_report();
-    close();
 }
 void NHTFlowCache::test_attributes()
 {
@@ -97,8 +97,8 @@ void NHTFlowCache::get_opts_from_parser(const CacheOptParser& parser)
 }
 void NHTFlowCache::allocate_tables(){
     try {
-        m_flow_table = std::unique_ptr<FlowRecord*[]>(new FlowRecord*[m_cache_size + m_qsize]);
-        m_flow_records = std::unique_ptr<FlowRecord[]>(new FlowRecord[m_cache_size + m_qsize]);
+        m_flow_table.resize(m_cache_size + m_qsize);
+        m_flow_records.resize(m_cache_size + m_qsize);
         for (decltype(m_cache_size + m_qsize) i = 0; i < m_cache_size + m_qsize; i++) {
             m_flow_table[i] = &m_flow_records[i];
         }
@@ -130,12 +130,6 @@ void NHTFlowCache::init(const char* params)
         throw PluginError("flow cache won't properly work with 0 records");
     }
     allocate_tables();
-}
-
-void NHTFlowCache::close()
-{
-    m_flow_records.reset();
-    m_flow_table.reset();
 }
 
 void NHTFlowCache::set_queue(ipx_ring_t* queue)
@@ -177,7 +171,6 @@ void NHTFlowCache::flush(
     m_statistics.m_flushed++;
     if (ret == FLOW_FLUSH_WITH_REINSERT) {
         FlowRecord* flow = m_flow_table[flow_index];
-        //flow->m_flow.end_reason = FLOW_END_FORCED;
         flow->m_flow.end_reason = reason;
         ipx_ring_push(m_export_queue, &flow->m_flow);
 
@@ -348,11 +341,6 @@ int NHTFlowCache::insert_pkt(Packet& pkt) noexcept
     auto [record_found,line_index,flow_index,next_line,hashval] = find_flow_position(pkt);
     /* Existing flow record was found, put flow record at the first index of flow line. */
     flow_index = record_found ? enhance_existing_flow_record(flow_index, line_index) : make_place_for_record(line_index, next_line);
-    /*if (found)
-        flow_index = enhance_existing_flow_record(flow_index, line_index);
-    else
-        flow_index = make_place_for_record(line_index, next_line);*/
-
     if (tcp_connection_reset(pkt, flow_index))
         return 0;
 
@@ -433,11 +421,14 @@ bool NHTFlowCache::create_hash_key(const Packet& pkt) noexcept
 
 void NHTFlowCache::print_report() const noexcept
 {
-    if (m_statistics.m_hits)
+    if (m_statistics.m_hits){
+        std::cout << "==================================================================\nTOTAL\n";
         std::cout << m_statistics;
+    }
+
 }
 void NHTFlowCache::export_periodic_statistics(std::ostream& stream) noexcept{
-    while(!m_exit){
+    while(!*m_exit){
         std::this_thread::sleep_for(m_periodic_statistics_sleep_time);
         stream << m_statistics - m_last_statistics;
         m_last_statistics = m_statistics;

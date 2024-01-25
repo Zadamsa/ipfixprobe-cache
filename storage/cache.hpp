@@ -39,7 +39,7 @@
 #include <chrono>
 
 #include <ipfixprobe/flowifc.hpp>
-#include <ipfixprobe/options.hpp>
+
 #include <ipfixprobe/storage.hpp>
 #include <ipfixprobe/utils.hpp>
 #include "flowkeyv4.hpp"
@@ -51,25 +51,12 @@
 
 namespace ipxp {
 
-#ifdef IPXP_FLOW_CACHE_SIZE
-static const uint32_t DEFAULT_FLOW_CACHE_SIZE = IPXP_FLOW_CACHE_SIZE;
-#else
-static const uint32_t DEFAULT_FLOW_CACHE_SIZE = 17; // 131072 records total
-#endif /* IPXP_FLOW_CACHE_SIZE */
-
-#ifdef IPXP_FLOW_LINE_SIZE
-static const uint32_t DEFAULT_FLOW_LINE_SIZE = IPXP_FLOW_LINE_SIZE;
-#else
-static const uint32_t DEFAULT_FLOW_LINE_SIZE = 4; // 16 records per line
-#endif /* IPXP_FLOW_LINE_SIZE */
-
 using namespace std::chrono_literals;
 class NHTFlowCache : public StoragePlugin {
 public:
     NHTFlowCache();
     ~NHTFlowCache() override;
     void init(const char* params) override;
-    void close() override;
     void set_queue(ipx_ring_t* queue) override;
     OptionsParser* get_parser() const;
     std::string get_name() const noexcept;
@@ -90,16 +77,17 @@ private:
     uint8_t m_keylen = 0;
     uint8_t m_key[max<size_t>(sizeof(FlowKeyV4), sizeof(FlowKeyV6))];
     uint8_t m_key_inv[max<size_t>(sizeof(FlowKeyV4), sizeof(FlowKeyV6))];
-    std::unique_ptr<FlowRecord*[]> m_flow_table = nullptr;
-    std::unique_ptr<FlowRecord[]> m_flow_records = nullptr;
+    std::vector<FlowRecord*> m_flow_table;
+    std::vector<FlowRecord> m_flow_records;
     CacheStatistics m_statistics = {},m_last_statistics = {};
     bool* m_exit = new bool{false};
     const std::chrono::duration<double> m_periodic_statistics_sleep_time = 1s;
+    std::unique_ptr<std::thread> m_statistics_thread;
 
     void allocate_tables();
-    void export_periodic_statistics(std::ostream& stream) const noexcept;
+    void export_periodic_statistics(std::ostream& stream) noexcept;
     void flush(Packet& pkt,size_t flow_index,int ret,bool source_flow,FlowEndReason reason) noexcept;
-    uint32_t shift_records(uint32_t flow_index,uint32_t line_begin,uint32_t line_end) noexcept;
+    uint32_t shift_records(uint32_t line_begin,uint32_t line_end) noexcept;
     bool tcp_connection_reset(Packet& pkt,uint32_t flow_index) noexcept;
     void create_new_flow(uint32_t flow_index,Packet& pkt,uint64_t hashval) noexcept;
     bool update_flow(uint32_t flow_index,Packet& pkt) noexcept;
@@ -115,23 +103,11 @@ private:
     void finish() override;
     void get_opts_from_parser(const CacheOptParser& parser);
 
-    std::pair<bool, uint32_t>
-    find_existing_record(uint32_t begin_line, uint32_t end_line, uint64_t hashval) const noexcept;
-    virtual uint32_t
-    enhance_existing_flow_record(uint32_t flow_index, uint32_t line_index) noexcept;
-    std::pair<bool, uint32_t>
-    find_empty_place(uint32_t begin_line, uint32_t end_line) const noexcept;
-    virtual uint32_t put_into_free_place(
-        uint32_t flow_index,
-        bool empty_place_found,
-        uint32_t begin_line,
-        uint32_t end_line) noexcept;
-
+    std::pair<bool, uint32_t> find_existing_record(uint32_t begin_line, uint32_t end_line, uint64_t hashval) const noexcept;
+    virtual uint32_t enhance_existing_flow_record(uint32_t flow_index, uint32_t line_index) noexcept;
+    std::pair<bool, uint32_t> find_empty_place(uint32_t begin_line, uint32_t end_line) const noexcept;
     bool process_last_tcp_packet(Packet& pkt, uint32_t flow_index) noexcept;
-    //virtual bool create_new_flow(uint32_t flow_index, Packet& pkt, uint64_t hashval) noexcept;
-    virtual bool flush_and_update_flow(uint32_t flow_index, Packet& pkt) noexcept;
-    virtual void prepare_and_export(uint32_t flow_index) noexcept;
-    virtual void prepare_and_export(uint32_t flow_index, uint32_t reason) noexcept;
+    void prepare_and_export(uint32_t flow_index, FlowEndReason reason) noexcept;
 
     static void test_attributes();
 };
