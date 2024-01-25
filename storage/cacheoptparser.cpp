@@ -2,13 +2,12 @@
 // Created by zaida on 24.01.2024.
 //
 
-#include "CacheOptParser.hpp"
+#include "cacheoptparser.hpp"
+#include <ipfixprobe/utils.hpp>
+#include <ipfixprobe/plugin.hpp>
 namespace ipxp {
 CacheOptParser::CacheOptParser()
         : OptionsParser("cache", "Storage plugin implemented as a hash table")
-        , m_cache_size(1 << DEFAULT_FLOW_CACHE_SIZE)
-        , m_line_size(1 << DEFAULT_FLOW_LINE_SIZE)
-        , m_split_biflow(false)
         {
             register_option(
                 "s",
