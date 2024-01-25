@@ -2,7 +2,7 @@
 // Created by zaida on 24.01.2024.
 //
 
-#include "FlowKey.hpp"
+#include "flowkey.hpp"
 
 namespace ipxp {
 template<uint16_t IPSize>
@@ -23,4 +23,5 @@ FlowKey<IPSize>& FlowKey<IPSize>::save_reversed(const Packet& pkt) noexcept
     dst_port = pkt.src_port;
     return *this;
 }
+//template<> FlowKey<4>& FlowKey<4>::operator=(const Packet& pkt) noexcept;
 } // namespace ipxp
