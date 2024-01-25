@@ -35,12 +35,19 @@
 #include <memory>
 #include <optional>
 #include <string>
-
 #include <array>
+#include <chrono>
+
 #include <ipfixprobe/flowifc.hpp>
 #include <ipfixprobe/options.hpp>
 #include <ipfixprobe/storage.hpp>
 #include <ipfixprobe/utils.hpp>
+#include "flowkeyv4.hpp"
+#include "flowkeyv6.hpp"
+#include "flowrecord.hpp"
+#include "cachestatistics.hpp"
+#include "cacheoptparser.hpp"
+#include "flowendreason.hpp"
 
 namespace ipxp {
 
@@ -56,6 +63,7 @@ static const uint32_t DEFAULT_FLOW_LINE_SIZE = IPXP_FLOW_LINE_SIZE;
 static const uint32_t DEFAULT_FLOW_LINE_SIZE = 4; // 16 records per line
 #endif /* IPXP_FLOW_LINE_SIZE */
 
+using namespace std::chrono_literals;
 class NHTFlowCache : public StoragePlugin {
 public:
     NHTFlowCache();
@@ -65,34 +73,42 @@ public:
     void set_queue(ipx_ring_t* queue) override;
     OptionsParser* get_parser() const;
     std::string get_name() const noexcept;
-
     int put_pkt(Packet& pkt) override;
     void export_expired(time_t ts) override;
-
-protected:
-    uint32_t m_cache_size;
-    uint32_t m_line_size;
-    uint32_t m_line_mask;
-    uint32_t m_line_new_idx;
-    uint32_t m_qsize;
-    uint32_t m_qidx;
-    uint32_t m_timeout_idx;
-    uint32_t m_active;
-    uint32_t m_inactive;
-    bool m_split_biflow;
-    uint8_t m_keylen;
-    uint8_t m_key[max<size_t>(sizeof(flow_key_v4), sizeof(flow_key_v6))];
-    uint8_t m_key_inv[max<size_t>(sizeof(flow_key_v4), sizeof(flow_key_v6))];
-    std::unique_ptr<FlowRecord*[]> m_flow_table;
-    std::unique_ptr<FlowRecord[]> m_flow_records;
-    CacheStatistics m_statistics{0},m_last_statistics{0};
-    bool* m_exit = new bool;
-    const float m_periodic_statistics_sleep_time = 1;
-
-
+    void print_report() const noexcept;
+private:
+    uint32_t m_cache_size = 0;
+    uint32_t m_line_size = 0;
+    uint32_t m_line_mask = 0;
+    uint32_t m_line_new_idx = 0;
+    uint32_t m_qsize = 0;
+    uint32_t m_qidx = 0;
+    uint32_t m_timeout_idx = 0;
+    uint32_t m_active = 0;
+    uint32_t m_inactive = 0;
+    bool m_split_biflow = false;
+    uint8_t m_keylen = 0;
+    uint8_t m_key[max<size_t>(sizeof(FlowKeyV4), sizeof(FlowKeyV6))];
+    uint8_t m_key_inv[max<size_t>(sizeof(FlowKeyV4), sizeof(FlowKeyV6))];
+    std::unique_ptr<FlowRecord*[]> m_flow_table = nullptr;
+    std::unique_ptr<FlowRecord[]> m_flow_records = nullptr;
+    CacheStatistics m_statistics = {},m_last_statistics = {};
+    bool* m_exit = new bool{false};
+    const std::chrono::duration<double> m_periodic_statistics_sleep_time = 1s;
 
     void allocate_tables();
-    void flush(Packet& pkt, size_t flow_index, int ret, bool source_flow);
+    void export_periodic_statistics(std::ostream& stream) const noexcept;
+    void flush(Packet& pkt,size_t flow_index,int ret,bool source_flow,FlowEndReason reason) noexcept;
+    uint32_t shift_records(uint32_t flow_index,uint32_t line_begin,uint32_t line_end) noexcept;
+    bool tcp_connection_reset(Packet& pkt,uint32_t flow_index) noexcept;
+    void create_new_flow(uint32_t flow_index,Packet& pkt,uint64_t hashval) noexcept;
+    bool update_flow(uint32_t flow_index,Packet& pkt) noexcept;
+    uint32_t make_place_for_record(uint32_t line_index,uint32_t  next_line) noexcept;
+    std::tuple<bool,size_t,size_t,size_t,size_t> find_flow_position(Packet& pkt) noexcept;
+    int insert_pkt(Packet& pkt) noexcept;
+    bool timeouts_expired(Packet& pkt,size_t flow_index) noexcept;
+    static bool has_tcp_eof_flags(const Flow& flow) noexcept;
+
     bool create_hash_key(const Packet& pkt) noexcept;
     void export_flow(size_t index);
     static uint8_t get_export_reason(Flow& flow);
@@ -112,7 +128,7 @@ protected:
         uint32_t end_line) noexcept;
 
     bool process_last_tcp_packet(Packet& pkt, uint32_t flow_index) noexcept;
-    virtual bool create_new_flow(uint32_t flow_index, Packet& pkt, uint64_t hashval) noexcept;
+    //virtual bool create_new_flow(uint32_t flow_index, Packet& pkt, uint64_t hashval) noexcept;
     virtual bool flush_and_update_flow(uint32_t flow_index, Packet& pkt) noexcept;
     virtual void prepare_and_export(uint32_t flow_index) noexcept;
     virtual void prepare_and_export(uint32_t flow_index, uint32_t reason) noexcept;
