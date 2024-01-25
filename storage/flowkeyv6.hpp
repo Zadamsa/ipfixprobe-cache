@@ -5,6 +5,8 @@
 #ifndef IPFIXPROBE_CACHE_FLOW_KEY_V6_H
 #define IPFIXPROBE_CACHE_FLOW_KEY_V6_H
 
+#include "flowkey.hpp"
+
 namespace ipxp {
 
 struct __attribute__((packed)) FlowKeyV6 : public FlowKey<16> {
