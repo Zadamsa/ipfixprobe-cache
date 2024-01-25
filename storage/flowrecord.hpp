@@ -18,11 +18,11 @@ public:
     void erase();
     void reuse();
 
-    inline __attribute__((always_inline)) bool FlowRecord::is_empty() const
+    inline __attribute__((always_inline)) bool is_empty() const
     {
         return m_hash == 0;
     }
-    inline __attribute__((always_inline)) bool FlowRecord::belongs(uint64_t hash) const
+    inline __attribute__((always_inline)) bool belongs(uint64_t hash) const
     {
         return hash == m_hash;
     }
