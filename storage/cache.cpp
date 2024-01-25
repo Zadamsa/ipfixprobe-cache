@@ -29,9 +29,6 @@
  *
  *
  */
-
-#include "cache.hpp"
-#include "xxhash.h"
 #include <chrono>
 #include <cstdlib>
 #include <cstring>
@@ -40,13 +37,16 @@
 #include <iostream>
 #include <ipfixprobe/ring.h>
 #include <sys/time.h>
+#include <thread>
+#include "cache.hpp"
+#include "xxhash.h"
+#include "flowendreason.hpp"
 
 namespace ipxp {
 
 __attribute__((constructor)) static void register_this_plugin() noexcept
 {
-    static PluginRecord rec
-        = PluginRecord("cache", []() { return new NHTFlowCache<PRINT_FLOW_CACHE_STATS>(); });
+    static PluginRecord rec = PluginRecord("cache", []() { return new NHTFlowCache(); });
     register_plugin(&rec);
 }
 
@@ -59,31 +59,17 @@ std::string NHTFlowCache::get_name() const noexcept {
 
 
 NHTFlowCache::NHTFlowCache()
-    : m_cache_size(0)
-    , m_line_size(0)
-    , m_line_mask(0)
-    , m_line_new_idx(0)
-    , m_qsize(0)
-    , m_qidx(0)
-    , m_timeout_idx(0)
-    , m_active(0)
-    , m_inactive(0)
-    , m_split_biflow(false)
-    , m_keylen(0)
-    , m_key()
-    , m_key_inv()
-    , m_flow_table(nullptr)
-    , m_flow_records(nullptr)
 {
     test_attributes();
+    //std::thread periodic_statistics([this](){this->export_periodic_statistics(std::cout);});
 }
 
 NHTFlowCache::~NHTFlowCache()
 {
+    *m_exit = true;
     print_report();
     close();
 }
-
 void NHTFlowCache::test_attributes()
 {
     static_assert(
@@ -169,26 +155,16 @@ void NHTFlowCache::export_flow(size_t index)
 
 void NHTFlowCache::finish()
 {
-    for (size_t m_cache_size i = 0; i < m_cache_size; i++)
+    for (size_t i = 0; i < m_cache_size; i++)
         if (!m_flow_table[i]->is_empty())
             prepare_and_export(i, ipxp::FlowEndReason::FLOW_END_CACHE_SHUTDOWN);
 }
 
-
-void NHTFlowCache::prepare_and_export(uint32_t flow_index) noexcept
-{
-    plugins_pre_export(m_flow_table[flow_index]->m_flow);
-    m_flow_table[flow_index]->m_flow.end_reason = get_export_reason(m_flow_table[flow_index]->m_flow);
-    export_flow(flow_index);
-    m_expired++;
-}
-
-
-void NHTFlowCache::prepare_and_export( uint32_t flow_index, uint32_t reason) noexcept{
+void NHTFlowCache::prepare_and_export( uint32_t flow_index, FlowEndReason reason) noexcept{
     plugins_pre_export(m_flow_table[flow_index]->m_flow);
     m_flow_table[flow_index]->m_flow.end_reason = reason;
     export_flow(flow_index);
-    m_expired++;
+    m_statistics.m_expired++;
 }
 
 void NHTFlowCache::flush(
@@ -196,9 +172,9 @@ void NHTFlowCache::flush(
     size_t flow_index,
     int ret,
     bool source_flow,
-    FlowEndReason reason)
+    FlowEndReason reason) noexcept
 {
-    m_flushed++;
+    m_statistics.m_flushed++;
     if (ret == FLOW_FLUSH_WITH_REINSERT) {
         FlowRecord* flow = m_flow_table[flow_index];
         //flow->m_flow.end_reason = FLOW_END_FORCED;
@@ -242,9 +218,9 @@ uint32_t NHTFlowCache::enhance_existing_flow_record(
     uint32_t flow_index,
     uint32_t line_index) noexcept
 {
-    m_lookups += (flow_index - line_index + 1);
-    m_lookups2 += (flow_index - line_index + 1) * (flow_index - line_index + 1);
-    m_hits++;
+    m_statistics.m_lookups += (flow_index - line_index + 1);
+    m_statistics.m_lookups2 += (flow_index - line_index + 1) * (flow_index - line_index + 1);
+    m_statistics.m_hits++;
 
     auto flow = m_flow_table[flow_index];
     for (decltype(flow_index) j = flow_index; j > line_index; j--) {
@@ -266,56 +242,19 @@ std::pair<bool, uint32_t> NHTFlowCache::find_empty_place(
     return {false, 0};
 }
 
-/*uint32_t NHTFlowCache::put_into_free_place(
-    uint32_t flow_index,
-    bool empty_place_found,
-    uint32_t begin_line,
-    uint32_t end_line) noexcept
-{*/
-    /* If free place was not found (flow line is full), find
-     * record which will be replaced by new record. */
-   /* if (empty_place_found)
-        return flow_index;
-    prepare_and_export(end_line - 1, FLOW_END_NO_RES);
-    uint32_t flow_new_index = begin_line + m_line_new_idx;
-
-    auto flow = m_flow_table[flow_index];
-    for (decltype(flow_index) j = flow_index; j > flow_new_index; j--)
-        m_flow_table[j] = m_flow_table[j - 1];
-    m_flow_table[flow_new_index] = flow;
-    return flow_new_index;
-}*/
 uint32_t NHTFlowCache::shift_records(
-    uint32_t flow_index,
     uint32_t line_begin,
     uint32_t line_end) noexcept
 {
-    prepare_and_export(end_line - 1, FlowEndReason::FLOW_END_NO_ROW_SPACE);
+    prepare_and_export(line_end - 1, FlowEndReason::FLOW_END_NO_ROW_SPACE);
     uint32_t flow_new_index = line_begin + m_line_new_idx;
 
-    auto flow = m_flow_table[flow_index];
-    for (decltype(flow_index) j = flow_index; j > flow_new_index; j--)
+    auto flow = m_flow_table[line_end - 1];
+    for (uint32_t j = line_end - 1; j > flow_new_index; j--)
         m_flow_table[j] = m_flow_table[j - 1];
     m_flow_table[flow_new_index] = flow;
     return flow_new_index;
 }
-
-/*uint32_t NHTFlowCache<true>::put_into_free_place(
-    uint32_t flow_index,
-    bool empty_place_found,
-    uint32_t begin_line,
-    uint32_t end_line) noexcept
-{
-    if (empty_place_found)
-        m_empty++;
-    else
-        m_not_empty++;
-    return NHTFlowCache<false>::put_into_free_place(
-        flow_index,
-        empty_place_found,
-        begin_line,
-        end_line);
-}*/
 
 bool NHTFlowCache::tcp_connection_reset(
     Packet& pkt,
@@ -342,7 +281,7 @@ void NHTFlowCache::create_new_flow(
     m_flow_table[flow_index]->create(pkt, hashval);
     if ( plugins_post_create(m_flow_table[flow_index]->m_flow, pkt) & FLOW_FLUSH) {
         export_flow(flow_index);
-        m_flushed++;
+        m_statistics.m_flushed++;
     }
 }
 
@@ -368,24 +307,17 @@ std::tuple<bool,size_t,size_t,size_t,size_t> NHTFlowCache::find_flow_position(Pa
     /* Calculates hash value from key created before. */
     uint64_t hashval = XXH64(m_key, m_keylen, 0);
     bool source_flow = true;
-
-    /* Get index of flow line. */
     uint32_t line_index = hashval & m_line_mask;
     uint32_t next_line = line_index + m_line_size;
-
     auto [found,flow_index] = find_existing_record(line_index, next_line, hashval);
-    //bool  = res.first;
-    //uint32_t  = res.second;
 
     /* Find inversed flow. */
     if (!found && !m_split_biflow) {
         uint64_t hashval_inv = XXH64(m_key_inv, m_keylen, 0);
         uint64_t line_index_inv = hashval_inv & m_line_mask;
         uint64_t next_line_inv = line_index_inv + m_line_size;
-        [found,flow_index] = find_existing_record(line_index_inv, next_line_inv, hashval_inv);
-        //found = res.first;
+        std::tie(found,flow_index) = find_existing_record(line_index_inv, next_line_inv, hashval_inv);
         if (found) {
-            //flow_index = res.second;
             source_flow = false;
             hashval = hashval_inv;
             line_index = line_index_inv;
@@ -395,28 +327,25 @@ std::tuple<bool,size_t,size_t,size_t,size_t> NHTFlowCache::find_flow_position(Pa
     return {found,line_index,flow_index,next_line,hashval};
 
 }
-size_t make_place_for_record(line_index, next_line) noexcept{
+uint32_t NHTFlowCache::make_place_for_record(uint32_t line_index,uint32_t  next_line) noexcept{
     /* Existing flow record was not found. Find free place in flow line or replace some existing
          * record. */
     auto [empty_place_found,flow_index] = find_empty_place(line_index, next_line);
-    //bool empty_place_found = res.first;
-    //flow_index = res.second;
     if (empty_place_found){
-        m_empty++;
+        m_statistics.m_empty++;
     }else{
-        m_not_empty++;
-        flow_index = shift_records(flow_index,line_index,next_line);
+        m_statistics.m_not_empty++;
+        flow_index = shift_records(line_index,next_line);
     }
     return flow_index;
-    //put_into_free_place(flow_index, empty_place_found, line_index, next_line);
 }
-int NHTFlowCache::insert_pkt(Packet& pkt)
+int NHTFlowCache::insert_pkt(Packet& pkt) noexcept
 {
     plugins_pre_create(pkt);
 
     if (!create_hash_key(pkt))
         return 0;
-    auto [record_found,line_index,flow_index,next_line] = find_flow_position(pkt);
+    auto [record_found,line_index,flow_index,next_line,hashval] = find_flow_position(pkt);
     /* Existing flow record was found, put flow record at the first index of flow line. */
     flow_index = record_found ? enhance_existing_flow_record(flow_index, line_index) : make_place_for_record(line_index, next_line);
     /*if (found)
@@ -442,12 +371,12 @@ int NHTFlowCache::insert_pkt(Packet& pkt)
 bool NHTFlowCache::timeouts_expired(Packet& pkt,size_t flow_index) noexcept{
     /* Check if flow record is expired (inactive timeout). */
     if (pkt.ts.tv_sec - m_flow_table[flow_index]->m_flow.time_last.tv_sec >= m_inactive) {
-        prepare_and_export(flow_index, has_tcp_eof_flags(m_flow_table[flow_index]->m_flow) ? ipxp::FlowEndReason::FLOW_END_EOF : ipxp::FlowEndReason::FLOW_END_INACTIVE);
+        prepare_and_export(flow_index, has_tcp_eof_flags(m_flow_table[flow_index]->m_flow) ? FlowEndReason::FLOW_END_TCP_EOF : FlowEndReason::FLOW_END_INACTIVE_TIMEOUT);
         return true;
     }
     /* Check if flow record is expired (active timeout). */
     if (pkt.ts.tv_sec - m_flow_table[flow_index]->m_flow.time_first.tv_sec >= m_active) {
-        prepare_and_export(flow_index, FLOW_END_ACTIVE);
+        prepare_and_export(flow_index, FlowEndReason::FLOW_END_ACTIVE_TIMEOUT);
         return true;
     }
     return false;
@@ -457,37 +386,28 @@ int NHTFlowCache::put_pkt(Packet& pkt)
 {
     auto start = std::chrono::high_resolution_clock::now();
     auto res = insert_pkt(pkt);
-    m_put_time += std::chrono::duration_cast<std::chrono::microseconds>(
+    m_statistics.m_put_time += std::chrono::duration_cast<std::chrono::microseconds>(
                       std::chrono::high_resolution_clock::now() - start)
                       .count();
     return res;
 }
-static bool NHTFlowCache::has_tcp_eof_flags(const Flow& flow) noexcept{
+bool NHTFlowCache::has_tcp_eof_flags(const Flow& flow) noexcept{
     // When FIN or RST is set, TCP connection ended naturally
     return (flow.src_tcp_flags | flow.dst_tcp_flags) & (0x01 | 0x04);
 }
-/*uint8_t NHTFlowCache::get_export_reason(Flow& flow)
-{
-    if ((flow.src_tcp_flags | flow.dst_tcp_flags) & (0x01 | 0x04)) {
-
-        return ipxp::FlowEndReason::FLOW_END_EOF;
-    } else {
-        return ipxp::FlowEndReason::FLOW_END_INACTIVE;
-    }
-}*/
 
 void NHTFlowCache::export_expired(time_t ts)
 {
-    for (size_t m_timeout_idx i = m_timeout_idx; i < m_timeout_idx + m_line_new_idx; i++) {
+    for (uint32_t i = m_timeout_idx; i < m_timeout_idx + m_line_new_idx; i++) {
         if (!m_flow_table[i]->is_empty()
             && ts - m_flow_table[i]->m_flow.time_last.tv_sec >= m_inactive) {
-            prepare_and_export(i, has_tcp_eof_flags(m_flow_table[flow_index]->m_flow) ? ipxp::FlowEndReason::FLOW_END_EOF : ipxp::FlowEndReason::FLOW_END_INACTIVE);
+            prepare_and_export(i, has_tcp_eof_flags(m_flow_table[i]->m_flow) ? ipxp::FlowEndReason::FLOW_END_TCP_EOF : ipxp::FlowEndReason::FLOW_END_INACTIVE_TIMEOUT);
         }
     }
     m_timeout_idx = (m_timeout_idx + m_line_new_idx) & (m_cache_size - 1);
 }
-// saves key value and key length into attributes NHTFlowCache::keyand NHTFlowCache::m_keylen
 
+// saves key value and key length into attributes NHTFlowCache::keyand NHTFlowCache::m_keylen
 bool NHTFlowCache::create_hash_key(const Packet& pkt) noexcept
 {
     if (pkt.ip_version == IP::v4) {
@@ -513,11 +433,12 @@ bool NHTFlowCache::create_hash_key(const Packet& pkt) noexcept
 
 void NHTFlowCache::print_report() const noexcept
 {
-    std::cout << m_statistics;
+    if (m_statistics.m_hits)
+        std::cout << m_statistics;
 }
-void NHTFlowCache::export_periodic_statistic(std::ostream& stream){
+void NHTFlowCache::export_periodic_statistics(std::ostream& stream) noexcept{
     while(!m_exit){
-        std::this_thread::sleep_for(std::chrono::seconds(m_periodic_statistics_sleep_time));
+        std::this_thread::sleep_for(m_periodic_statistics_sleep_time);
         stream << m_statistics - m_last_statistics;
         m_last_statistics = m_statistics;
     }
