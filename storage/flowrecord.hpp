@@ -4,7 +4,9 @@
 
 #ifndef IPFIXPROBE_CACHE_FLOWRECORD_HPP
 #define IPFIXPROBE_CACHE_FLOWRECORD_HPP
-
+#include <string>
+#include <ipfixprobe/flowifc.hpp>
+#include <ipfixprobe/packet.hpp>
 namespace ipxp {
 
 class FlowRecord {

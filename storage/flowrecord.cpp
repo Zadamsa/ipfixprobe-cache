@@ -1,7 +1,8 @@
 //
 // Created by zaida on 24.01.2024.
 //
-
+#include <cstring>
+#include <cstdint>
 #include "flowrecord.hpp"
 
 namespace ipxp {
