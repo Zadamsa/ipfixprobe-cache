@@ -15,6 +15,7 @@ CacheStatistics CacheStatistics::operator-(const CacheStatistics& o) const noexc
     res.m_flushed = m_flushed - o.m_flushed;
     res.m_lookups = m_lookups - o.m_lookups;
     res.m_lookups2 = m_lookups2 - o.m_lookups2;
+    res.m_put_time = m_put_time - o.m_put_time;
     return res;
 }
 std::ostream& operator<<(std::ostream& os, const CacheStatistics& statistics) noexcept{
