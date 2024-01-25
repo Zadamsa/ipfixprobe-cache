@@ -254,7 +254,20 @@ if [[ -z "$WITH_PCAP_TRUE" ]]; then
       fi
    fi
 fi
+AC_ARG_WITH([c++17],
+        AC_HELP_STRING([--with-c++17],[Compile ipfixprobe with c++17]),
+        [
+      if test "$withval" = "yes"; then
+         withc17="yes"
+      else
+         withc17="no"
+      fi
+        ], [withc17="no"]
+)
 
+if test x${withc17} = xyes; then
+   CXXFLAGS="${CXXFLAGS} -std=c++17"
+fi
 
 AC_ARG_WITH([unwind],
         AC_HELP_STRING([--with-unwind],[Compile ipfixprobe with libunwind to print stack on crash]),
