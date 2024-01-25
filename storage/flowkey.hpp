@@ -5,6 +5,11 @@
 #ifndef IPFIXPROBE_CACHE_FLOW_KEY_H
 #define IPFIXPROBE_CACHE_FLOW_KEY_H
 
+#include <cstdint>
+#include <array>
+#include <string>
+#include <ipfixprobe/packet.hpp>
+
 namespace ipxp {
 
 template<uint16_t IPSize>
@@ -16,8 +21,8 @@ struct __attribute__((packed)) FlowKey {
     std::array<uint8_t, IPSize> src_ip;
     std::array<uint8_t, IPSize> dst_ip;
     uint16_t vlan_id;
-    flow_key<IPSize>& operator=(const Packet& pkt) noexcept;
-    flow_key<IPSize>& save_reversed(const Packet& pkt) noexcept;
+    FlowKey<IPSize>& operator=(const Packet& pkt) noexcept;
+    FlowKey<IPSize>& save_reversed(const Packet& pkt) noexcept;
 };
 
 } // namespace ipxp
