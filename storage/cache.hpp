@@ -85,9 +85,13 @@ protected:
     uint8_t m_key_inv[max<size_t>(sizeof(flow_key_v4), sizeof(flow_key_v6))];
     std::unique_ptr<FlowRecord*[]> m_flow_table;
     std::unique_ptr<FlowRecord[]> m_flow_records;
+    CacheStatistics m_statistics{0},m_last_statistics{0};
+    bool* m_exit = new bool;
+    const float m_periodic_statistics_sleep_time = 1;
+
+
 
     void allocate_tables();
-
     void flush(Packet& pkt, size_t flow_index, int ret, bool source_flow);
     bool create_hash_key(const Packet& pkt) noexcept;
     void export_flow(size_t index);

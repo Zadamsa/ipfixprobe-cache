@@ -195,12 +195,14 @@ void NHTFlowCache::flush(
     Packet& pkt,
     size_t flow_index,
     int ret,
-    bool source_flow)
+    bool source_flow,
+    FlowEndReason reason)
 {
     m_flushed++;
     if (ret == FLOW_FLUSH_WITH_REINSERT) {
         FlowRecord* flow = m_flow_table[flow_index];
-        flow->m_flow.end_reason = FLOW_END_FORCED;
+        //flow->m_flow.end_reason = FLOW_END_FORCED;
+        flow->m_flow.end_reason = reason;
         ipx_ring_push(m_export_queue, &flow->m_flow);
 
         std::swap(m_flow_table[flow_index], m_flow_table[m_cache_size + m_qidx]);
@@ -216,10 +218,10 @@ void NHTFlowCache::flush(
 
         ret = plugins_post_create(flow->m_flow, pkt);
         if (ret & FLOW_FLUSH) {
-            flush(pkt, flow_index, ret, source_flow);
+            flush(pkt, flow_index, ret, source_flow,FlowEndReason::FLOW_END_POST_CREATE);
         }
     } else {
-        m_flow_table[flow_index]->m_flow.end_reason = FLOW_END_FORCED;
+        m_flow_table[flow_index]->m_flow.end_reason = reason;
         export_flow(flow_index);
     }
 }
@@ -264,15 +266,15 @@ std::pair<bool, uint32_t> NHTFlowCache::find_empty_place(
     return {false, 0};
 }
 
-uint32_t NHTFlowCache::put_into_free_place(
+/*uint32_t NHTFlowCache::put_into_free_place(
     uint32_t flow_index,
     bool empty_place_found,
     uint32_t begin_line,
     uint32_t end_line) noexcept
-{
+{*/
     /* If free place was not found (flow line is full), find
      * record which will be replaced by new record. */
-    if (empty_place_found)
+   /* if (empty_place_found)
         return flow_index;
     prepare_and_export(end_line - 1, FLOW_END_NO_RES);
     uint32_t flow_new_index = begin_line + m_line_new_idx;
@@ -282,13 +284,13 @@ uint32_t NHTFlowCache::put_into_free_place(
         m_flow_table[j] = m_flow_table[j - 1];
     m_flow_table[flow_new_index] = flow;
     return flow_new_index;
-}
+}*/
 uint32_t NHTFlowCache::shift_records(
     uint32_t flow_index,
     uint32_t line_begin,
     uint32_t line_end) noexcept
 {
-    prepare_and_export(end_line - 1, FLOW_END_NO_RES);
+    prepare_and_export(end_line - 1, FlowEndReason::FLOW_END_NO_ROW_SPACE);
     uint32_t flow_new_index = line_begin + m_line_new_idx;
 
     auto flow = m_flow_table[flow_index];
@@ -350,13 +352,13 @@ bool NHTFlowCache::update_flow(
 {
     auto ret = plugins_pre_update(m_flow_table[flow_index]->m_flow, pkt);
     if ( ret & FLOW_FLUSH ) {
-        flush(pkt, flow_index, ret, pkt.source_pkt);
+        flush(pkt, flow_index, ret, pkt.source_pkt, FlowEndReason::FLOW_END_PRE_UPDATE);
         return true;
     }
     m_flow_table[flow_index]->update(pkt, pkt.source_pkt);
     ret = plugins_post_update(m_flow_table[flow_index]->m_flow, pkt);
     if (ret & FLOW_FLUSH) {
-        flush(pkt, flow_index, ret, pkt.source_pkt);
+        flush(pkt, flow_index, ret, pkt.source_pkt, FlowEndReason::FLOW_END_POST_UPDATE);
         return true;
     }
     return false;
@@ -513,5 +515,12 @@ void NHTFlowCache::print_report() const noexcept
 {
     std::cout << m_statistics;
 }
-
+void NHTFlowCache::export_periodic_statistic(std::ostream& stream){
+    while(!m_exit){
+        std::this_thread::sleep_for(std::chrono::seconds(m_periodic_statistics_sleep_time));
+        stream << m_statistics - m_last_statistics;
+        m_last_statistics = m_statistics;
+    }
+    delete m_exit;
+}
 } // namespace ipxp
