@@ -46,16 +46,6 @@ void FlowRecord::reuse()
     m_flow.dst_tcp_flags = 0;
 }
 
-inline __attribute__((always_inline)) bool FlowRecord::is_empty() const
-{
-    return m_hash == 0;
-}
-
-inline __attribute__((always_inline)) bool FlowRecord::belongs(uint64_t hash) const
-{
-    return hash == m_hash;
-}
-
 void FlowRecord::create(const Packet& pkt, uint64_t hash)
 {
     m_flow.src_packets = 1;

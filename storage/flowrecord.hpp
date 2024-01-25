@@ -18,8 +18,14 @@ public:
     void erase();
     void reuse();
 
-    inline bool is_empty() const;
-    inline bool belongs(uint64_t pkt_hash) const;
+    inline __attribute__((always_inline)) bool FlowRecord::is_empty() const
+    {
+        return m_hash == 0;
+    }
+    inline __attribute__((always_inline)) bool FlowRecord::belongs(uint64_t hash) const
+    {
+        return hash == m_hash;
+    }
     void create(const Packet& pkt, uint64_t pkt_hash);
     void update(const Packet& pkt, bool src);
 };
