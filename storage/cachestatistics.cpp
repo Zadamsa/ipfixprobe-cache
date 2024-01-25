@@ -18,6 +18,7 @@ CacheStatistics CacheStatistics::operator-(const CacheStatistics& o) const noexc
     return res;
 }
 std::ostream& operator<<(std::ostream& os, const CacheStatistics& statistics) noexcept{
+    os << "==================================================================\n";
     float tmp = float(statistics.m_lookups) / statistics.m_hits;
     os << "Hits: " << statistics.m_hits << "\n";
     os << "Empty: " << statistics.m_empty << "\n";
