@@ -92,6 +92,7 @@ void NHTFlowCache::get_opts_from_parser(const CacheOptParser& parser)
     m_active = parser.m_active;
     m_inactive = parser.m_inactive;
     m_split_biflow = parser.m_split_biflow;
+    m_periodic_statistics_sleep_time = std::chrono::duration<double>(parser.m_periodic_statistics_sleep_time);
 }
 void NHTFlowCache::allocate_tables(){
     try {

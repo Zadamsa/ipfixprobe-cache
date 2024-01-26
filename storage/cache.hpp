@@ -80,7 +80,7 @@ private:
     CacheStatistics m_statistics = {};
     CacheStatistics m_last_statistics = {};
     bool m_exit = false;
-    const std::chrono::duration<double> m_periodic_statistics_sleep_time = 1s;
+    std::chrono::duration<double> m_periodic_statistics_sleep_time = 0s;
     std::unique_ptr<std::thread> m_statistics_thread;
 
     void allocate_tables();

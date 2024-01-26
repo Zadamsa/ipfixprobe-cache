@@ -28,6 +28,7 @@ public:
     uint32_t m_line_size = 1 << DEFAULT_FLOW_LINE_SIZE;
     uint32_t m_active = 300;
     uint32_t m_inactive = 30;
+    double m_periodic_statistics_sleep_time = 0;
     bool m_split_biflow = false;
 };
 };
