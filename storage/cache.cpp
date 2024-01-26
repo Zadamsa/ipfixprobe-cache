@@ -137,7 +137,7 @@ void NHTFlowCache::set_queue(ipx_ring_t* queue)
     m_qsize = ipx_ring_size(queue);
 }
 
-void NHTFlowCache::export_flow(size_t index)
+void NHTFlowCache::export_flow(uint32_t index)
 {
     ipx_ring_push(m_export_queue, &m_flow_table[index]->m_flow);
     std::swap(m_flow_table[index], m_flow_table[m_cache_size + m_qidx]);
@@ -148,7 +148,7 @@ void NHTFlowCache::export_flow(size_t index)
 //Export all flows in cache on shutdown
 void NHTFlowCache::finish()
 {
-    for (size_t i = 0; i < m_cache_size; i++)
+    for (uint32_t i = 0; i < m_cache_size; i++)
         if (!m_flow_table[i]->is_empty())
             prepare_and_export(i, ipxp::FlowEndReason::FLOW_END_CACHE_SHUTDOWN);
 }
@@ -163,7 +163,7 @@ void NHTFlowCache::prepare_and_export( uint32_t flow_index, FlowEndReason reason
 //Export flow marked by plugins on PRE_UPDATE/POST_UPDATE/POST_CREATE events
 void NHTFlowCache::flush(
     Packet& pkt,
-    size_t flow_index,
+    uint32_t flow_index,
     int ret,
     bool source_flow,
     FlowEndReason reason) noexcept
@@ -205,7 +205,7 @@ std::pair<bool, uint32_t> NHTFlowCache::find_existing_record(
     return {false, 0};
 }
 
-//Move flow to the first position on line
+//Move flow to the first position in line
 uint32_t NHTFlowCache::enhance_existing_flow_record(
     uint32_t flow_index,
     uint32_t line_index) noexcept
@@ -234,7 +234,7 @@ std::pair<bool, uint32_t> NHTFlowCache::find_empty_place(
     return {false, 0};
 }
 
-//Export last record on line, move lower half of records down
+//Export last record in line, move lower half of records down
 uint32_t NHTFlowCache::shift_records(
     uint32_t line_begin,
     uint32_t line_end) noexcept
@@ -296,9 +296,10 @@ bool NHTFlowCache::update_flow(
     return false;
 }
 
-std::tuple<bool,size_t,size_t,size_t,size_t> NHTFlowCache::find_flow_position(Packet& pkt) noexcept{
+std::tuple<bool,uint32_t,uint32_t,uint32_t,uint64_t> NHTFlowCache::find_flow_position(Packet& pkt) noexcept{
     /* Calculates hash value from key created before. */
-    uint64_t hashval = XXH64(m_key, m_keylen, 0);
+    auto [ptr,size] = std::visit([](const auto& flow_key){ return std::make_pair((uint8_t*)&flow_key,sizeof(flow_key));}, m_key);
+    uint64_t hashval = XXH64(ptr,size, 0);
     bool source_flow = true;
     uint32_t line_index = hashval & m_line_mask;
     uint32_t next_line = line_index + m_line_size;
@@ -306,7 +307,9 @@ std::tuple<bool,size_t,size_t,size_t,size_t> NHTFlowCache::find_flow_position(Pa
 
     /* Find inversed flow. */
     if (!found && !m_split_biflow) {
-        uint64_t hashval_inv = XXH64(m_key_inv, m_keylen, 0);
+        std::tie(ptr,size) = std::visit([](const auto& flow_key){ return std::make_pair((uint8_t*)&flow_key,sizeof(flow_key));}, m_key_inv);
+        uint64_t hashval_inv = XXH64(ptr,size, 0);
+
         uint64_t line_index_inv = hashval_inv & m_line_mask;
         uint64_t next_line_inv = line_index_inv + m_line_size;
         std::tie(found,flow_index) = find_existing_record(line_index_inv, next_line_inv, hashval_inv);
@@ -358,7 +361,7 @@ int NHTFlowCache::insert_pkt(Packet& pkt) noexcept
 }
 
 //Checks active and inactive timeouts for flow, export flow if any of the timeouts expired
-bool NHTFlowCache::timeouts_expired(Packet& pkt,size_t flow_index) noexcept{
+bool NHTFlowCache::timeouts_expired(Packet& pkt,uint32_t flow_index) noexcept{
     // Check if flow record is expired (inactive timeout)
     if (pkt.ts.tv_sec - m_flow_table[flow_index]->m_flow.time_last.tv_sec >= m_inactive) {
         prepare_and_export(flow_index, has_tcp_eof_flags(m_flow_table[flow_index]->m_flow) ? FlowEndReason::FLOW_END_TCP_EOF : FlowEndReason::FLOW_END_INACTIVE_TIMEOUT);
@@ -401,25 +404,19 @@ void NHTFlowCache::export_expired(time_t ts)
 // saves key value and key length into attributes NHTFlowCache::key and NHTFlowCache::m_keylen
 bool NHTFlowCache::create_hash_key(const Packet& pkt) noexcept
 {
+    if (pkt.ip_version != IP::v4 && pkt.ip_version != IP::v6)
+        return false;
     if (pkt.ip_version == IP::v4) {
-        auto key_v4 = reinterpret_cast<FlowKeyV4*>(m_key);
-        auto key_v4_inv = reinterpret_cast<FlowKeyV4*>(m_key_inv);
-
-        *key_v4 = pkt;
-        key_v4_inv->save_reversed(pkt);
-        m_keylen = sizeof(FlowKeyV4);
-        return true;
+        m_key.emplace<FlowKeyV4>();
+        m_key_inv.emplace<FlowKeyV4>();
     }
     if (pkt.ip_version == IP::v6) {
-        auto key_v6 = reinterpret_cast<FlowKeyV6*>(m_key);
-        auto key_v6_inv = reinterpret_cast<FlowKeyV6*>(m_key_inv);
-
-        *key_v6 = pkt;
-        key_v6_inv->save_reversed(pkt);
-        m_keylen = sizeof(FlowKeyV6);
-        return true;
+        m_key.emplace<FlowKeyV6>();
+        m_key_inv.emplace<FlowKeyV6>();
     }
-    return false;
+    std::visit([&pkt](auto&& flow_key){ flow_key = pkt;},m_key);
+    std::visit([&pkt](auto&& flow_key){ flow_key.save_reversed(pkt);},m_key_inv);
+    return true;
 }
 
 void NHTFlowCache::print_report() const noexcept

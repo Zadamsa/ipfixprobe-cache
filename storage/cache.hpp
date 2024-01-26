@@ -37,9 +37,8 @@
 #include <string>
 #include <array>
 #include <chrono>
-
+#include <variant>
 #include <ipfixprobe/flowifc.hpp>
-
 #include <ipfixprobe/storage.hpp>
 #include <ipfixprobe/utils.hpp>
 #include "flowkeyv4.hpp"
@@ -74,41 +73,39 @@ private:
     uint32_t m_active = 0;
     uint32_t m_inactive = 0;
     bool m_split_biflow = false;
-    uint8_t m_keylen = 0;
-    uint8_t m_key[max<size_t>(sizeof(FlowKeyV4), sizeof(FlowKeyV6))];
-    uint8_t m_key_inv[max<size_t>(sizeof(FlowKeyV4), sizeof(FlowKeyV6))];
+    std::variant<FlowKeyV4,FlowKeyV6> m_key;
+    std::variant<FlowKeyV4,FlowKeyV6> m_key_inv;
     std::vector<FlowRecord*> m_flow_table;
     std::vector<FlowRecord> m_flow_records;
-    CacheStatistics m_statistics = {},m_last_statistics = {};
-    bool* m_exit = new bool{false};
+    CacheStatistics m_statistics = {};
+    CacheStatistics m_last_statistics = {};
+    bool m_exit = false;
     const std::chrono::duration<double> m_periodic_statistics_sleep_time = 1s;
     std::unique_ptr<std::thread> m_statistics_thread;
 
     void allocate_tables();
     void export_periodic_statistics(std::ostream& stream) noexcept;
-    void flush(Packet& pkt,size_t flow_index,int ret,bool source_flow,FlowEndReason reason) noexcept;
+    void flush(Packet& pkt,uint32_t flow_index,int ret,bool source_flow,FlowEndReason reason) noexcept;
     uint32_t shift_records(uint32_t line_begin,uint32_t line_end) noexcept;
     bool tcp_connection_reset(Packet& pkt,uint32_t flow_index) noexcept;
     void create_new_flow(uint32_t flow_index,Packet& pkt,uint64_t hashval) noexcept;
     bool update_flow(uint32_t flow_index,Packet& pkt) noexcept;
     uint32_t make_place_for_record(uint32_t line_index,uint32_t  next_line) noexcept;
-    std::tuple<bool,size_t,size_t,size_t,size_t> find_flow_position(Packet& pkt) noexcept;
+    std::tuple<bool,uint32_t,uint32_t,uint32_t,uint64_t> find_flow_position(Packet& pkt) noexcept;
     int insert_pkt(Packet& pkt) noexcept;
-    bool timeouts_expired(Packet& pkt,size_t flow_index) noexcept;
-    static bool has_tcp_eof_flags(const Flow& flow) noexcept;
-
+    bool timeouts_expired(Packet& pkt,uint32_t flow_index) noexcept;
     bool create_hash_key(const Packet& pkt) noexcept;
-    void export_flow(size_t index);
+    void export_flow(uint32_t index);
     static uint8_t get_export_reason(Flow& flow);
     void finish() override;
     void get_opts_from_parser(const CacheOptParser& parser);
-
     std::pair<bool, uint32_t> find_existing_record(uint32_t begin_line, uint32_t end_line, uint64_t hashval) const noexcept;
     virtual uint32_t enhance_existing_flow_record(uint32_t flow_index, uint32_t line_index) noexcept;
     std::pair<bool, uint32_t> find_empty_place(uint32_t begin_line, uint32_t end_line) const noexcept;
     bool process_last_tcp_packet(Packet& pkt, uint32_t flow_index) noexcept;
     void prepare_and_export(uint32_t flow_index, FlowEndReason reason) noexcept;
 
+    static bool has_tcp_eof_flags(const Flow& flow) noexcept;
     static void test_attributes();
 };
 
