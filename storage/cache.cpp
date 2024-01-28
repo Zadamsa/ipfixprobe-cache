@@ -41,6 +41,7 @@
 #include "cache.hpp"
 #include "xxhash.h"
 #include "flowendreason.hpp"
+#include "gaelaborationcacheoptparser.hpp"
 
 namespace ipxp {
 
@@ -50,7 +51,7 @@ __attribute__((constructor)) static void register_this_plugin() noexcept
     register_plugin(&rec);
 }
 
-OptionsParser* NHTFlowCache::get_parser() const {
+CacheOptParser* NHTFlowCache::get_parser() const {
     return new CacheOptParser();
 }
 std::string NHTFlowCache::get_name() const noexcept {
@@ -65,7 +66,8 @@ NHTFlowCache::NHTFlowCache()
 NHTFlowCache::~NHTFlowCache()
 {
     m_exit = true;
-    m_statistics_thread->join();
+    if (m_periodic_statistics_sleep_time != 0s)
+        m_statistics_thread->join();
     print_report();
 }
 void NHTFlowCache::test_attributes()
@@ -106,16 +108,8 @@ void NHTFlowCache::allocate_tables(){
     }
 }
 
-void NHTFlowCache::init(const char* params)
-{
-    try {
-        CacheOptParser parser;
-        parser.parse(params);
-        get_opts_from_parser(parser);
-    } catch (ParserError& e) {
-        throw PluginError(e.what());
-    }
-
+void NHTFlowCache::init(CacheOptParser& parser){
+    get_opts_from_parser(parser);
     m_line_mask = (m_cache_size - 1) & ~(m_line_size - 1);
     m_line_new_idx = m_line_size / 2;
 
@@ -129,7 +123,21 @@ void NHTFlowCache::init(const char* params)
         throw PluginError("flow cache won't properly work with 0 records");
     }
     allocate_tables();
-    m_statistics_thread = std::make_unique<std::thread>(&NHTFlowCache::export_periodic_statistics,this,std::ref(std::cout));
+    if (m_periodic_statistics_sleep_time != 0s)
+        m_statistics_thread = std::make_unique<std::thread>(&NHTFlowCache::export_periodic_statistics,this,std::ref(std::cout));
+}
+void NHTFlowCache::init(const char* params)
+{
+    //m_parser = std::unique_ptr<std::remove_pointer_t<decltype(std::declval<decltype(*this)>().get_parser())>>(get_parser());
+    auto parser = std::unique_ptr<CacheOptParser>(get_parser());
+    try {
+        parser->parse(params);
+    } catch (ParserError& e) {
+        throw PluginError(e.what());
+    }
+    //init(*dynamic_cast<decltype(this->get_parser())>(std::addressof(*parser)));
+    //init(*dynamic_cast<std::conditional_t<std::is_same_v<NHTFlowCache, decltype(*this)>, CacheOptParser*, GAElaborationCacheOptParser*>>(std::addressof(*parser)));
+    init(*parser);
 }
 
 void NHTFlowCache::set_queue(ipx_ring_t* queue)
@@ -252,9 +260,10 @@ uint32_t NHTFlowCache::shift_records(
 
 bool NHTFlowCache::tcp_connection_reset(
     Packet& pkt,
-    uint32_t flow_index) noexcept
+    uint32_t flow_index,
+    bool source) noexcept
 {
-    uint8_t flw_flags = pkt.source_pkt ? m_flow_table[flow_index]->m_flow.src_tcp_flags
+    uint8_t flw_flags = source ? m_flow_table[flow_index]->m_flow.src_tcp_flags
                                        : m_flow_table[flow_index]->m_flow.dst_tcp_flags;
     if ((pkt.tcp_flags & 0x02) && (flw_flags & (0x01 | 0x04))) {
         // Flows with FIN or RST TCP flags are exported when new SYN packet arrives
@@ -281,23 +290,24 @@ void NHTFlowCache::create_new_flow(
 //Updates flow statistics, triggers PRE_UPDATE/POST_UPDATE events
 bool NHTFlowCache::update_flow(
     uint32_t flow_index,
-    Packet& pkt) noexcept
+    Packet& pkt,
+    bool source ) noexcept
 {
     auto ret = plugins_pre_update(m_flow_table[flow_index]->m_flow, pkt);
     if ( ret & FLOW_FLUSH ) {
-        flush(pkt, flow_index, ret, pkt.source_pkt, FlowEndReason::FLOW_END_PRE_UPDATE);
+        flush(pkt, flow_index, ret, source, FlowEndReason::FLOW_END_PRE_UPDATE);
         return true;
     }
-    m_flow_table[flow_index]->update(pkt, pkt.source_pkt);
+    m_flow_table[flow_index]->update(pkt, source);
     ret = plugins_post_update(m_flow_table[flow_index]->m_flow, pkt);
     if (ret & FLOW_FLUSH) {
-        flush(pkt, flow_index, ret, pkt.source_pkt, FlowEndReason::FLOW_END_POST_UPDATE);
+        flush(pkt, flow_index, ret, source, FlowEndReason::FLOW_END_POST_UPDATE);
         return true;
     }
     return false;
 }
 
-std::tuple<bool,uint32_t,uint32_t,uint32_t,uint64_t> NHTFlowCache::find_flow_position(Packet& pkt) noexcept{
+std::tuple<bool,bool,uint32_t,uint32_t,uint32_t,uint64_t> NHTFlowCache::find_flow_position(Packet& pkt) noexcept{
     /* Calculates hash value from key created before. */
     auto [ptr,size] = std::visit([](const auto& flow_key){ return std::make_pair((uint8_t*)&flow_key,sizeof(flow_key));}, m_key);
     uint64_t hashval = XXH64(ptr,size, 0);
@@ -320,8 +330,8 @@ std::tuple<bool,uint32_t,uint32_t,uint32_t,uint64_t> NHTFlowCache::find_flow_pos
             line_index = line_index_inv;
         }
     }
-    pkt.source_pkt = source_flow;
-    return {found,line_index,flow_index,next_line,hashval};
+    //pkt.source_pkt = source_flow;
+    return {found,source_flow,line_index,flow_index,next_line,hashval};
 
 }
 // Existing flow record was not found. Find free place in flow line or replace some existing record
@@ -343,10 +353,10 @@ int NHTFlowCache::insert_pkt(Packet& pkt) noexcept
 
     if (!create_hash_key(pkt))
         return 0;
-    auto [record_found,line_index,flow_index,next_line,hashval] = find_flow_position(pkt);
+    auto [record_found,source,line_index,flow_index,next_line,hashval] = find_flow_position(pkt);
     /* Existing flow record was found, put flow record at the first index of flow line. */
     flow_index = record_found ? enhance_existing_flow_record(flow_index, line_index) : make_place_for_record(line_index, next_line);
-    if (tcp_connection_reset(pkt, flow_index))
+    if (tcp_connection_reset(pkt, flow_index,source))
         return 0;
 
     if (m_flow_table[flow_index]->is_empty())
@@ -354,7 +364,7 @@ int NHTFlowCache::insert_pkt(Packet& pkt) noexcept
     else {
         if (timeouts_expired(pkt,flow_index))
             return insert_pkt(pkt);
-        if (update_flow(flow_index, pkt))
+        if (update_flow(flow_index, pkt, source))
             return 0;
     }
     export_expired(pkt.ts.tv_sec);
@@ -436,4 +446,13 @@ void NHTFlowCache::export_periodic_statistics(std::ostream& stream) noexcept{
         m_last_statistics = m_statistics;
     }
 }
+
+CacheStatistics& NHTFlowCache::get_total_statistics() noexcept{
+    return m_statistics;
+}
+
+CacheStatistics& NHTFlowCache::get_last_statistics() noexcept{
+    return m_last_statistics;
+}
+
 } // namespace ipxp
