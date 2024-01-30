@@ -17,13 +17,6 @@ public:
     GAConfiguration mutate() const;
     void read_from_file(const std::string& filename);
     void write_to_file(const std::string& filename) const;
-    void mutate_counts(float probability);
-    void mutate_targets(float probability);
-    void mutate_insert_pos(float probability) noexcept;
-    void fix() noexcept;
-    void fix_counts() noexcept;
-    void fix_targets() noexcept;
-    bool roll(double probability);
     bool operator==(const GAConfiguration& o) const noexcept;
     bool operator!=(const GAConfiguration& o) const noexcept;
     std::pair<uint32_t,std::vector<uint32_t>> unpack() const noexcept;
@@ -37,6 +30,15 @@ private:
     std::uniform_int_distribution<std::mt19937::result_type> m_pair_dist = std::uniform_int_distribution<std::mt19937::result_type>(0,m_line_size/4 - 1);
     std::uniform_int_distribution<std::mt19937::result_type> m_count_dist = std::uniform_int_distribution<std::mt19937::result_type>(1,m_line_size/4 );
     std::uniform_int_distribution<std::mt19937::result_type> m_insert_dist = std::uniform_int_distribution<std::mt19937::result_type>(0,m_line_size - 1);
+
+    void mutate_counts(float probability);
+    void mutate_targets(float probability);
+    void mutate_insert_pos(float probability) noexcept;
+    void mutate_increment(float probability)
+    void fix() noexcept;
+    void fix_counts() noexcept;
+    void fix_targets() noexcept;
+    bool roll(double probability);
 };
 
 } // namespace ipxp

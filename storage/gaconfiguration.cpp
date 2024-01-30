@@ -38,19 +38,27 @@ GAConfiguration GAConfiguration::mutate() const{
     while(new_configuration == *this) {
         new_configuration.mutate_counts(0.2);
         new_configuration.fix_counts();
+        new_configuration.mutate_increment(0.1);
         new_configuration.mutate_targets(0.2);
         new_configuration.fix_targets();
         new_configuration.mutate_insert_pos(0.2);
     }
     return new_configuration;
 }
+
+void GAConfiguration::mutate_increment(float probability){
+    std::transform(m_moves.begin(), m_moves.end(), m_moves.begin(),[this,probability](MoveTuple& mp) {
+        return roll(probability) ? MoveTuple{mp.m_count,mp.m_value, !mp.m_increment} : mp;
+    });
+}
+
 void GAConfiguration::mutate_insert_pos(float probability) noexcept{
     if (roll(probability))
         m_insert_pos = m_insert_dist(m_rng);
 }
 void GAConfiguration::mutate_counts(float probability){
     std::transform(m_moves.begin(), m_moves.end(), m_moves.begin(),[this,probability](MoveTuple& mp) {
-        return roll(probability) ? MoveTuple{(uint8_t)m_count_dist(m_rng),mp.m_value} : mp;
+        return roll(probability) ? MoveTuple{(uint8_t)m_count_dist(m_rng),mp.m_value,mp.m_increment} : mp;
     });
 }
 
