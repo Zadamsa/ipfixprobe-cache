@@ -23,6 +23,7 @@ namespace ipxp {
 class CacheOptParser : public OptionsParser {
 public:
     CacheOptParser();
+    CacheOptParser(const char* name,const char* description);
 
     uint32_t m_cache_size = 1 << DEFAULT_FLOW_CACHE_SIZE;
     uint32_t m_line_size = 1 << DEFAULT_FLOW_LINE_SIZE;
@@ -30,6 +31,9 @@ public:
     uint32_t m_inactive = 30;
     double m_periodic_statistics_sleep_time = 0;
     bool m_split_biflow = false;
+
+private:
+    virtual void register_options();
 };
 };
 #endif // IPFIXPROBE_CACHE_CACHEOPTPARSER_H
