@@ -126,6 +126,24 @@ AC_ARG_ENABLE([legacy-ssl],
 )
 ### openssl
 
+### asan
+AC_ARG_ENABLE([asan],
+       AC_HELP_STRING([--enable-asan],[Address sanitizer.]),
+       [
+       if test "$enableval" = "yes"; then
+          asan="yes"
+       else
+          asan="no"
+       fi
+         ], [
+          asan="no"
+         ]
+)
+### asan
+
+if test x${asan} = xyes; then
+	  CXXFLAGS="-fsanitize=address $CXXFLAGS"
+fi
 
 AC_ARG_WITH([quic],
         AC_HELP_STRING([--without-quic],[Compile ipfixprobe without quic plugin (which have dependency on openssl-devel)]),
