@@ -34,7 +34,7 @@ private:
     void mutate_counts(float probability);
     void mutate_targets(float probability);
     void mutate_insert_pos(float probability) noexcept;
-    void mutate_increment(float probability)
+    void mutate_increment(float probability);
     void fix() noexcept;
     void fix_counts() noexcept;
     void fix_targets() noexcept;

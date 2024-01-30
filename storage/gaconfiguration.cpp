@@ -56,6 +56,7 @@ void GAConfiguration::mutate_insert_pos(float probability) noexcept{
     if (roll(probability))
         m_insert_pos = m_insert_dist(m_rng);
 }
+
 void GAConfiguration::mutate_counts(float probability){
     std::transform(m_moves.begin(), m_moves.end(), m_moves.begin(),[this,probability](MoveTuple& mp) {
         return roll(probability) ? MoveTuple{(uint8_t)m_count_dist(m_rng),mp.m_value,mp.m_increment} : mp;
