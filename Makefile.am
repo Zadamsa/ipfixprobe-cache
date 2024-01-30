@@ -62,8 +62,6 @@ endif
 ipfixprobe_storage_src=\
 		storage/cache.cpp \
 		storage/cache.hpp \
-		storage/cacheoptparser.cpp \
-		storage/cacheoptparser.hpp \
 		storage/cachestatistics.cpp \
 		storage/cachestatistics.hpp \
 		storage/flowkey.tpp \
@@ -74,6 +72,20 @@ ipfixprobe_storage_src=\
 		storage/flowkeyv6.hpp \
 		storage/flowrecord.cpp \
 		storage/flowrecord.hpp \
+		storage/cacheoptparser.cpp \
+		storage/cacheoptparser.hpp \
+		storage/gacacheoptparser.cpp \
+		storage/gacacheoptparser.hpp \
+		storage/gaconfiguration.cpp \
+		storage/gaconfiguration.hpp \
+		storage/gaelaborationcache.cpp \
+		storage/gaelaborationcache.hpp \
+		storage/gaflowcache.cpp \
+		storage/gaflowcache.hpp \
+		storage/movetuple.cpp \
+		storage/movetuple.hpp \
+		storage/gaelaborationcacheoptparser.cpp \
+		storage/gaelaborationcacheoptparser.hpp \
 		storage/old_cache.cpp \
 		storage/old_cache.hpp \
 		storage/xxhash.c \
