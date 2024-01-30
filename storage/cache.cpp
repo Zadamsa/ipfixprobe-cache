@@ -41,7 +41,6 @@
 #include "cache.hpp"
 #include "xxhash.h"
 #include "flowendreason.hpp"
-#include "gaelaborationcacheoptparser.hpp"
 
 namespace ipxp {
 
@@ -51,7 +50,7 @@ __attribute__((constructor)) static void register_this_plugin() noexcept
     register_plugin(&rec);
 }
 
-CacheOptParser* NHTFlowCache::get_parser() const {
+OptionsParser* NHTFlowCache::get_parser() const {
     return new CacheOptParser();
 }
 std::string NHTFlowCache::get_name() const noexcept {
@@ -108,8 +107,11 @@ void NHTFlowCache::allocate_tables(){
     }
 }
 
-void NHTFlowCache::init(CacheOptParser& parser){
-    get_opts_from_parser(parser);
+void NHTFlowCache::init(OptionsParser& in_parser){
+    auto parser = dynamic_cast<CacheOptParser*>(&in_parser);
+    if (!parser)
+        throw PluginError("Bad parser for NHTFlowCache");
+    get_opts_from_parser(*parser);
     m_line_mask = (m_cache_size - 1) & ~(m_line_size - 1);
     m_line_new_idx = m_line_size / 2;
 
@@ -128,15 +130,12 @@ void NHTFlowCache::init(CacheOptParser& parser){
 }
 void NHTFlowCache::init(const char* params)
 {
-    //m_parser = std::unique_ptr<std::remove_pointer_t<decltype(std::declval<decltype(*this)>().get_parser())>>(get_parser());
-    auto parser = std::unique_ptr<CacheOptParser>(get_parser());
+    auto parser = std::unique_ptr<OptionsParser>(get_parser());
     try {
         parser->parse(params);
     } catch (ParserError& e) {
         throw PluginError(e.what());
     }
-    //init(*dynamic_cast<decltype(this->get_parser())>(std::addressof(*parser)));
-    //init(*dynamic_cast<std::conditional_t<std::is_same_v<NHTFlowCache, decltype(*this)>, CacheOptParser*, GAElaborationCacheOptParser*>>(std::addressof(*parser)));
     init(*parser);
 }
 
@@ -222,12 +221,7 @@ uint32_t NHTFlowCache::enhance_existing_flow_record(
     m_statistics.m_lookups += (flow_index - line_index + 1);
     m_statistics.m_lookups2 += (flow_index - line_index + 1) * (flow_index - line_index + 1);
     m_statistics.m_hits++;
-
-    auto flow = m_flow_table[flow_index];
-    for (decltype(flow_index) j = flow_index; j > line_index; j--) {
-        m_flow_table[j] = m_flow_table[j - 1];
-    }
-    m_flow_table[line_index] = flow;
+    cyclic_rotate_records(line_index,flow_index);
     return line_index;
 }
 
@@ -250,12 +244,15 @@ uint32_t NHTFlowCache::shift_records(
 {
     prepare_and_export(line_end - 1, FlowEndReason::FLOW_END_NO_ROW_SPACE);
     uint32_t flow_new_index = line_begin + m_line_new_idx;
-
-    auto flow = m_flow_table[line_end - 1];
-    for (uint32_t j = line_end - 1; j > flow_new_index; j--)
-        m_flow_table[j] = m_flow_table[j - 1];
-    m_flow_table[flow_new_index] = flow;
+    cyclic_rotate_records(flow_new_index,line_end - 1);
     return flow_new_index;
+}
+
+void NHTFlowCache::cyclic_rotate_records(uint32_t begin,uint32_t end) noexcept{
+    auto flow = m_flow_table[end];
+    for (uint32_t j = end; j > begin; j--)
+        m_flow_table[j] = m_flow_table[j - 1];
+    m_flow_table[begin] = flow;
 }
 
 bool NHTFlowCache::tcp_connection_reset(

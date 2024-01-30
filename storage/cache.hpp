@@ -57,9 +57,9 @@ public:
     NHTFlowCache();
     ~NHTFlowCache() override;
     void init(const char* params) override;
-    virtual void init(CacheOptParser& parser);
+    virtual void init(OptionsParser& parser);
     void set_queue(ipx_ring_t* queue) override;
-    CacheOptParser* get_parser() const override;
+    OptionsParser* get_parser() const;
     std::string get_name() const noexcept;
     int put_pkt(Packet& pkt) override;
     void export_expired(time_t ts) override;
@@ -95,7 +95,7 @@ protected:
     bool tcp_connection_reset(Packet& pkt,uint32_t flow_index, bool source) noexcept;
     void create_new_flow(uint32_t flow_index,Packet& pkt,uint64_t hashval) noexcept;
     bool update_flow(uint32_t flow_index,Packet& pkt,bool source) noexcept;
-    uint32_t make_place_for_record(uint32_t line_index,uint32_t  next_line) noexcept;
+    virtual uint32_t make_place_for_record(uint32_t line_index,uint32_t  next_line) noexcept;
     std::tuple<bool,bool,uint32_t,uint32_t,uint32_t,uint64_t> find_flow_position(Packet& pkt) noexcept;
     int insert_pkt(Packet& pkt) noexcept;
     bool timeouts_expired(Packet& pkt,uint32_t flow_index) noexcept;
@@ -103,6 +103,7 @@ protected:
     void export_flow(uint32_t index);
     static uint8_t get_export_reason(Flow& flow);
     void finish() override;
+    void cyclic_rotate_records(uint32_t begin,uint32_t end) noexcept;
 
     std::pair<bool, uint32_t> find_existing_record(uint32_t begin_line, uint32_t end_line, uint64_t hashval) const noexcept;
     virtual uint32_t enhance_existing_flow_record(uint32_t flow_index, uint32_t line_index) noexcept;
