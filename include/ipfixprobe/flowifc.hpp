@@ -48,6 +48,7 @@
 
 #include <arpa/inet.h>
 #include "ipaddr.hpp"
+#include <string>
 
 namespace ipxp {
 
@@ -236,9 +237,6 @@ struct Record {
    }
 };
 
-enum class FlowEndReason:uint8_t {
-    FLOW_END_INACTIVE,FLOW_END_ACTIVE,FLOW_END_EOF,FLOW_END_CACHE_SHUTDOWN, FLOW_END_FORCED,FLOW_END_NO_RES,FLOW_END_POST_UPDATE,FLOW_END_PRE_UPDATE,FLOW_END_POST_CREATE,FLOW_END_NO_ROW_SPACE
-}
 #define FLOW_END_INACTIVE 0x01
 #define FLOW_END_ACTIVE   0x02
 #define FLOW_END_EOF      0x03
