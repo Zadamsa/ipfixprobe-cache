@@ -77,6 +77,8 @@ ipfixprobe_storage_src=\
 		storage/flowkeyv4.hpp \
 		storage/flowkeyv6.cpp \
 		storage/flowkeyv6.hpp \
+		storage/flowrecord.cpp \
+		storage/flowrecord.hpp \
 		storage/xxhash.c \
 		storage/xxhash.h
 
