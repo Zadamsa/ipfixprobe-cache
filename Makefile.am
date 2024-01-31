@@ -60,6 +60,13 @@ ipfixprobe_input_src+=\
 endif
 
 ipfixprobe_storage_src=\
+		storage/fragmentationCache/ringBuffer.hpp \
+		storage/fragmentationCache/timevalUtils.hpp \
+		storage/fragmentationCache/fragmentationKeyData.hpp \
+		storage/fragmentationCache/fragmentationTable.hpp \
+		storage/fragmentationCache/fragmentationTable.cpp \
+		storage/fragmentationCache/fragmentationCache.hpp \
+		storage/fragmentationCache/fragmentationCache.cpp \
 		storage/cache.cpp \
 		storage/cache.hpp \
 		storage/cacheoptparser.cpp \
@@ -74,8 +81,6 @@ ipfixprobe_storage_src=\
 		storage/flowkeyv6.hpp \
 		storage/flowrecord.cpp \
 		storage/flowrecord.hpp \
-		storage/old_cache.cpp \
-		storage/old_cache.hpp \
 		storage/xxhash.c \
 		storage/xxhash.h
 

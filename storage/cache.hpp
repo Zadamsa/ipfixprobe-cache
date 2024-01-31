@@ -9,25 +9,22 @@
  * \date 2016
  */
 /*
- * Copyright (C) 2014-2016 CESNET
- *
- * LICENSE TERMS
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
- *    the documentation and/or other materials provided with the
- *    distribution.
- * 3. Neither the name of the Company nor the names of its contributors
- *    may be used to endorse or promote products derived from this
- *    software without specific prior written permission.
- *
- *
- *
+* Copyright (C) 2023 CESNET
+*
+* LICENSE TERMS
+*
+* Redistribution and use in source and binary forms, with or without
+* modification, are permitted provided that the following conditions
+* are met:
+* 1. Redistributions of source code must retain the above copyright
+*    notice, this list of conditions and the following disclaimer.
+* 2. Redistributions in binary form must reproduce the above copyright
+*    notice, this list of conditions and the following disclaimer in
+*    the documentation and/or other materials provided with the
+*    distribution.
+* 3. Neither the name of the Company nor the names of its contributors
+*    may be used to endorse or promote products derived from this
+*    software without specific prior written permission.
  */
 #ifndef IPXP_STORAGE_CACHE_HPP
 #define IPXP_STORAGE_CACHE_HPP
@@ -48,6 +45,8 @@
 #include "cacheoptparser.hpp"
 #include "flowendreason.hpp"
 
+#include "fragmentationCache/fragmentationCache.hpp"
+
 namespace ipxp {
 
 using namespace std::chrono_literals;
@@ -63,26 +62,29 @@ public:
     void export_expired(time_t ts) override;
     void print_report() const noexcept;
 private:
-    uint32_t m_cache_size = 0;
-    uint32_t m_line_size = 0;
-    uint32_t m_line_mask = 0;
-    uint32_t m_line_new_idx = 0;
-    uint32_t m_qsize = 0;
-    uint32_t m_qidx = 0;
-    uint32_t m_timeout_idx = 0;
-    uint32_t m_active = 0;
-    uint32_t m_inactive = 0;
-    bool m_split_biflow = false;
-    std::variant<FlowKeyV4,FlowKeyV6> m_key;
-    std::variant<FlowKeyV4,FlowKeyV6> m_key_inv;
-    std::vector<FlowRecord*> m_flow_table;
-    std::vector<FlowRecord> m_flow_records;
-    CacheStatistics m_statistics = {};
-    CacheStatistics m_last_statistics = {};
-    bool m_exit = false;
-    const std::chrono::duration<double> m_periodic_statistics_sleep_time = 1s;
-    std::unique_ptr<std::thread> m_statistics_thread;
+    uint32_t m_cache_size; ///< Maximal count of records in cache
+    uint32_t m_line_size; ///< Maximal count of records in one row
+    uint32_t m_line_mask; ///< Line mask xored with flow index returns start of the row
+    uint32_t m_line_new_idx; ///< Insert position of new flow, if row has no empty space
+    uint32_t m_qsize; ///< Export queue size
+    uint32_t m_qidx; ///< Next position in export queue that will be exported
+    uint32_t m_timeout_idx; ///< Index of the row where expired flow will be exported
+    uint32_t m_active; ///< Active timeout
+    uint32_t m_inactive; ///< Inactive timeout
+    bool m_split_biflow; ///< If true, request and response packets between same ips will be counted belonging to different flows
+    bool m_enable_fragmentation_cache; ///< If true, fragmentation cache will try to complete port information for fragmented packet
+    std::variant<FlowKeyV4,FlowKeyV6> m_key; ///< Key values of processed flow
+    std::variant<FlowKeyV4,FlowKeyV6> m_key_inv; ///< Key values of processed flow with swapped source and destination addresses and ports
+    std::vector<FlowRecord*> m_flow_table; ///< Pointers to flow records used for faster flow reorder operations
+    std::vector<FlowRecord> m_flow_records; ///< Main memory of the cache
+    CacheStatistics m_statistics; ///< Total statistics about cache efficiency from the program start
+    CacheStatistics m_last_statistics; ///< Cache statistics for last m_periodic_statistics_sleep_time amount of time
+    bool m_exit; ///< Used for stopping background statistics thread
+    std::chrono::duration<double> m_periodic_statistics_sleep_time; ///< Amount of time in which periodic statistics must reset
+    std::unique_ptr<std::thread> m_statistics_thread; ///< Pointer to periodic statistics thread
+    FragmentationCache m_fragmentation_cache; ///< Fragmentation cache used for completing packets ports
 
+    void try_to_fill_ports_to_fragmented_packet(Packet& packet);
     void allocate_tables();
     void export_periodic_statistics(std::ostream& stream) noexcept;
     void flush(Packet& pkt,uint32_t flow_index,int ret,bool source_flow,FlowEndReason reason) noexcept;
