@@ -69,6 +69,8 @@ ipfixprobe_storage_src=\
 		storage/fragmentationCache/fragmentationCache.cpp \
 		storage/cache.cpp \
 		storage/cache.hpp \
+		storage/cachestatistics.cpp \
+		storage/cachestatistics.hpp \
 		storage/flowkey.tpp \
 		storage/flowkey.hpp \
 		storage/flowkeyv4.cpp \
