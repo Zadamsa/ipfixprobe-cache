@@ -72,7 +72,16 @@ NHTFlowCache::NHTFlowCache()
     , m_periodic_statistics_sleep_time(0s)
     , m_fragmentation_cache(0, 0)
 {
+    set_hash_function([](const void* ptr,uint32_t len){ return XXH64(ptr, size, 0);});
     test_attributes();
+}
+
+void NHTFlowCache::set_hash_function(std::function<uint64_t(const void*,uint32_t)> function) noexcept{
+    m_hash_function = std::move(function);
+}
+
+uint64_t NHTFlowCache::hash(const void* ptr, uint32_t len) const noexcept{
+    return m_hash_function(ptr,len);
 }
 
 /**

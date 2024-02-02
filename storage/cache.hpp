@@ -61,6 +61,7 @@ public:
     int put_pkt(Packet& pkt) override;
     void export_expired(time_t ts) override;
     void print_report() const noexcept;
+    void set_hash_function(std::function<uint64_t(const void*,uint32_t)> function) noexcept;
 
 private:
     uint32_t m_cache_size; ///< Maximal count of records in cache
@@ -93,6 +94,7 @@ private:
     std::unique_ptr<std::thread> m_statistics_thread; ///< Pointer to periodic statistics thread
     FragmentationCache
         m_fragmentation_cache; ///< Fragmentation cache used for completing packets ports
+    std::function<uint64_t(const void*,uint32_t)> m_hash_function;
 
     void try_to_fill_ports_to_fragmented_packet(Packet& packet);
     void allocate_tables();
@@ -122,6 +124,7 @@ private:
     bool process_last_tcp_packet(Packet& pkt, uint32_t flow_index) noexcept;
     void prepare_and_export(uint32_t flow_index, FlowEndReason reason) noexcept;
     void cyclic_rotate_records(uint32_t begin, uint32_t end) noexcept;
+    uint64_t hash(const void* ptr, uint32_t len) const noexcept;
 
     static bool has_tcp_eof_flags(const Flow& flow) noexcept;
     static void test_attributes();
