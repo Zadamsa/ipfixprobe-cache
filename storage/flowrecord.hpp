@@ -32,6 +32,7 @@ class FlowRecord {
     uint64_t m_hash; ///< Hash value of the flow.
 public:
     Flow m_flow;
+    bool m_swapped;
 
     FlowRecord();
     ~FlowRecord();
@@ -44,7 +45,7 @@ public:
     {
         return hash == m_hash;
     }
-    void create(const Packet& pkt, uint64_t pkt_hash);
+    void create(const Packet& pkt, uint64_t pkt_hash, bool key_swapped);
     void update(const Packet& pkt, bool src);
 };
 

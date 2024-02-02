@@ -43,4 +43,37 @@ FlowKeyV6& FlowKeyV6::save_reversed(const Packet& pkt) noexcept
     memcpy(dst_ip.data(), pkt.src_ip.v6, 16);
     return *this;
 }
+
+FlowKeyV6& FlowKeyV6::save_sorted(const Packet& pkt) noexcept
+{
+    if ( [](const uint8_t* addr1,const  uint8_t* addr2)->int8_t {
+            for (auto i = 0; i < 16 ; i++)
+                if (addr1[15-i] != addr2[15-i])
+                    return (int8_t)(addr1[15-i] - addr2[15-i]);
+            return 0;
+    }(pkt.src_ip.v6,pkt.dst_ip.v6) < 0 )
+        *this = pkt;
+    else
+        this->save_reversed(pkt);
+
+    /*flow_key::operator=(pkt);
+    ip_version = IP::v6;
+    //Compare 2 ipv6 addresses from end to begin
+    if ( [](const uint8_t* addr1,const  uint8_t* addr2)->int8_t {
+            for (auto i = 0; i < 16 ; i++)
+                if (addr1[15-i] != addr2[15-i])
+                    return (int8_t)(addr1[15-i] - addr2[15-i]);
+            return 0;
+        }(pkt.src_ip.v6,pkt.dst_ip.v6) < 0 ) {
+        memcpy(src_ip.data(), pkt.dst_ip.v6, 16);
+        memcpy(dst_ip.data(), pkt.src_ip.v6, 16);
+    }else{
+        memcpy(src_ip.data(), pkt.src_ip.v6, 16);
+        memcpy(dst_ip.data(), pkt.dst_ip.v6, 16);
+        auto tmp = src_port;
+        src_port = dst_port;
+        dst_port = tmp;
+    }*/
+    return *this;
+}
 } // namespace ipxp

@@ -30,8 +30,8 @@ FlowKeyV4& FlowKeyV4::operator=(const Packet& pkt) noexcept
 {
     FlowKey::operator=(pkt);
     ip_version = IP::v4;
-    memcpy(src_ip.data(), &pkt.src_ip.v4, 4);
-    memcpy(dst_ip.data(), &pkt.dst_ip.v4, 4);
+    memcpy(src_ip.data(), &pkt.src_ip.v4, sizeof(pkt.src_ip.v4));
+    memcpy(dst_ip.data(), &pkt.dst_ip.v4, sizeof(pkt.dst_ip.v4));
     return *this;
 }
 
@@ -39,8 +39,29 @@ FlowKeyV4& FlowKeyV4::save_reversed(const Packet& pkt) noexcept
 {
     FlowKey::save_reversed(pkt);
     ip_version = IP::v4;
-    memcpy(src_ip.data(), &pkt.dst_ip.v4, 4);
-    memcpy(dst_ip.data(), &pkt.src_ip.v4, 4);
+    memcpy(src_ip.data(), &pkt.dst_ip.v4, sizeof(pkt.dst_ip.v4));
+    memcpy(dst_ip.data(), &pkt.src_ip.v4, sizeof(pkt.src_ip.v4));
+    return *this;
+}
+FlowKeyV4& FlowKeyV4::save_sorted(const Packet& pkt) noexcept
+{
+    if ( pkt.src_ip.v4 < pkt.dst_ip.v4)
+        *this = pkt;
+    else
+        this->save_reversed(pkt);
+
+    /*flow_key::operator=(pkt);
+    ip_version = IP::v4;
+    if ( *reinterpret_cast<uint32_t*>(src_ip.data()) < *reinterpret_cast<uint32_t*>(dst_ip.data())) {
+        memcpy(src_ip.data(), &pkt.src_ip.v4, 4);
+        memcpy(dst_ip.data(), &pkt.dst_ip.v4, 4);
+    }else{
+        memcpy(src_ip.data(), &pkt.dst_ip.v4, 4);
+        memcpy(dst_ip.data(), &pkt.src_ip.v4, 4);
+        auto tmp = src_port;
+        src_port = dst_port;
+        dst_port = tmp;
+    }*/
     return *this;
 }
 } // namespace ipxp
