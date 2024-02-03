@@ -40,6 +40,7 @@
 #include <thread>
 #include <rte_common.h>
 #include <rte_thash.h>
+#include "crc32c/crc32c.h"
 
 namespace ipxp {
 
@@ -76,7 +77,8 @@ NHTFlowCache::NHTFlowCache()
 {
     uint32_t key[]  = {0xDEADBEEF, 0xBAADC0DE, 0xFACEFEED, 0xDEADF00D};
     rte_convert_rss_key(key, m_rss_key, sizeof(key));
-    set_hash_function([this](const void* ptr,uint32_t len){ return rte_softrss_be((uint32_t *)ptr, len/4, (const uint8_t*)m_rss_key);});
+    set_hash_function([this](const void* ptr,uint32_t len){ return crc32c::Crc32c((const char*)ptr, len);});
+    //set_hash_function([this](const void* ptr,uint32_t len){ return rte_softrss_be((uint32_t *)ptr, len/4, (const uint8_t*)m_rss_key);});
     //set_hash_function([](const void* ptr,uint32_t len){ return XXH64(ptr, size, 0);});
     test_attributes();
 }
