@@ -42,7 +42,8 @@ void GAFlowCache::get_opts_from_parser(const GACacheOptParser& parser){
     m_infilename = parser.m_infilename;
 }
 
-uint32_t GAFlowCache::enhance_existing_flow_record(uint32_t flow_index,uint32_t line_index) noexcept{
+uint32_t GAFlowCache::enhance_existing_flow_record(uint32_t flow_index) noexcept{
+    uint32_t line_index = flow_index & m_line_mask;
     m_statistics.m_lookups += (flow_index - line_index + 1);
     m_statistics.m_lookups2 += (flow_index - line_index + 1) * (flow_index - line_index + 1);
     m_statistics.m_hits++;
@@ -51,12 +52,13 @@ uint32_t GAFlowCache::enhance_existing_flow_record(uint32_t flow_index,uint32_t 
     return line_index;
 }
 
-uint32_t GAFlowCache::make_place_for_record(uint32_t line_index, uint32_t next_line) noexcept{
+uint32_t GAFlowCache::make_place_for_record(uint32_t line_index) noexcept{
+    uint32_t next_line = line_index + m_line_size;
     if (m_flow_table[next_line - 1]->is_empty()){
         m_statistics.m_empty++;
     }else{
         m_statistics.m_not_empty++;
-        prepare_and_export(next_line - 1, FlowEndReason::FLOW_END_NO_ROW_SPACE);
+        prepare_and_export(next_line - 1, FlowEndReason::FLOW_END_LACK_OF_RECOURSES);
     }
     cyclic_rotate_records(line_index + m_insert_pos,next_line - 1);
     return line_index + m_insert_pos;

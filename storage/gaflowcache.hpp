@@ -21,8 +21,8 @@ public:
     GAConfiguration get_configuration() const noexcept;
 protected:
     void get_opts_from_parser(const GACacheOptParser& parser);
-    uint32_t enhance_existing_flow_record(uint32_t flow_index,uint32_t line_index) noexcept override;
-    uint32_t make_place_for_record(uint32_t line_index,uint32_t  next_line) noexcept override;
+    uint32_t enhance_existing_flow_record(uint32_t flow_index) noexcept override;
+    uint32_t make_place_for_record(uint32_t line_index) noexcept override;
 private:
     std::string m_infilename = "";
     GAConfiguration m_configuration;
