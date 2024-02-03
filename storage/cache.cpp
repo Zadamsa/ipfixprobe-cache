@@ -38,6 +38,8 @@
 #include <ipfixprobe/ring.h>
 #include <sys/time.h>
 #include <thread>
+#include <rte_common.h>
+#include <rte_thash.h>
 
 namespace ipxp {
 
@@ -72,7 +74,10 @@ NHTFlowCache::NHTFlowCache()
     , m_periodic_statistics_sleep_time(0s)
     , m_fragmentation_cache(0, 0)
 {
-    set_hash_function([](const void* ptr,uint32_t len){ return XXH64(ptr, size, 0);});
+    uint32_t key[]  = {0xDEADBEEF, 0xBAADC0DE, 0xFACEFEED, 0xDEADF00D};
+    rte_convert_rss_key(key, m_rss_key, sizeof(key));
+    set_hash_function([this](const void* ptr,uint32_t len){ return rte_softrss_be((uint32_t *)ptr, len/4, (const uint8_t*)m_rss_key);});
+    //set_hash_function([](const void* ptr,uint32_t len){ return XXH64(ptr, size, 0);});
     test_attributes();
 }
 
@@ -388,7 +393,7 @@ std::tuple<bool, uint32_t, uint64_t> NHTFlowCache::find_flow_position(Packet& pk
         [](const auto& flow_key) { return std::make_pair((uint8_t*) &flow_key, sizeof(flow_key)); },
         m_key);
     //Exclude swapped flag from hashing
-    uint64_t hashval = XXH64(ptr, size - 1 , 0);
+    uint64_t hashval = hash(ptr, size - 1);
     auto [found, flow_index] = find_existing_record(hashval);
     pkt.source_pkt = !found || (std::visit([](auto&& key) { return key.swapped; }, m_key) == m_flow_table[flow_index]->m_swapped);
     return {found, flow_index, hashval};

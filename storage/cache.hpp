@@ -95,6 +95,7 @@ private:
     FragmentationCache
         m_fragmentation_cache; ///< Fragmentation cache used for completing packets ports
     std::function<uint64_t(const void*,uint32_t)> m_hash_function;
+    uint32_t m_rss_key[10];
 
     void try_to_fill_ports_to_fragmented_packet(Packet& packet);
     void allocate_tables();

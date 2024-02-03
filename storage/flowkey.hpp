@@ -33,12 +33,12 @@ namespace ipxp {
 
 template<uint16_t IPSize>
 struct __attribute__((packed)) FlowKey {
+    std::array<uint8_t, IPSize> src_ip; ///< Source ip
+    std::array<uint8_t, IPSize> dst_ip; ///< Destination ip
     uint16_t src_port; ///< Source port.
     uint16_t dst_port; ///< Destination port.
     uint8_t proto; ///< ID of next level protocol.
     uint8_t ip_version; ///< ip4 or ip6.
-    std::array<uint8_t, IPSize> src_ip; ///< Source ip
-    std::array<uint8_t, IPSize> dst_ip; ///< Destination ip
     uint16_t vlan_id;
     bool swapped;
     FlowKey<IPSize>& operator=(const Packet& pkt) noexcept;
