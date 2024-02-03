@@ -144,20 +144,6 @@ void CacheOptParser::register_options(){
         },
         OptionFlags::NoArgument);
     register_option(
-        "p",
-        "period",
-        "TIME",
-        "Print cache statistics every period of time.",
-        [this](const char* arg) {
-            try {
-                m_periodic_statistics_sleep_time = str2num<double>(arg);
-            } catch (std::invalid_argument& e) {
-                return false;
-            }
-            return true;
-        },
-        OptionFlags::NoArgument);
-    register_option(
         "fe",
         "frag-enable",
         "true|false",
