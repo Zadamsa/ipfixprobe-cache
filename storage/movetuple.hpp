@@ -12,8 +12,8 @@
 namespace ipxp {
 
 struct MoveTuple{
-    uint8_t m_count;
-    uint8_t m_value;
+    uint32_t m_count;
+    uint32_t m_value;
     bool m_increment = false;
     MoveTuple& operator=(const MoveTuple& o) noexcept = default;
     bool operator==(const MoveTuple& o) const noexcept;

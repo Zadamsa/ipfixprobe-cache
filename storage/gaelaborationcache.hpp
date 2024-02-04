@@ -46,6 +46,8 @@ private:
     std::condition_variable m_new_pkt_cond;
     std::condition_variable m_done_cond;
     std::vector<bool> m_done;
+    std::atomic<int> m_started = 0;
+    std::atomic<int> m_pkt_id = 0;
 };
 
 } // namespace ipxp

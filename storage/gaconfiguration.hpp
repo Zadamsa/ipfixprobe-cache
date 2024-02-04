@@ -22,7 +22,7 @@ public:
     std::pair<uint32_t,std::vector<uint32_t>> unpack() const noexcept;
 private:
     std::vector<MoveTuple> m_moves;
-    uint16_t m_insert_pos = 0;
+    uint32_t m_insert_pos = 0;
     uint32_t m_line_size = 0;
 
     std::mt19937 m_rng = std::mt19937(std::random_device()());
@@ -33,8 +33,10 @@ private:
 
     void mutate_counts(float probability);
     void mutate_targets(float probability);
-    void mutate_insert_pos(float probability) noexcept;
+    void mutate_insert_pos(float probability);
     void mutate_increment(float probability);
+    void mutate_counts_by_one(float probability);
+    void mutate_targets_by_one(float probability);
     void fix() noexcept;
     void fix_counts() noexcept;
     void fix_targets() noexcept;

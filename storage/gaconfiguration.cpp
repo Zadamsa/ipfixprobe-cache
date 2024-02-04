@@ -20,7 +20,7 @@ GAConfiguration::GAConfiguration(uint32_t line_size): m_line_size(line_size){
         uint8_t target = moves_dist(m_rng);
         generated_nodes_count += count;
         prev = target;
-        m_moves.push_back(MoveTuple{count,target});
+        m_moves.push_back(MoveTuple{count,target, roll(0.1)});
     }
     mutate_insert_pos(1);
     fix_counts();
@@ -38,12 +38,27 @@ GAConfiguration GAConfiguration::mutate() const{
     while(new_configuration == *this) {
         new_configuration.mutate_counts(0.2);
         new_configuration.fix_counts();
-        new_configuration.mutate_increment(0.1);
+        new_configuration.mutate_counts_by_one(0.4);
+        new_configuration.fix_counts();
+        new_configuration.mutate_increment(0.3);
         new_configuration.mutate_targets(0.2);
+        new_configuration.fix_targets();
+        new_configuration.mutate_targets_by_one(0.4);
         new_configuration.fix_targets();
         new_configuration.mutate_insert_pos(0.2);
     }
     return new_configuration;
+}
+
+void GAConfiguration::mutate_counts_by_one(float probability) {
+    std::transform(m_moves.begin(), m_moves.end(), m_moves.begin(),[this,probability](MoveTuple& mp) {
+        return roll(probability) ? MoveTuple{std::max(mp.m_count + (roll(0.5) ? 1 : -1),1u),mp.m_value,mp.m_increment} : mp;
+    });
+}
+void GAConfiguration::mutate_targets_by_one(float probability) {
+    std::transform(m_moves.begin(), m_moves.end(), m_moves.begin(),[this,probability](MoveTuple& mp) {
+        return roll(probability) ? MoveTuple{mp.m_count, mp.m_value + (mp.m_value == 0 || roll(0.5) ? 1 : -1),mp.m_increment} : mp;
+    });
 }
 
 void GAConfiguration::mutate_increment(float probability){
@@ -52,7 +67,7 @@ void GAConfiguration::mutate_increment(float probability){
     });
 }
 
-void GAConfiguration::mutate_insert_pos(float probability) noexcept{
+void GAConfiguration::mutate_insert_pos(float probability){
     if (roll(probability))
         m_insert_pos = m_insert_dist(m_rng);
 }
@@ -105,7 +120,8 @@ void GAConfiguration::mutate_targets(float probability){
 
 void GAConfiguration::fix_counts() noexcept{
     while (uint8_t diff = std::accumulate(m_moves.begin(), m_moves.end(), 0,[](uint8_t sum, const MoveTuple& mp) { return sum + mp.m_count; }) -  m_line_size)
-        m_moves[m_pair_dist(m_rng)].m_count += diff > 0 ? 1 : -1;
+        if (auto pos = m_pair_dist(m_rng); m_moves[pos].m_count != 1 || diff >= 0)
+            m_moves[pos].m_count += diff > 0 ? 1 : -1;
 }
 void GAConfiguration::fix_targets() noexcept{
     for( uint32_t i = 1; i < m_moves.size(); i++)

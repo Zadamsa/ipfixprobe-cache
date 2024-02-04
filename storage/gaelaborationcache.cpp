@@ -16,14 +16,19 @@ __attribute__((constructor)) static void register_this_plugin() noexcept
 GAElaborationCache::GAElaborationCache():GAFlowCache(){}
 GAElaborationCache::~GAElaborationCache(){
     m_exit = true;
-    m_done = std::vector<bool>(m_generation_size,false);
+    m_done = std::vector<bool>(m_generation_size,true);
     m_done_cond.notify_all();
 
     for(auto& thr : m_threads)
         thr.join();
     const auto best_example = std::min_element(m_caches.begin(), m_caches.end(),
                      [](const auto& a, const auto& b) {
-                         return a->get_total_statistics().m_not_empty < b->get_total_statistics().m_not_empty;
+                         return std::tie(a->get_total_statistics().m_not_empty,
+                                           a->get_total_statistics().m_hits,
+                                           a->get_total_statistics().m_put_time) <
+                                           std::tie(b->get_total_statistics().m_not_empty,
+                                            b->get_total_statistics().m_hits,
+                                            b->get_total_statistics().m_put_time);
                      }
     );
     if (best_example != m_caches.end())
@@ -44,8 +49,6 @@ void GAElaborationCache::init(OptionsParser& in_parser) {
     get_opts_from_parser(*parser);
     parser->m_infilename = "";
     std::vector<GAConfiguration> configurations;
-    GAConfiguration x(m_line_size);
-    GAConfiguration y(x);
     if (m_infilename != ""){
         GAConfiguration default_config(m_line_size);
         default_config.read_from_file(m_infilename);
@@ -76,6 +79,7 @@ void GAElaborationCache::create_generation(std::vector<GAConfiguration>& configu
                 uniq = configurations[i] != configurations[k];
         }
     }
+    configurations.emplace_back(default_config);
 }
 
 OptionsParser* GAElaborationCache::get_parser() const{
@@ -89,29 +93,37 @@ void GAElaborationCache::set_queue(ipx_ring_t* queue){
 }
 int GAElaborationCache::put_pkt(Packet& pkt){
     m_statistics.m_hits++;
-    std::unique_lock ul(m_mutex);
     m_pkt_ptr = &pkt;
-    m_done = std::vector<bool>(m_generation_size,false);
-    m_done_cond.notify_all();
+    std::unique_lock ul(m_mutex);
+    if (! std::all_of(m_done.begin(), m_done.end(), [](bool d) {
+            return d;
+        }))
     m_new_pkt_cond.wait(ul,[this](){return std::all_of(m_done.begin(), m_done.end(), [](bool d) {
                                            return d;
                                        });});
+    m_done = std::vector<bool>(m_generation_size,false);
+    m_pkt_id++;
+    m_done_cond.notify_all();
+    //m_pkt_ptr = nullptr;
+    //m_done_cond.notify_all();
     //m_finished_count = 0;
-    m_pkt_ptr = nullptr;
     return 0;
 }
 
 void GAElaborationCache::cache_worker(uint32_t worker_id) noexcept{
-    while(!m_exit) {
+    int last_id = 0;
+    while(!m_exit){
         std::unique_lock ul(m_mutex);
-        m_done_cond.wait(ul, [this,worker_id]() { return !m_done[worker_id]; });
+        m_new_pkt_cond.notify_one();
+        m_done_cond.wait(ul,[this,last_id](){return m_pkt_id != last_id || m_exit;});
+
         if (m_exit)
-            return ;
+            return;
         ul.unlock();
         m_caches[worker_id]->put_pkt(*m_pkt_ptr);
         ul.lock();
+        last_id = m_pkt_id;
         m_done[worker_id] = true;
-        m_new_pkt_cond.notify_one();
     }
 }
 void GAElaborationCache::finish(){}
