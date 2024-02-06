@@ -76,8 +76,8 @@ NHTFlowCache::NHTFlowCache()
 {
     uint32_t key[]  = {0xDEADBEEF, 0xBAADC0DE, 0xFACEFEED, 0xDEADF00D};
     rte_convert_rss_key(key, m_rss_key, sizeof(key));
-    set_hash_function([this](const void* ptr,uint32_t len){ return rte_softrss_be((uint32_t *)ptr, len/4, (const uint8_t*)m_rss_key);});
-    //set_hash_function([](const void* ptr,uint32_t len){ return XXH64(ptr, size, 0);});
+    //set_hash_function([this](const void* ptr,uint32_t len){ return rte_softrss_be((uint32_t *)ptr, len/4, (const uint8_t*)m_rss_key);});
+    set_hash_function([](const void* ptr,uint32_t len){ return XXH64(ptr, len, 0);});
     test_attributes();
 }
 
@@ -342,7 +342,7 @@ bool NHTFlowCache::tcp_connection_reset(Packet& pkt, uint32_t flow_index) noexce
         // Flows with FIN or RST TCP flags are exported when new SYN packet arrives
         m_flow_table[flow_index]->m_flow.end_reason = FLOW_END_EOF;
         export_flow(flow_index);
-        put_pkt(pkt);
+        insert_pkt(pkt);
         return true;
     }
     return false;
