@@ -475,10 +475,47 @@ int NHTFlowCache::insert_pkt(Packet& pkt) noexcept
         // Finally update flow data
         if (update_flow(flow_index, pkt,source))
             return 0;
+        if (has_dns_response(pkt)) {
+            prepare_and_export(flow_index, FlowEndReason::FLOW_END_EOF_DETECTED);
+            m_statistics.m_early_dns_exported++;
+        }
     }
     // Checks part of cache for possible timeouts
     export_expired(pkt.ts.tv_sec);
     return 0;
+}
+
+bool NHTFlowCache::has_dns_response(const Packet& pkt)const noexcept{
+    if ((pkt.src_port != 53 && pkt.dst_port != 53) || pkt.ip_payload_len < 21 || pkt.ip_proto != IPPROTO_UDP)
+        return false;
+    const uint16_t* dns_hdr = (const uint16_t*)pkt.payload;
+    auto qr = ntohs(dns_hdr[1]) >> 15;
+    auto rcode = ntohs(dns_hdr[1]) & 0b1111;
+    auto opcode = (ntohs(dns_hdr[1]) >> 11) & 0b1111;
+    auto qdcount = ntohs(dns_hdr[2]);
+    auto ancount = ntohs(dns_hdr[3]);
+    auto nscount = ntohs(dns_hdr[4]);
+    auto arcount = ntohs(dns_hdr[5]);
+
+    //Ignore dns queries
+    if (qr == 0)
+        return false;
+    if (qdcount == 0x0001 && ancount == 0 && nscount == 0 && arcount <= 2 && rcode <= 5)
+            return true;
+
+    const uint8_t* name_ptr = (const uint8_t*)&dns_hdr[6];
+    if (*name_ptr == 0)
+        return false;
+    while(*name_ptr != 0) {
+        auto end_ptr = name_ptr + 1 + *name_ptr;
+        name_ptr++;
+        if (end_ptr >= pkt.payload + pkt.payload_len)
+            return false;
+        for (; name_ptr != end_ptr; name_ptr++)
+            if (*name_ptr >= 0x80)
+                return false;
+    }
+    return true;
 }
 
 /**
@@ -515,7 +552,7 @@ int NHTFlowCache::put_pkt(Packet& pkt)
 {
     auto start = std::chrono::high_resolution_clock::now();
     auto res = insert_pkt(pkt);
-    m_statistics.m_put_time += std::chrono::duration_cast<std::chrono::microseconds>(
+    m_statistics.m_put_time += std::chrono::duration_cast<std::chrono::nanoseconds>(
                       std::chrono::high_resolution_clock::now() - start)
                       .count();
     return res;

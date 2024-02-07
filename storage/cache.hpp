@@ -145,6 +145,7 @@ protected:
     void prepare_and_export(uint32_t flow_index, FlowEndReason reason) noexcept;
     uint64_t hash(const void* ptr, uint32_t len) const noexcept;
     void set_hash_function(std::function<uint64_t(const void*,uint32_t)> function) noexcept;
+    bool has_dns_response(const Packet& pkt)const noexcept;
 
     static bool has_tcp_eof_flags(const Flow& flow) noexcept;
     static void test_attributes();

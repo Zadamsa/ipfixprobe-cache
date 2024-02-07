@@ -33,6 +33,7 @@ CacheStatistics::CacheStatistics()
     , m_flushed(0)
     , m_lookups(0)
     , m_lookups2(0)
+    , m_early_dns_exported(0)
     , m_put_time(0)
 {
 }
@@ -48,6 +49,7 @@ CacheStatistics CacheStatistics::operator-(const CacheStatistics& o) const noexc
     res.m_lookups = m_lookups - o.m_lookups;
     res.m_lookups2 = m_lookups2 - o.m_lookups2;
     res.m_put_time = m_put_time - o.m_put_time;
+    res.m_early_dns_exported = m_early_dns_exported - o.m_early_dns_exported;
     return res;
 }
 std::ostream& operator<<(std::ostream& os, const CacheStatistics& statistics) noexcept
@@ -61,7 +63,8 @@ std::ostream& operator<<(std::ostream& os, const CacheStatistics& statistics) no
     os << "Flushed: " << statistics.m_flushed << "\n";
     os << "Average Lookup:  " << tmp << "\n";
     os << "Variance Lookup: " << float(statistics.m_lookups2) / statistics.m_hits - tmp * tmp << "\n";
-    os << "Spent in put_pkt: " << statistics.m_put_time << " us" << std::endl;
+    os << "DNS responses exported: " << statistics.m_early_dns_exported << "\n";
+    os << "Spent in put_pkt: " << statistics.m_put_time << " ns" << std::endl;
     return os;
 }
 
