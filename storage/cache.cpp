@@ -72,7 +72,26 @@ NHTFlowCache::NHTFlowCache()
     , m_periodic_statistics_sleep_time(0s)
     , m_fragmentation_cache(0, 0)
 {
+    set_hash_function([](const uint8_t* data,uint32_t len){ return XXH64(data, len, 0);});
     test_attributes();
+}
+
+/**
+ * @brief Cache hash function setter.
+ * @param function Hash function to use.
+ * Set hash function will be used in hash() function.
+ */
+void NHTFlowCache::set_hash_function(std::function<uint64_t(const uint8_t*,uint32_t)> function) noexcept{
+    m_hash_function = std::move(function);
+}
+
+/**
+ * @brief Calculates hash of provided data.
+ * @param data Data to hash.
+ * @param len Length of provided data in bytes.
+ */
+uint64_t NHTFlowCache::hash(const uint8_t* data, uint32_t len) const noexcept{
+    return m_hash_function(data,len);
 }
 
 /**
@@ -203,7 +222,6 @@ void NHTFlowCache::export_flow(uint32_t index)
  * @brief Cache devastation
  * Called on cache destruction. Exports every flow that is still in cache.
  */
-// Export all flows in cache on shutdown
 void NHTFlowCache::finish()
 {
     for (uint32_t i = 0; i < m_cache_size; i++)
@@ -328,7 +346,7 @@ bool NHTFlowCache::tcp_connection_reset(Packet& pkt, uint32_t flow_index) noexce
         // Flows with FIN or RST TCP flags are exported when new SYN packet arrives
         m_flow_table[flow_index]->m_flow.end_reason = FLOW_END_EOF;
         export_flow(flow_index);
-        put_pkt(pkt);
+        insert_pkt(pkt);
         return true;
     }
     return false;
@@ -379,7 +397,7 @@ std::tuple<bool, uint32_t, uint64_t> NHTFlowCache::find_flow_position(Packet& pk
         [](const auto& flow_key) { return std::make_pair((uint8_t*) &flow_key, sizeof(flow_key)); },
         m_key);
     //Exclude swapped flag from hashing
-    uint64_t hashval = XXH64(ptr, size - 1 , 0);
+    uint64_t hashval = hash(ptr, size - 1);
     auto [found, flow_index] = find_existing_record(hashval);
     pkt.source_pkt = !found || (std::visit([](auto&& key) { return key.swapped; }, m_key) == m_flow_table[flow_index]->m_swapped);
     return {found, flow_index, hashval};
