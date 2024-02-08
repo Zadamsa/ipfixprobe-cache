@@ -31,6 +31,7 @@ namespace ipxp {
 struct __attribute__((packed)) FlowKeyV4 : public FlowKey<4> {
     FlowKeyV4& operator=(const Packet& pkt) noexcept;
     FlowKeyV4& save_reversed(const Packet& pkt) noexcept;
+    FlowKeyV4& save_sorted(const Packet& pkt) noexcept;
 };
 
 } // namespace ipxp

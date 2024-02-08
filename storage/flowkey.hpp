@@ -40,6 +40,7 @@ struct __attribute__((packed)) FlowKey {
     std::array<uint8_t, IPSize> src_ip; ///< Source ip
     std::array<uint8_t, IPSize> dst_ip; ///< Destination ip
     uint16_t vlan_id;
+    bool swapped;
     FlowKey<IPSize>& operator=(const Packet& pkt) noexcept;
     FlowKey<IPSize>& save_reversed(const Packet& pkt) noexcept;
 };

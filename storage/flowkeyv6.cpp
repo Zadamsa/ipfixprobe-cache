@@ -43,4 +43,18 @@ FlowKeyV6& FlowKeyV6::save_reversed(const Packet& pkt) noexcept
     memcpy(dst_ip.data(), pkt.src_ip.v6, 16);
     return *this;
 }
+
+FlowKeyV6& FlowKeyV6::save_sorted(const Packet& pkt) noexcept
+{
+    if ( [](const uint8_t* addr1,const  uint8_t* addr2)->int8_t {
+            for (auto i = 0; i < 16 ; i++)
+                if (addr1[15-i] != addr2[15-i])
+                    return (int8_t)(addr1[15-i] - addr2[15-i]);
+            return 0;
+    }(pkt.src_ip.v6,pkt.dst_ip.v6) < 0 )
+        *this = pkt;
+    else
+        this->save_reversed(pkt);
+    return *this;
+}
 } // namespace ipxp

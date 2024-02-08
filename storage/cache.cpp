@@ -336,7 +336,7 @@ bool NHTFlowCache::tcp_connection_reset(Packet& pkt, uint32_t flow_index) noexce
 
 void NHTFlowCache::create_new_flow(uint32_t flow_index, Packet& pkt, uint64_t hashval) noexcept
 {
-    m_flow_table[flow_index]->create(pkt, hashval);
+    m_flow_table[flow_index]->create(pkt, hashval, std::visit([](auto&& key)->bool { return key.swapped; }, m_key));
     if (plugins_post_create(m_flow_table[flow_index]->m_flow, pkt) & FLOW_FLUSH) {
         export_flow(flow_index);
         m_statistics.m_flushed++;
@@ -378,31 +378,10 @@ std::tuple<bool, uint32_t, uint64_t> NHTFlowCache::find_flow_position(Packet& pk
     auto [ptr, size] = std::visit(
         [](const auto& flow_key) { return std::make_pair((uint8_t*) &flow_key, sizeof(flow_key)); },
         m_key);
-    uint64_t hashval = XXH64(ptr, size, 0);
-    bool source_flow = true;
-    // uint32_t line_index = hashval & m_line_mask;
-    // uint32_t next_line = line_index + m_line_size;
+    //Exclude swapped flag from hashing
+    uint64_t hashval = XXH64(ptr, size - 1 , 0);
     auto [found, flow_index] = find_existing_record(hashval);
-
-    /* Find inversed flow. */
-    if (!found && !m_split_biflow) {
-        std::tie(ptr, size) = std::visit(
-            [](const auto& flow_key) {
-                return std::make_pair((uint8_t*) &flow_key, sizeof(flow_key));
-            },
-            m_key_inv);
-        uint64_t hashval_inv = XXH64(ptr, size, 0);
-
-        // uint64_t line_index_inv = hashval_inv & m_line_mask;
-        // uint64_t next_line_inv = line_index_inv + m_line_size;
-        std::tie(found, flow_index) = find_existing_record(hashval_inv);
-        if (found) {
-            source_flow = false;
-            hashval = hashval_inv;
-            // line_index = line_index_inv;
-        }
-    }
-    pkt.source_pkt = source_flow;
+    pkt.source_pkt = !found || (std::visit([](auto&& key) { return key.swapped; }, m_key) == m_flow_table[flow_index]->m_swapped);
     return {found, flow_index, hashval};
 }
 
@@ -503,7 +482,7 @@ int NHTFlowCache::put_pkt(Packet& pkt)
 {
     auto start = std::chrono::high_resolution_clock::now();
     auto res = insert_pkt(pkt);
-    m_statistics.m_put_time += std::chrono::duration_cast<std::chrono::microseconds>(
+    m_statistics.m_put_time += std::chrono::duration_cast<std::chrono::nanoseconds>(
                                    std::chrono::high_resolution_clock::now() - start)
                                    .count();
     return res;
@@ -552,8 +531,10 @@ bool NHTFlowCache::create_hash_key(const Packet& pkt) noexcept
         m_key.emplace<FlowKeyV6>();
         m_key_inv.emplace<FlowKeyV6>();
     }
-    std::visit([&pkt](auto&& flow_key) { flow_key = pkt; }, m_key);
-    std::visit([&pkt](auto&& flow_key) { flow_key.save_reversed(pkt); }, m_key_inv);
+    if (m_split_biflow)
+        std::visit([&pkt](auto&& flow_key) { flow_key = pkt; }, m_key);
+    else
+        std::visit([&pkt](auto&& flow_key) { flow_key.save_sorted(pkt); }, m_key);
     return true;
 }
 
