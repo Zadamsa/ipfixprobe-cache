@@ -30,6 +30,11 @@ CacheStatistics::CacheStatistics()
     , m_not_empty(0)
     , m_hits(0)
     , m_expired(0)
+    , m_exported_on_cache_end(0)
+    , m_exported_on_line_end(0)
+    , m_exported_on_update_of_inactive(0)
+    , m_exported_on_update_of_active(0)
+    , m_exported_on_periodic_inactive_check(0)
     , m_flushed(0)
     , m_lookups(0)
     , m_lookups2(0)
@@ -58,6 +63,13 @@ std::ostream& operator<<(std::ostream& os, const CacheStatistics& statistics) no
     os << "Empty: " << statistics.m_empty << "\n";
     os << "Not empty: " << statistics.m_not_empty << "\n";
     os << "Expired: " << statistics.m_expired << "\n";
+    os << "--------------------------------------------------------------------------\n";
+    os << "Exported on insert to full row:" << statistics.m_exported_on_line_end << "\n";
+    os << "Exported on update of inactive flow:" << statistics.m_exported_on_update_of_inactive << "\n";
+    os << "Exported on update of active flow:" << statistics.m_exported_on_update_of_active << "\n";
+    os << "Exported on periodic table scans:" << statistics.m_exported_on_periodic_inactive_check << "\n";
+    os << "Exported on cache end:" << statistics.m_exported_on_cache_end << "\n";
+    os << "--------------------------------------------------------------------------\n";
     os << "Flushed: " << statistics.m_flushed << "\n";
     os << "Average Lookup:  " << tmp << "\n";
     os << "Variance Lookup: " << float(statistics.m_lookups2) / statistics.m_hits - tmp * tmp

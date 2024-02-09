@@ -40,6 +40,7 @@
 #include <thread>
 #include <rte_common.h>
 #include <rte_thash.h>
+#include "crc32c/crc32c.h"
 
 namespace ipxp {
 
@@ -74,10 +75,12 @@ NHTFlowCache::NHTFlowCache()
     , m_periodic_statistics_sleep_time(0s)
     , m_fragmentation_cache(0, 0)
 {
-    uint32_t key[]  = {0xDEADBEEF, 0xBAADC0DE, 0xFACEFEED, 0xDEADF00D};
+    //uint32_t key[]  = {0xDEADBEEF, 0xBAADC0DE, 0xFACEFEED, 0xDEADF00D};
+    uint32_t key[]  = {3461461630, 3320016613, 3025207070, 795155050};
     rte_convert_rss_key(key, m_rss_key, sizeof(key));
-    //set_hash_function([this](const void* ptr,uint32_t len){ return rte_softrss_be((uint32_t *)ptr, len/4, (const uint8_t*)m_rss_key);});
-    set_hash_function([](const void* ptr,uint32_t len){ return XXH64(ptr, len, 0);});
+    set_hash_function([this](const void* ptr,uint32_t len){ return rte_softrss_be((uint32_t *)ptr, len/4, (const uint8_t*)m_rss_key);});
+    //set_hash_function([](const void* ptr,uint32_t len){ return XXH64(ptr, len, 0);});
+    //set_hash_function([this](const void* ptr,uint32_t len){ return crc32c::Crc32c((const char*)ptr, len);});
     test_attributes();
 }
 
@@ -221,8 +224,10 @@ void NHTFlowCache::export_flow(uint32_t index)
 void NHTFlowCache::finish()
 {
     for (uint32_t i = 0; i < m_cache_size; i++)
-        if (!m_flow_table[i]->is_empty())
+        if (!m_flow_table[i]->is_empty()) {
             prepare_and_export(i, ipxp::FlowEndReason::FLOW_END_FORCED_END);
+            m_statistics.m_exported_on_cache_end++;
+        }
 }
 
 void NHTFlowCache::prepare_and_export(uint32_t flow_index, FlowEndReason reason) noexcept
@@ -321,6 +326,7 @@ uint32_t NHTFlowCache::free_place_in_full_line(uint32_t line_begin) noexcept
 {
     uint32_t line_end = line_begin + m_line_size;
     prepare_and_export(line_end - 1, FlowEndReason::FLOW_END_LACK_OF_RECOURSES);
+    m_statistics.m_exported_on_line_end++;
     uint32_t flow_new_index = line_begin + m_line_new_idx;
     cyclic_rotate_records(flow_new_index, line_end - 1);
     return flow_new_index;
@@ -478,11 +484,13 @@ bool NHTFlowCache::timeouts_expired(Packet& pkt, uint32_t flow_index) noexcept
             has_tcp_eof_flags(m_flow_table[flow_index]->m_flow)
                 ? FlowEndReason::FLOW_END_EOF_DETECTED
                 : FlowEndReason::FLOW_END_IDLE_TIMEOUT);
+        m_statistics.m_exported_on_update_of_inactive++;
         return true;
     }
     // Check if flow record is expired (active timeout)
     if (pkt.ts.tv_sec - m_flow_table[flow_index]->m_flow.time_first.tv_sec >= m_active) {
         prepare_and_export(flow_index, FlowEndReason::FLOW_END_ACTIVE_TIMEOUT);
+        m_statistics.m_exported_on_update_of_active++;
         return true;
     }
     return false;
@@ -523,6 +531,7 @@ void NHTFlowCache::export_expired(time_t ts)
                 has_tcp_eof_flags(m_flow_table[i]->m_flow)
                     ? ipxp::FlowEndReason::FLOW_END_EOF_DETECTED
                     : ipxp::FlowEndReason::FLOW_END_IDLE_TIMEOUT);
+            m_statistics.m_exported_on_periodic_inactive_check++;
         }
     }
     m_timeout_idx = (m_timeout_idx + m_line_new_idx) & (m_cache_size - 1);

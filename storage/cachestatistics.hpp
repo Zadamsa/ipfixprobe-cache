@@ -33,6 +33,11 @@ struct CacheStatistics {
     uint32_t m_not_empty;
     uint32_t m_hits;
     uint32_t m_expired;
+    uint32_t m_exported_on_cache_end;
+    uint32_t m_exported_on_line_end;
+    uint32_t m_exported_on_update_of_inactive;
+    uint32_t m_exported_on_update_of_active;
+    uint32_t m_exported_on_periodic_inactive_check;
     uint32_t m_flushed;
     uint32_t m_lookups;
     uint32_t m_lookups2;
