@@ -78,8 +78,8 @@ NHTFlowCache::NHTFlowCache()
     //uint32_t key[]  = {0xDEADBEEF, 0xBAADC0DE, 0xFACEFEED, 0xDEADF00D};
     uint32_t key[]  = {3461461630, 3320016613, 3025207070, 795155050};
     rte_convert_rss_key(key, m_rss_key, sizeof(key));
-    set_hash_function([this](const void* ptr,uint32_t len){ return rte_softrss_be((uint32_t *)ptr, len/4, (const uint8_t*)m_rss_key);});
-    //set_hash_function([](const void* ptr,uint32_t len){ return XXH64(ptr, len, 0);});
+    //set_hash_function([this](const void* ptr,uint32_t len){ return rte_softrss_be((uint32_t *)ptr, len/4, (const uint8_t*)m_rss_key);});
+    set_hash_function([](const void* ptr,uint32_t len){ return XXH3_128bits(ptr, len).low64;});
     //set_hash_function([this](const void* ptr,uint32_t len){ return crc32c::Crc32c((const char*)ptr, len);});
     test_attributes();
 }
