@@ -77,7 +77,8 @@ public:
     std::string get_name() const noexcept;
     int put_pkt(Packet& pkt) override;
     void export_expired(time_t ts) override;
-    void print_report() const noexcept;
+    virtual void print_report() const noexcept;
+    void finish() override;
     CacheStatistics& get_total_statistics() noexcept;
     CacheStatistics& get_last_statistics() noexcept;
 
@@ -85,7 +86,7 @@ protected:
     uint32_t m_cache_size; ///< Maximal count of records in cache
     uint32_t m_line_size; ///< Maximal count of records in one row
     uint32_t m_line_mask; ///< Line mask xored with flow index returns start of the row
-    uint32_t m_line_new_idx; ///< Insert position of new flow, if row has no empty space
+    uint32_t m_insert_pos; ///< Insert position of new flow, if row has no empty space
     uint32_t m_qsize; ///< Export queue size
     uint32_t m_qidx; ///< Next position in export queue that will be exported
     uint32_t m_timeout_idx; ///< Index of the row where expired flow will be exported
@@ -134,7 +135,7 @@ protected:
     bool create_hash_key(const Packet& pkt) noexcept;
     void export_flow(uint32_t index);
     static uint8_t get_export_reason(Flow& flow);
-    void finish() override;
+
     void cyclic_rotate_records(uint32_t begin,uint32_t end) noexcept;
 
     bool process_last_tcp_packet(Packet& pkt, uint32_t flow_index) noexcept;

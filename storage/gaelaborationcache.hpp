@@ -28,11 +28,12 @@ public:
     OptionsParser* get_parser() const override;
     std::string get_name() const noexcept;
     int put_pkt(Packet& pkt) override;
+    void finish() override;
 private:
     void cache_worker(uint32_t worker_id) noexcept;
     void get_opts_from_parser(const GAElaborationCacheOptParser& parser);
     void create_generation(std::vector<GAConfiguration>& configurations, const GAConfiguration& default_config) const noexcept;
-    void finish() override;
+
 
     uint8_t m_generation_size = 0;
     std::atomic<uint8_t> m_finished_count = 0;

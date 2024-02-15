@@ -20,10 +20,12 @@ public:
     bool operator==(const GAConfiguration& o) const noexcept;
     bool operator!=(const GAConfiguration& o) const noexcept;
     std::pair<uint32_t,std::vector<uint32_t>> unpack() const noexcept;
+    std::string to_string() const noexcept;
 private:
     std::vector<MoveTuple> m_moves;
     uint32_t m_insert_pos = 0;
     uint32_t m_line_size = 0;
+
 
     std::mt19937 m_rng = std::mt19937(std::random_device()());
     std::uniform_int_distribution<std::mt19937::result_type> m_probability_dist = std::uniform_int_distribution<std::mt19937::result_type>(0,1000);
@@ -41,6 +43,7 @@ private:
     void fix_counts() noexcept;
     void fix_targets() noexcept;
     bool roll(double probability);
+    bool is_not_valid() const noexcept;
 };
 
 } // namespace ipxp

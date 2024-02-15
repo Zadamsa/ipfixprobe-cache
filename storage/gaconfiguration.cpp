@@ -41,28 +41,53 @@ GAConfiguration GAConfiguration::mutate() const{
         new_configuration.mutate_counts_by_one(0.4);
         new_configuration.fix_counts();
         new_configuration.mutate_increment(0.3);
+        new_configuration.fix_targets();
         new_configuration.mutate_targets(0.2);
         new_configuration.fix_targets();
         new_configuration.mutate_targets_by_one(0.4);
         new_configuration.fix_targets();
         new_configuration.mutate_insert_pos(0.2);
     }
+    if (new_configuration.is_not_valid()){
+        new_configuration.write_to_file("invalid_gaconfig.bin");
+        std::cout << "Invalid configuration generated" << std::endl;
+        *(uint32_t*)0=6666;
+    }
     return new_configuration;
 }
 
+bool GAConfiguration::is_not_valid() const noexcept{
+    if (std::accumulate(m_moves.begin(), m_moves.end(), 0u,[](uint32_t sum, const MoveTuple& mp) { return sum + mp.m_count; }) > m_line_size)
+        return true;
+    for(const auto& mt : m_moves)
+        if (mt.m_value >= m_line_size)
+            return true;
+    return false;
+}
 void GAConfiguration::mutate_counts_by_one(float probability) {
     std::transform(m_moves.begin(), m_moves.end(), m_moves.begin(),[this,probability](MoveTuple& mp) {
         return roll(probability) ? MoveTuple{std::max(mp.m_count + (roll(0.5) ? 1 : -1),1u),mp.m_value,mp.m_increment} : mp;
     });
 }
 void GAConfiguration::mutate_targets_by_one(float probability) {
-    std::transform(m_moves.begin(), m_moves.end(), m_moves.begin(),[this,probability](MoveTuple& mp) {
-        return roll(probability) ? MoveTuple{mp.m_count, mp.m_value + (mp.m_value == 0 || roll(0.5) ? 1 : -1),mp.m_increment} : mp;
+    if (m_moves.size() <= 1)
+        return ;
+    auto second = ++m_moves.begin();
+    auto last = std::prev(m_moves.end());
+    std::transform(second, last, second,[this,probability](MoveTuple& mp) {
+        if (mp.m_value == 0)
+            return roll(probability) ? MoveTuple{mp.m_count, 1,mp.m_increment} : mp;
+        if (mp.m_value == m_line_size - 1 && roll(probability))
+            return MoveTuple{mp.m_count, m_line_size - 2,mp.m_increment};
+        return roll(probability) ? MoveTuple{mp.m_count, mp.m_value + (roll(0.5) ? 1 : -1),mp.m_increment} : mp;
     });
+    if (roll(probability))
+        last->m_value--;
 }
 
 void GAConfiguration::mutate_increment(float probability){
-    std::transform(m_moves.begin(), m_moves.end(), m_moves.begin(),[this,probability](MoveTuple& mp) {
+    auto second = ++m_moves.begin();
+    std::transform(second, m_moves.end(), second,[this,probability](MoveTuple& mp) {
         return roll(probability) ? MoveTuple{mp.m_count,mp.m_value, !mp.m_increment} : mp;
     });
 }
@@ -74,7 +99,7 @@ void GAConfiguration::mutate_insert_pos(float probability){
 
 void GAConfiguration::mutate_counts(float probability){
     std::transform(m_moves.begin(), m_moves.end(), m_moves.begin(),[this,probability](MoveTuple& mp) {
-        return roll(probability) ? MoveTuple{(uint8_t)m_count_dist(m_rng),mp.m_value,mp.m_increment} : mp;
+        return roll(probability) ? MoveTuple{(uint32_t)m_count_dist(m_rng),mp.m_value,mp.m_increment} : mp;
     });
 }
 
@@ -106,11 +131,14 @@ void GAConfiguration::write_to_file(const std::string& filename) const {
 }
 
 void GAConfiguration::mutate_targets(float probability){
-    uint32_t max = 0;
-    std::transform(m_moves.begin(), m_moves.end(), m_moves.begin(),[this,probability,&max](MoveTuple& mp) {
-        std::uniform_int_distribution<std::mt19937::result_type> dist(0,max);
-        if (roll(probability))
+    uint32_t max = m_moves.begin()->m_count;
+    auto second = ++m_moves.begin();
+    std::transform(second, m_moves.end(), second,[this,probability,&max](MoveTuple& mp) {
+        std::uniform_int_distribution<std::mt19937::result_type> dist(0,max - 1);
+        if (roll(probability)) {
             mp.m_value = dist(m_rng);
+            //if (mp.m_value >)
+        }
         //if (mp.m_count >= max)
         //    mp.m_value = max;
         max += mp.m_count;
@@ -119,9 +147,9 @@ void GAConfiguration::mutate_targets(float probability){
 }
 
 void GAConfiguration::fix_counts() noexcept{
-    while (uint8_t diff = std::accumulate(m_moves.begin(), m_moves.end(), 0,[](uint8_t sum, const MoveTuple& mp) { return sum + mp.m_count; }) -  m_line_size)
-        if (auto pos = m_pair_dist(m_rng); m_moves[pos].m_count != 1 || diff >= 0)
-            m_moves[pos].m_count += diff > 0 ? 1 : -1;
+    while (int32_t diff = std::accumulate(m_moves.begin(), m_moves.end(), 0,[](int32_t sum, const MoveTuple& mp) { return sum + (int32_t)mp.m_count; }) -  (int32_t)m_line_size)
+        if (auto pos = m_pair_dist(m_rng); m_moves[pos].m_count != 1 || diff < 0)
+            m_moves[pos].m_count += diff > 0 ? -1 : 1;
 }
 void GAConfiguration::fix_targets() noexcept{
     for( uint32_t i = 1; i < m_moves.size(); i++)
@@ -131,6 +159,14 @@ void GAConfiguration::fix_targets() noexcept{
             else
                 std::swap(m_moves[i].m_value, m_moves[i - 1].m_value);
         }
+    uint32_t max = m_moves.begin()->m_count;
+    auto second = ++m_moves.begin();
+    std::transform(second, m_moves.end(), second,[this,&max](MoveTuple& mp) {
+        if (mp.m_value > max - 1)
+            mp.m_value = max - 1;
+        max += mp.m_count;
+        return mp;
+    });
 }
 
 bool GAConfiguration::roll(double probability){
@@ -152,5 +188,18 @@ std::pair<uint32_t,std::vector<uint32_t>> GAConfiguration::unpack() const noexce
         for(uint32_t i = 0; i < mt.m_count; i++)
             res.push_back(mt.m_value + ( mt.m_increment ? i : 0 ) );
     return {m_insert_pos,res};
+}
+
+std::string GAConfiguration::to_string() const noexcept{
+    std::string res = "{";
+    for(const auto& mp: m_moves){
+        if (&mp != &m_moves.front())
+            res += ',';
+        res += "<c:"s + std::to_string(mp.m_count) + ", ";
+        res += "v:"s + std::to_string(mp.m_value) + ", ";
+        res += "i:"s + std::to_string(mp.m_increment) + " >";
+    }
+    res += "}";
+    return res;
 }
 } // namespace ipxp

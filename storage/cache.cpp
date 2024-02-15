@@ -71,7 +71,7 @@ NHTFlowCache::NHTFlowCache()
     : m_cache_size(0)
     , m_line_size(0)
     , m_line_mask(0)
-    , m_line_new_idx(0)
+    , m_insert_pos(0)
     , m_qsize(0)
     , m_qidx(0)
     , m_timeout_idx(0)
@@ -108,7 +108,6 @@ NHTFlowCache::~NHTFlowCache()
     m_exit = true;
     if (m_periodic_statistics_sleep_time != 0s)
         m_statistics_thread->join();
-    print_report();
 }
 
 void NHTFlowCache::test_attributes()
@@ -145,7 +144,7 @@ void NHTFlowCache::init(OptionsParser& in_parser){
         throw PluginError("Bad parser for NHTFlowCache");
     get_opts_from_parser(*parser);
     m_line_mask = (m_cache_size - 1) & ~(m_line_size - 1);
-    m_line_new_idx = m_line_size / 2;
+    m_insert_pos = m_line_size / 2;
 
     if (m_export_queue == nullptr) {
         throw PluginError("output queue must be set before init");
@@ -230,8 +229,11 @@ void NHTFlowCache::export_flow(uint32_t index)
 void NHTFlowCache::finish()
 {
     for (uint32_t i = 0; i < m_cache_size; i++)
-        if (!m_flow_table[i]->is_empty())
+        if (!m_flow_table[i]->is_empty()) {
             prepare_and_export(i, ipxp::FlowEndReason::FLOW_END_FORCED_END);
+            m_statistics.m_exported_on_cache_end++;
+        }
+    print_report();
 }
 
 /*void NHTFlowCache::prepare_and_export( uint32_t flow_index, FlowEndReason reason) noexcept{
@@ -363,7 +365,7 @@ uint32_t NHTFlowCache::free_place_in_full_line(uint32_t line_begin) noexcept
 {
     uint32_t line_end = line_begin + m_line_size;
     prepare_and_export(line_end - 1, FlowEndReason::FLOW_END_LACK_OF_RECOURSES);
-    uint32_t flow_new_index = line_begin + m_line_new_idx;
+    uint32_t flow_new_index = line_begin + m_insert_pos;
     cyclic_rotate_records(flow_new_index, line_end - 1);
     return flow_new_index;
 }
@@ -515,7 +517,7 @@ int NHTFlowCache::put_pkt(Packet& pkt)
 {
     auto start = std::chrono::high_resolution_clock::now();
     auto res = insert_pkt(pkt);
-    m_statistics.m_put_time += std::chrono::duration_cast<std::chrono::microseconds>(
+    m_statistics.m_put_time += std::chrono::duration_cast<std::chrono::nanoseconds>(
                       std::chrono::high_resolution_clock::now() - start)
                       .count();
     return res;
@@ -535,9 +537,10 @@ bool NHTFlowCache::has_tcp_eof_flags(const Flow& flow) noexcept
  */
 void NHTFlowCache::export_expired(time_t ts)
 {
-    for (uint32_t i = m_timeout_idx; i < m_timeout_idx + m_line_new_idx; i++) {
+    for (uint32_t i = m_timeout_idx; i < m_timeout_idx + m_insert_pos; i++) {
         if (!m_flow_table[i]->is_empty()
             && ts - m_flow_table[i]->m_flow.time_last.tv_sec >= m_inactive) {
+            m_statistics.m_exported_on_periodic_scan++;
             prepare_and_export(
                 i,
                 has_tcp_eof_flags(m_flow_table[i]->m_flow)
@@ -545,7 +548,7 @@ void NHTFlowCache::export_expired(time_t ts)
                     : ipxp::FlowEndReason::FLOW_END_IDLE_TIMEOUT);
         }
     }
-    m_timeout_idx = (m_timeout_idx + m_line_new_idx) & (m_cache_size - 1);
+    m_timeout_idx = (m_timeout_idx + m_insert_pos) & (m_cache_size - 1);
 }
 
 /**

@@ -46,6 +46,7 @@ struct InputStats {
    uint64_t bytes;
    uint64_t qtime;
    uint64_t dropped;
+   uint64_t timeouts;
 };
 
 struct OutputStats {

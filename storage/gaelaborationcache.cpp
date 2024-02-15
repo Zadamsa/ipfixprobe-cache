@@ -15,24 +15,6 @@ __attribute__((constructor)) static void register_this_plugin() noexcept
 
 GAElaborationCache::GAElaborationCache():GAFlowCache(){}
 GAElaborationCache::~GAElaborationCache(){
-    m_exit = true;
-    m_done = std::vector<bool>(m_generation_size,true);
-    m_done_cond.notify_all();
-
-    for(auto& thr : m_threads)
-        thr.join();
-    const auto best_example = std::min_element(m_caches.begin(), m_caches.end(),
-                     [](const auto& a, const auto& b) {
-                         return std::tie(a->get_total_statistics().m_not_empty,
-                                           a->get_total_statistics().m_hits,
-                                           a->get_total_statistics().m_put_time) <
-                                           std::tie(b->get_total_statistics().m_not_empty,
-                                            b->get_total_statistics().m_hits,
-                                            b->get_total_statistics().m_put_time);
-                     }
-    );
-    if (best_example != m_caches.end())
-        (*best_example)->get_configuration().write_to_file(m_outfilename);
 }
 
 void GAElaborationCache::get_opts_from_parser(const GAElaborationCacheOptParser& parser){
@@ -57,15 +39,18 @@ void GAElaborationCache::init(OptionsParser& in_parser) {
         for (uint32_t i = 0; i < m_generation_size; i++)
             configurations.emplace_back(m_line_size);
     }
-
     m_done = std::vector<bool>(m_generation_size,true);
     for(uint32_t i = 0; i < m_generation_size; i++){
         m_caches.emplace_back(std::make_unique<GAFlowCache>());
         m_caches.back()->set_queue(m_export_queue);
-        m_caches.back()->set_configuration(configurations[i]);
         m_caches.back()->init(*parser);
+        m_caches.back()->set_configuration(configurations[i]);
         m_threads.emplace_back(&GAElaborationCache::cache_worker,this,i);
     }
+    std::unique_lock ul(m_mutex);
+    m_new_pkt_cond.wait(ul,[this](){return std::all_of(m_done.begin(), m_done.end(), [](bool d) {
+                                           return d;
+                                       });});
 }
 
 void GAElaborationCache::create_generation(std::vector<GAConfiguration>& configurations, const GAConfiguration& default_config) const noexcept{
@@ -79,7 +64,7 @@ void GAElaborationCache::create_generation(std::vector<GAConfiguration>& configu
                 uniq = configurations[i] != configurations[k];
         }
     }
-    configurations.emplace_back(default_config);
+    //configurations.emplace_back(default_config);
 }
 
 OptionsParser* GAElaborationCache::get_parser() const{
@@ -92,21 +77,15 @@ void GAElaborationCache::set_queue(ipx_ring_t* queue){
     GAFlowCache::set_queue(queue);
 }
 int GAElaborationCache::put_pkt(Packet& pkt){
-    m_statistics.m_hits++;
-    m_pkt_ptr = &pkt;
+    m_statistics.m_empty++;
     std::unique_lock ul(m_mutex);
-    if (! std::all_of(m_done.begin(), m_done.end(), [](bool d) {
-            return d;
-        }))
+    m_done = std::vector<bool>(m_generation_size,false);
+    m_pkt_ptr = &pkt;
+    m_pkt_id++;
+    m_done_cond.notify_all();
     m_new_pkt_cond.wait(ul,[this](){return std::all_of(m_done.begin(), m_done.end(), [](bool d) {
                                            return d;
                                        });});
-    m_done = std::vector<bool>(m_generation_size,false);
-    m_pkt_id++;
-    m_done_cond.notify_all();
-    //m_pkt_ptr = nullptr;
-    //m_done_cond.notify_all();
-    //m_finished_count = 0;
     return 0;
 }
 
@@ -114,18 +93,54 @@ void GAElaborationCache::cache_worker(uint32_t worker_id) noexcept{
     int last_id = 0;
     while(!m_exit){
         std::unique_lock ul(m_mutex);
+        last_id = m_pkt_id;
+        m_done[worker_id] = true;
         m_new_pkt_cond.notify_one();
         m_done_cond.wait(ul,[this,last_id](){return m_pkt_id != last_id || m_exit;});
-
+        if (m_pkt_id != last_id + 1 && !m_exit)
+            *((uint16_t*)0) = 666;
         if (m_exit)
             return;
         ul.unlock();
         m_caches[worker_id]->put_pkt(*m_pkt_ptr);
-        ul.lock();
-        last_id = m_pkt_id;
-        m_done[worker_id] = true;
     }
 }
-void GAElaborationCache::finish(){}
+
+void GAElaborationCache::finish(){
+    for(auto& cache_ptr : m_caches)
+        cache_ptr->finish();
+    m_exit = true;
+    m_done = std::vector<bool>(m_generation_size,true);
+    m_done_cond.notify_all();
+
+    for(auto& thr : m_threads)
+        thr.join();
+    const auto best_example = std::min_element(m_caches.begin(), m_caches.end(),
+                                               [](const auto& a, const auto& b) {
+                                                   return a->get_total_statistics() < b->get_total_statistics();
+                                               }
+    );
+    if (best_example != m_caches.end()){
+        bool parent_exists = true;
+        CacheStatistics parent_statics;
+        try {
+            parent_statics.read_from_file(m_infilename + ".stats");
+        }catch (...){
+            parent_exists = false;
+        }
+        if (parent_exists && parent_statics < (*best_example)->get_total_statistics()){
+            GAConfiguration parent_configuration(m_line_size);
+            parent_configuration.read_from_file(m_infilename);
+            parent_configuration.write_to_file(m_outfilename);
+            parent_statics.write_to_file(m_outfilename + ".stats");
+        }else{
+            (*best_example)->get_configuration().write_to_file(m_outfilename);
+            (*best_example)->get_total_statistics().write_to_file(m_outfilename + ".stats");
+        }
+        //auto best_config = (*best_example)->get_total_statistics().m_not_empty() <
+
+    }
+
+}
 
 } // namespace ipxp

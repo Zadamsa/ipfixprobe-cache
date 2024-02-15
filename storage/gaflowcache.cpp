@@ -25,6 +25,7 @@ void GAFlowCache::init(OptionsParser& in_parser){
     set_configuration(m_configuration);
 
 }
+
 GAConfiguration GAFlowCache::get_configuration() const noexcept{
     return m_configuration;
 }
@@ -52,7 +53,7 @@ uint32_t GAFlowCache::enhance_existing_flow_record(uint32_t flow_index) noexcept
     return line_index;
 }
 
-uint32_t GAFlowCache::make_place_for_record(uint32_t line_index) noexcept{
+/*uint32_t GAFlowCache::make_place_for_record(uint32_t line_index) noexcept{
     uint32_t next_line = line_index + m_line_size;
     if (m_flow_table[next_line - 1]->is_empty()){
         m_statistics.m_empty++;
@@ -62,6 +63,14 @@ uint32_t GAFlowCache::make_place_for_record(uint32_t line_index) noexcept{
     }
     cyclic_rotate_records(line_index + m_insert_pos,next_line - 1);
     return line_index + m_insert_pos;
+}*/
+
+void GAFlowCache::print_report() const noexcept{
+    if (m_statistics.m_hits) {
+        std::cout << "==================================================================\nTOTAL\n";
+        std::cout << m_configuration.to_string() << "\n";
+        std::cout << m_statistics;
+    }
 }
 
 } // namespace ipxp
