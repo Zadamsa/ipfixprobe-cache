@@ -46,7 +46,7 @@ void input_storage_worker(InputPlugin *plugin, StoragePlugin *cache, size_t queu
    struct timeval ts = {0, 0};
    bool timeout = false;
    InputPlugin::Result ret;
-   InputStats stats = {0, 0, 0, 0, 0};
+   InputStats stats = {0, 0, 0, 0, 0,0};
    WorkerResult res = {false, ""};
 
    PacketBlock block(queue_size);
@@ -86,6 +86,7 @@ void input_storage_worker(InputPlugin *plugin, StoragePlugin *cache, size_t queu
             diff.tv_sec--;
          }
          cache->export_expired(ts.tv_sec + diff.tv_sec);
+         stats.m_timeouted++;
          usleep(1);
          continue;
       } else if (ret == InputPlugin::Result::PARSED) {
