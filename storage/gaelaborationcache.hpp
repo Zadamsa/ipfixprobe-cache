@@ -17,11 +17,11 @@
 #include "gaflowcache.hpp"
 
 namespace ipxp {
-
+// Trida urcena k vyvoji novych konfiguraci, ktere pak pouzije GAFlowCache
 class GAElaborationCache : public GAFlowCache {
 public:
-    GAElaborationCache();
-    ~GAElaborationCache() override;
+    //GAElaborationCache();
+    //~GAElaborationCache() override;
     //void init(const char* params) override;
     void init(OptionsParser& parser) override;
     void set_queue(ipx_ring_t* queue) override;
@@ -39,7 +39,7 @@ private:
     std::atomic<uint8_t> m_finished_count = 0;
     std::vector<std::thread> m_threads;
     std::vector<std::unique_ptr<GAFlowCache>> m_caches;
-    std::string m_infilename = "";
+    //std::string m_infilename = "";
     std::string m_outfilename = "";
     Packet* m_pkt_ptr = nullptr;
     bool m_exit = false;

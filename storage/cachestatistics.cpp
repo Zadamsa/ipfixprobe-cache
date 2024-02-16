@@ -70,6 +70,7 @@ std::ostream& operator<<(std::ostream& os, const CacheStatistics& statistics) no
     return os;
 }
 
+// Pro rozhodnuti jaka sprava je lepsi porovnavaji se pocty exportovani flow z duvodu nedostatku volneho mista v radku
 bool CacheStatistics::operator<(const CacheStatistics& o) const noexcept{
     return m_not_empty < o.m_not_empty;
 }

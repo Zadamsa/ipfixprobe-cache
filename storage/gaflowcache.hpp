@@ -10,10 +10,11 @@
 #include "gaconfiguration.hpp"
 
 namespace ipxp {
-
+// Trida rozsiruje NHTFlowCache tak, aby se pouzivala predem nastavena configurace k presunu flow v radku
+// namisto standartniho LRU
 class GAFlowCache : public NHTFlowCache{
 public:
-    GAFlowCache();
+    //GAFlowCache();
     ~GAFlowCache() override = default;
     void init(OptionsParser& parser) override;
     OptionsParser* get_parser() const override;
@@ -23,12 +24,11 @@ public:
 protected:
     void get_opts_from_parser(const GACacheOptParser& parser);
     uint32_t enhance_existing_flow_record(uint32_t flow_index) noexcept override;
-    //uint32_t make_place_for_record(uint32_t line_index) noexcept override;
+
+    std::string m_infilename = ""; ///< Name of file that contains configuration
+    GAConfiguration m_configuration; ///< Configuration that will be used to move flows in cache line
 private:
-    std::string m_infilename = "";
-    GAConfiguration m_configuration;
-    std::vector<uint32_t> m_unpacked_configuration;
-    //uint32_t m_insert_pos;
+    std::vector<uint32_t> m_unpacked_configuration; ///< Decoded m_configuration for easier work with it.
 };
 
 } // namespace ipxp

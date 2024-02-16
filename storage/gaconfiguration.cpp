@@ -11,6 +11,7 @@
 using namespace std::string_literals;
 namespace ipxp {
 
+//Vytvori nahodnou(ale validni) konfiguraci
 GAConfiguration::GAConfiguration(uint32_t line_size): m_line_size(line_size){
     uint32_t prev = 0;
     uint32_t generated_nodes_count = 0;
@@ -26,13 +27,10 @@ GAConfiguration::GAConfiguration(uint32_t line_size): m_line_size(line_size){
     fix_counts();
     fix_targets();
 }
-void GAConfiguration::fix() noexcept{
-    fix_counts();
-    fix_targets();
-}
 
 GAConfiguration::GAConfiguration(){};
 
+//Vytvori mutace konfiguraci, puvodni konfigurace zustane bez zmen
 GAConfiguration GAConfiguration::mutate() const{
     GAConfiguration new_configuration = *this;
     while(new_configuration == *this) {
@@ -48,61 +46,70 @@ GAConfiguration GAConfiguration::mutate() const{
         new_configuration.fix_targets();
         new_configuration.mutate_insert_pos(0.2);
     }
-    if (new_configuration.is_not_valid()){
+    /*if (new_configuration.is_not_valid()){
         new_configuration.write_to_file("invalid_gaconfig.bin");
         std::cout << "Invalid configuration generated" << std::endl;
         *(uint32_t*)0=6666;
-    }
+    }*/
     return new_configuration;
 }
 
+//Debugovaci funkce, vrati true, pokud konfigurace je navalidni
 bool GAConfiguration::is_not_valid() const noexcept{
     if (std::accumulate(m_moves.begin(), m_moves.end(), 0u,[](uint32_t sum, const MoveTuple& mp) { return sum + mp.m_count; }) > m_line_size)
         return true;
     for(const auto& mt : m_moves)
-        if (mt.m_value >= m_line_size)
+        if (mt.m_target >= m_line_size)
             return true;
     return false;
 }
+
+//Mutace poctu elemntu v MoveTuple o jedna
 void GAConfiguration::mutate_counts_by_one(float probability) {
     std::transform(m_moves.begin(), m_moves.end(), m_moves.begin(),[this,probability](MoveTuple& mp) {
-        return roll(probability) ? MoveTuple{std::max(mp.m_count + (roll(0.5) ? 1 : -1),1u),mp.m_value,mp.m_increment} : mp;
+        return roll(probability) ? MoveTuple{std::max(mp.m_count + (roll(0.5) ? 1 : -1),1u),mp.m_target,mp.m_increment} : mp;
     });
 }
+
+//Mutace cilu posuvu o jedna
 void GAConfiguration::mutate_targets_by_one(float probability) {
     if (m_moves.size() <= 1)
         return ;
+    // Prvni MoveTuple vzdy musi mit za cil posuvu 0, jinak by konfigurace nevyuzivala celou delku radku
     auto second = ++m_moves.begin();
     auto last = std::prev(m_moves.end());
     std::transform(second, last, second,[this,probability](MoveTuple& mp) {
-        if (mp.m_value == 0)
+        if (mp.m_target == 0)
             return roll(probability) ? MoveTuple{mp.m_count, 1,mp.m_increment} : mp;
-        if (mp.m_value == m_line_size - 1 && roll(probability))
+        if (mp.m_target == m_line_size - 1 && roll(probability))
             return MoveTuple{mp.m_count, m_line_size - 2,mp.m_increment};
-        return roll(probability) ? MoveTuple{mp.m_count, mp.m_value + (roll(0.5) ? 1 : -1),mp.m_increment} : mp;
+        return roll(probability) ? MoveTuple{mp.m_count, mp.m_target + (roll(0.5) ? 1 : -1),mp.m_increment} : mp;
     });
     if (roll(probability))
-        last->m_value--;
+        last->m_target--;
 }
 
 void GAConfiguration::mutate_increment(float probability){
     auto second = ++m_moves.begin();
     std::transform(second, m_moves.end(), second,[this,probability](MoveTuple& mp) {
-        return roll(probability) ? MoveTuple{mp.m_count,mp.m_value, !mp.m_increment} : mp;
+        return roll(probability) ? MoveTuple{mp.m_count,mp.m_target, !mp.m_increment} : mp;
     });
 }
 
+// Mutace pozice vkladani novych flow
 void GAConfiguration::mutate_insert_pos(float probability){
     if (roll(probability))
         m_insert_pos = m_insert_dist(m_rng);
 }
 
+// Nahodna mutace poctu flow v MoveTuple
 void GAConfiguration::mutate_counts(float probability){
     std::transform(m_moves.begin(), m_moves.end(), m_moves.begin(),[this,probability](MoveTuple& mp) {
-        return roll(probability) ? MoveTuple{(uint32_t)m_count_dist(m_rng),mp.m_value,mp.m_increment} : mp;
+        return roll(probability) ? MoveTuple{(uint32_t)m_count_dist(m_rng),mp.m_target,mp.m_increment} : mp;
     });
 }
 
+// Nacist konfigurace ze souboru
 void GAConfiguration::read_from_file(const std::string& filename){
     std::ifstream ifs(filename,std::ios::binary);
     if (!ifs)
@@ -118,6 +125,7 @@ void GAConfiguration::read_from_file(const std::string& filename){
         throw PluginError("Invalid GA configuration file: " + filename);
 }
 
+// Ulozit konfigurace do souboru
 void GAConfiguration::write_to_file(const std::string& filename) const {
     std::ofstream ofs(filename,std::ios::binary);
     if (!ofs)
@@ -130,40 +138,43 @@ void GAConfiguration::write_to_file(const std::string& filename) const {
         throw PluginError("Can't save to GA configuration file: " + filename);
 }
 
+// Nahodna mutace cilu posuvu
 void GAConfiguration::mutate_targets(float probability){
     uint32_t max = m_moves.begin()->m_count;
+    // Prvni MoveTuple vzdy musi mit za cil posuvu 0, jinak by konfigurace nevyuzivala celou delku radku
     auto second = ++m_moves.begin();
     std::transform(second, m_moves.end(), second,[this,probability,&max](MoveTuple& mp) {
         std::uniform_int_distribution<std::mt19937::result_type> dist(0,max - 1);
         if (roll(probability)) {
-            mp.m_value = dist(m_rng);
-            //if (mp.m_value >)
+            mp.m_target = dist(m_rng);
         }
-        //if (mp.m_count >= max)
-        //    mp.m_value = max;
         max += mp.m_count;
         return mp;
     });
 }
 
+// Po mutaci konfigurace bude nejspis v nevalidnim stavu, funkce opravi pocty prvku
 void GAConfiguration::fix_counts() noexcept{
+    // Oprava bude udelana tak, ze se budou nahodne volit MoveTuple a m_count bude zvysen nebo zmensen o jedna
     while (int32_t diff = std::accumulate(m_moves.begin(), m_moves.end(), 0,[](int32_t sum, const MoveTuple& mp) { return sum + (int32_t)mp.m_count; }) -  (int32_t)m_line_size)
         if (auto pos = m_pair_dist(m_rng); m_moves[pos].m_count != 1 || diff < 0)
             m_moves[pos].m_count += diff > 0 ? -1 : 1;
 }
+
+// Oprava cilu posuvu
 void GAConfiguration::fix_targets() noexcept{
     for( uint32_t i = 1; i < m_moves.size(); i++)
-        if (m_moves[i-1].m_value + m_moves[i-1].m_count * m_moves[i-1].m_increment > m_moves[i].m_value) {
+        if (m_moves[i-1].m_target + m_moves[i-1].m_count * m_moves[i-1].m_increment > m_moves[i].m_target) {
             if (m_moves[i - 1].m_increment)
-                m_moves[i].m_value = m_moves[i - 1].m_value + m_moves[i - 1].m_count * m_moves[i - 1].m_increment;
+                m_moves[i].m_target = m_moves[i - 1].m_target + m_moves[i - 1].m_count * m_moves[i - 1].m_increment;
             else
-                std::swap(m_moves[i].m_value, m_moves[i - 1].m_value);
+                std::swap(m_moves[i].m_target, m_moves[i - 1].m_target);
         }
     uint32_t max = m_moves.begin()->m_count;
     auto second = ++m_moves.begin();
     std::transform(second, m_moves.end(), second,[this,&max](MoveTuple& mp) {
-        if (mp.m_value > max - 1)
-            mp.m_value = max - 1;
+        if (mp.m_target > max - 1)
+            mp.m_target = max - 1;
         max += mp.m_count;
         return mp;
     });
@@ -186,7 +197,7 @@ std::pair<uint32_t,std::vector<uint32_t>> GAConfiguration::unpack() const noexce
     std::vector<uint32_t> res;
     for(const auto& mt : m_moves)
         for(uint32_t i = 0; i < mt.m_count; i++)
-            res.push_back(mt.m_value + ( mt.m_increment ? i : 0 ) );
+            res.push_back(mt.m_target + ( mt.m_increment ? i : 0 ) );
     return {m_insert_pos,res};
 }
 
@@ -196,7 +207,7 @@ std::string GAConfiguration::to_string() const noexcept{
         if (&mp != &m_moves.front())
             res += ',';
         res += "<c:"s + std::to_string(mp.m_count) + ", ";
-        res += "v:"s + std::to_string(mp.m_value) + ", ";
+        res += "v:"s + std::to_string(mp.m_target) + ", ";
         res += "i:"s + std::to_string(mp.m_increment) + " >";
     }
     res += "}";

@@ -1,7 +1,3 @@
-//
-// Created by zaida on 26.01.2024.
-//
-
 #ifndef IPFIXPROBE_CACHE_GACONFIGURATION_HPP
 #define IPFIXPROBE_CACHE_GACONFIGURATION_HPP
 
@@ -22,10 +18,10 @@ public:
     std::pair<uint32_t,std::vector<uint32_t>> unpack() const noexcept;
     std::string to_string() const noexcept;
 private:
+    // Pocet MoveTuple je zvolen tak, aby v prumeru kazdy MoveTuple obsahoval 4 flow
     std::vector<MoveTuple> m_moves;
     uint32_t m_insert_pos = 0;
     uint32_t m_line_size = 0;
-
 
     std::mt19937 m_rng = std::mt19937(std::random_device()());
     std::uniform_int_distribution<std::mt19937::result_type> m_probability_dist = std::uniform_int_distribution<std::mt19937::result_type>(0,1000);
@@ -39,7 +35,6 @@ private:
     void mutate_increment(float probability);
     void mutate_counts_by_one(float probability);
     void mutate_targets_by_one(float probability);
-    void fix() noexcept;
     void fix_counts() noexcept;
     void fix_targets() noexcept;
     bool roll(double probability);
