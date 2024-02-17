@@ -304,7 +304,7 @@ uint32_t NHTFlowCache::enhance_existing_flow_record(uint32_t flow_index) noexcep
     m_statistics.m_lookups += (flow_index - line_index + 1);
     m_statistics.m_lookups2 += (flow_index - line_index + 1) * (flow_index - line_index + 1);
     m_statistics.m_hits++;
-    cyclic_rotate_records(line_index, flow_index);
+    //cyclic_rotate_records(line_index, flow_index);
     return line_index;
 }
 
@@ -324,14 +324,16 @@ std::pair<bool, uint32_t> NHTFlowCache::find_empty_place(uint32_t begin_line) co
  * @param line_begin Target line.
  * @return Index of insert position for new flow if row is full.
  */
-uint32_t NHTFlowCache::free_place_in_full_line(uint32_t line_begin) noexcept
+uint32_t NHTFlowCache::free_place_in_full_line(uint32_t line_begin,const timeval& now) noexcept
 {
     uint32_t line_end = line_begin + m_line_size;
-    prepare_and_export(line_end - 1, FlowEndReason::FLOW_END_LACK_OF_RECOURSES);
+    auto export_target = std::max_element(&m_flow_table[line_begin],&m_flow_table[line_end],[&now](FlowRecord* fr_ptr1,FlowRecord* fr_ptr2){
+        return fr_ptr1->next_packet_arrives_at(now) < fr_ptr2->next_packet_arrives_at(now);
+    });
+    auto index = std::distance(m_flow_table.data(),export_target);
+    prepare_and_export(index, FlowEndReason::FLOW_END_LACK_OF_RECOURSES);
     m_statistics.m_exported_on_line_end++;
-    uint32_t flow_new_index = line_begin + m_line_new_idx;
-    cyclic_rotate_records(flow_new_index, line_end - 1);
-    return flow_new_index;
+    return index;
 }
 
 void NHTFlowCache::cyclic_rotate_records(uint32_t begin, uint32_t end) noexcept
@@ -414,14 +416,14 @@ std::tuple<bool, uint32_t, uint64_t> NHTFlowCache::find_flow_position(Packet& pk
  * Called when existing flow record was not found. Looks for empty place, if place wasn't found
  * makes free place by free_place_in_full_line
  */
-uint32_t NHTFlowCache::make_place_for_record(uint32_t line_index) noexcept
+uint32_t NHTFlowCache::make_place_for_record(uint32_t line_index, const timeval& now) noexcept
 {
     auto [empty_place_found, flow_index] = find_empty_place(line_index);
     if (empty_place_found) {
         m_statistics.m_empty++;
     } else {
         m_statistics.m_not_empty++;
-        flow_index = free_place_in_full_line(line_index);
+        flow_index = free_place_in_full_line(line_index,now);
     }
     return flow_index;
 }
@@ -449,7 +451,7 @@ int NHTFlowCache::insert_pkt(Packet& pkt) noexcept
     // Tries to find index of flow to which packet belongs
     auto [record_found, flow_index, hashval] = find_flow_position(pkt);
     flow_index = record_found ? enhance_existing_flow_record(flow_index)
-                              : make_place_for_record(hashval & m_line_mask);
+                              : make_place_for_record(hashval & m_line_mask,pkt.ts);
     // Reinsert flow on tcp FIN/RST flags
     if (tcp_connection_reset(pkt, flow_index))
         return 0;

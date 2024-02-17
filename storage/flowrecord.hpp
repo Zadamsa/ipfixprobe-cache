@@ -26,6 +26,8 @@
 #include <ipfixprobe/flowifc.hpp>
 #include <ipfixprobe/packet.hpp>
 #include <string>
+#include <sys/time.h>
+#include "fragmentationCache/timevalUtils.hpp"
 namespace ipxp {
 
 class FlowRecord {
@@ -33,13 +35,17 @@ class FlowRecord {
 public:
     Flow m_flow;
     bool m_swapped;
-
+    bool m_frozen;
+    timeval m_interval;
+    timeval m_next_packet_time;
+    static const constexpr timeval MAXIMAL_WAITING_TIME = timeval{2,0};
     FlowRecord();
     ~FlowRecord();
 
     void erase();
     void reuse();
 
+    timeval next_packet_arrives_at(const timeval& now) noexcept;
     inline __attribute__((always_inline)) bool is_empty() const { return m_hash == 0; }
     inline __attribute__((always_inline)) bool belongs(uint64_t hash) const
     {

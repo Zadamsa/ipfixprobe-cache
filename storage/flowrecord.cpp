@@ -58,6 +58,8 @@ void FlowRecord::erase()
     m_flow.src_tcp_flags = 0;
     m_flow.dst_tcp_flags = 0;
     m_swapped = false;
+    m_next_packet_time = MAXIMAL_WAITING_TIME;
+    m_frozen = false;
 }
 
 /**
@@ -74,8 +76,23 @@ void FlowRecord::reuse()
     m_flow.dst_bytes = 0;
     m_flow.src_tcp_flags = 0;
     m_flow.dst_tcp_flags = 0;
+
+    m_interval = MAXIMAL_WAITING_TIME;
+    m_next_packet_time = m_flow.time_last + m_interval;
+    m_frozen = false;
 }
 
+timeval FlowRecord::next_packet_arrives_at(const timeval& now) noexcept{
+    if (m_frozen)
+        return MAXIMAL_WAITING_TIME;
+    //auto next_packet = flow.last_time + m_interval;
+    m_interval + m_interval < MAXIMAL_WAITING_TIME;
+    while(now >= m_next_packet_time && m_interval != MAXIMAL_WAITING_TIME)
+        m_next_packet_time = m_next_packet_time + (m_interval = (m_interval + m_interval < MAXIMAL_WAITING_TIME ? m_interval + m_interval : MAXIMAL_WAITING_TIME));
+    if (m_interval == MAXIMAL_WAITING_TIME && now >= m_next_packet_time)
+        m_frozen = true;
+    return m_frozen ? MAXIMAL_WAITING_TIME : m_next_packet_time - now;
+}
 /**
  * @brief Update flow data.
  * @param pkt Incoming packet.
@@ -84,6 +101,13 @@ void FlowRecord::reuse()
  */
 void FlowRecord::update(const Packet& pkt, bool src)
 {
+    next_packet_arrives_at(pkt.ts);
+    if (!m_frozen)
+        m_interval = (pkt.ts - m_flow.time_last == timeval{0,0} ? timeval{0,10} : pkt.ts - m_flow.time_last);
+
+    m_next_packet_time = m_interval + pkt.ts;
+    m_frozen = false;
+
     m_flow.time_last = pkt.ts;
     if (src) {
         m_flow.src_packets++;
@@ -109,6 +133,10 @@ void FlowRecord::update(const Packet& pkt, bool src)
  */
 void FlowRecord::create(const Packet& pkt, uint64_t hash, bool key_swapped)
 {
+    m_interval = MAXIMAL_WAITING_TIME;
+    m_next_packet_time = pkt.ts + m_interval;
+    m_frozen = false;
+
     m_flow.src_packets = 1;
 
     m_hash = hash;
