@@ -571,6 +571,7 @@ void NHTFlowCache::print_report() const noexcept
 {
     if (m_statistics.m_hits) {
         std::cout << "==================================================================\nTOTAL\n";
+        std::cout << "s" << FlowRecord::maximum.tv_sec <<" ,u" << FlowRecord::maximum.tv_usec << "\n";
         std::cout << m_statistics;
     }
 }

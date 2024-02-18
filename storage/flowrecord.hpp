@@ -39,6 +39,7 @@ public:
     timeval m_interval;
     timeval m_next_packet_time;
     static const constexpr timeval MAXIMAL_WAITING_TIME = timeval{2,0};
+    static inline timeval maximum;
     FlowRecord();
     ~FlowRecord();
 

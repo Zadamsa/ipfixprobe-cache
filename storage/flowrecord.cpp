@@ -24,6 +24,7 @@
 #include "flowrecord.hpp"
 #include <cstdint>
 #include <cstring>
+#include "fragmentationCache/timevalUtils.hpp"
 
 namespace ipxp {
 FlowRecord::FlowRecord()
@@ -102,9 +103,9 @@ timeval FlowRecord::next_packet_arrives_at(const timeval& now) noexcept{
 void FlowRecord::update(const Packet& pkt, bool src)
 {
     next_packet_arrives_at(pkt.ts);
-    if (!m_frozen)
-        m_interval = (pkt.ts - m_flow.time_last == timeval{0,0} ? timeval{0,10} : pkt.ts - m_flow.time_last);
-
+    if (!m_frozen && pkt.ts - m_flow.time_last != timeval{0,0})
+        m_interval = pkt.ts - m_flow.time_last;
+    maximum = maximum > m_interval ? maximum : m_interval;
     m_next_packet_time = m_interval + pkt.ts;
     m_frozen = false;
 
