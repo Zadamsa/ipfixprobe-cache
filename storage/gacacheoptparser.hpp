@@ -14,7 +14,7 @@ class GACacheOptParser : public CacheOptParser {
 public:
     GACacheOptParser();
     GACacheOptParser(const char* name, const char* description);
-    std::string m_infilename = "";
+    std::string m_infilename = ""; ///< Name of file, that contains GA configuration
 private:
     void register_options();
 };

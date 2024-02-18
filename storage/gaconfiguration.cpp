@@ -164,10 +164,13 @@ void GAConfiguration::fix_counts() noexcept{
 // Oprava cilu posuvu
 void GAConfiguration::fix_targets() noexcept{
     for( uint32_t i = 1; i < m_moves.size(); i++)
+        // Konfigurace nebude optimalni pokud i<j && conf[i] > conf[j], kde conf[i] je pozice, kam se ma posunout i-y flow
         if (m_moves[i-1].m_target + m_moves[i-1].m_count * m_moves[i-1].m_increment > m_moves[i].m_target) {
             if (m_moves[i - 1].m_increment)
+                // Pokud incrementalni, nastav conf[j] na minimalni moznou hodnotu
                 m_moves[i].m_target = m_moves[i - 1].m_target + m_moves[i - 1].m_count * m_moves[i - 1].m_increment;
             else
+                // Pokud neni incrementalni, vymeni conf[i] a conf[j]
                 std::swap(m_moves[i].m_target, m_moves[i - 1].m_target);
         }
     uint32_t max = m_moves.begin()->m_count;
@@ -180,6 +183,7 @@ void GAConfiguration::fix_targets() noexcept{
     });
 }
 
+//Vrati true s pravdepodobnosti probability
 bool GAConfiguration::roll(double probability){
     if (probability > 1 || probability < 0)
         throw PluginError("Probability is not inside [0;1]");
@@ -193,6 +197,8 @@ bool GAConfiguration::operator==(const GAConfiguration& o) const noexcept{
 bool GAConfiguration::operator!=(const GAConfiguration& o) const noexcept{
     return !(*this == o);
 }
+
+//Prevede configurace do formy, kde unpacked_configuration[i] = na jakou pozice se ma posunout i-y flow
 std::pair<uint32_t,std::vector<uint32_t>> GAConfiguration::unpack() const noexcept{
     std::vector<uint32_t> res;
     for(const auto& mt : m_moves)
