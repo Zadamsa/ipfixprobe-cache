@@ -7,6 +7,7 @@ namespace ipxp {
 enum PacketDistance {
     DISTANCE_SHORT,//Pokud dalsi paket pro ten flow prijde pres mene nez 1000 paketu
     DISTANCE_MEDIUM,//Pokud dalsi paket pro ten flow prijde pres mene nez 100000 paketu
+    DISTANCE_LONG,//Pokud dalsi paket pro ten flow prijde pres mene nez 100000 paketu
     DISTANCE_NEVER//Pokud paket byl posledni
 };
 

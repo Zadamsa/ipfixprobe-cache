@@ -31,8 +31,10 @@ protected:
     GAConfiguration m_configuration; ///< Configuration that will be used to move flows in cache line
 private:
     std::vector<uint32_t> m_unpacked_configuration; ///< Decoded m_configuration for easier work with it.
-    uint32_t m_medium_offset = 0;
-    uint32_t m_never_offset = 0;
+    uint32_t m_short_pos = 0;
+    uint32_t m_medium_pos = 0;
+    uint32_t m_long_pos = 0;
+    uint32_t m_never_pos = 0;
     PacketDistance m_pkt_dist;
 };
 

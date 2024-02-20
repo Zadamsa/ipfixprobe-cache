@@ -33,7 +33,7 @@ GAConfiguration GAFlowCache::get_configuration() const noexcept{
 
 void GAFlowCache::set_configuration(const GAConfiguration& src) noexcept{
     m_configuration = src;
-    std::tie(m_insert_pos,m_medium_offset,m_never_offset,m_unpacked_configuration) = src.unpack();
+    std::tie(m_short_pos,m_medium_pos,m_long_pos,m_never_pos,m_unpacked_configuration) = src.unpack();
 }
 OptionsParser* GAFlowCache::get_parser() const{
     return new GACacheOptParser();
@@ -65,11 +65,13 @@ uint32_t GAFlowCache::free_place_in_full_line(uint32_t line_begin) noexcept
     prepare_and_export(line_end - 1, FlowEndReason::FLOW_END_LACK_OF_RECOURSES);
     uint32_t flow_new_index;
     if (m_pkt_dist == PacketDistance::DISTANCE_SHORT)
-        flow_new_index = line_begin + m_insert_pos;
+        flow_new_index = line_begin + m_short_pos;
     else if (m_pkt_dist == PacketDistance::DISTANCE_MEDIUM)
-        flow_new_index = line_begin + m_medium_offset;
-    else if (m_pkt_dist == PacketDistance::DISTANCE_NEVER)
-        flow_new_index = line_begin + m_never_offset;
+        flow_new_index = line_begin + m_medium_pos;
+    else if (m_pkt_dist == PacketDistance::DISTANCE_LONG)
+        flow_new_index = line_begin + m_long_pos;
+    else
+        flow_new_index = line_begin + m_never_pos;
     cyclic_rotate_records(flow_new_index, line_end - 1);
     return flow_new_index;
 }

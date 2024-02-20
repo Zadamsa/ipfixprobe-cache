@@ -15,14 +15,15 @@ public:
     void write_to_file(const std::string& filename) const;
     bool operator==(const GAConfiguration& o) const noexcept;
     bool operator!=(const GAConfiguration& o) const noexcept;
-    std::tuple<uint32_t,uint32_t,uint32_t,std::vector<uint32_t>> unpack() const noexcept;
+    std::tuple<uint32_t,uint32_t,uint32_t,uint32_t,std::vector<uint32_t>> unpack() const noexcept;
     std::string to_string() const noexcept;
 private:
     // Pocet MoveTuple je zvolen tak, aby v prumeru kazdy MoveTuple obsahoval 4 flow
     std::vector<MoveTuple> m_moves;
-    uint32_t m_insert_pos = 0;
-    uint32_t m_medium_offset = 0;
-    uint32_t m_never_offset = 0;
+    uint32_t m_short_pos = 0;
+    uint32_t m_medium_pos = 0;
+    uint32_t m_long_pos = 0;
+    uint32_t m_never_pos = 0;
     uint32_t m_line_size = 0;
 
     std::mt19937 m_rng = std::mt19937(std::random_device()());
