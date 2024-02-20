@@ -13,8 +13,8 @@ class GAElaborationCacheOptParser : public GACacheOptParser{
 public:
     GAElaborationCacheOptParser();
     GAElaborationCacheOptParser(const char* name, const char* description);
-    std::string m_outfilename = "";
-    uint8_t m_generation_size = 16;
+    std::string m_outfilename = ""; ///< Savefile for best found configuration
+    uint8_t m_generation_size = 16; ///< Count of tested caches
 private:
     void register_options();
 };
