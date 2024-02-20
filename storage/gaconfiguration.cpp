@@ -103,9 +103,13 @@ void GAConfiguration::mutate_insert_pos(float probability){
     std::uniform_int_distribution<std::mt19937::result_type> medium_dist(m_insert_pos,m_line_size - 1);
     if (roll(probability))
         m_medium_offset = medium_dist(m_rng);
+    else
+        m_medium_offset = std::max(m_medium_offset,m_insert_pos);
     std::uniform_int_distribution<std::mt19937::result_type> never_dist(m_medium_offset,m_line_size - 1);
     if (roll(probability))
         m_never_offset = never_dist(m_rng);
+    else
+        m_never_offset = std::max(m_never_offset,m_medium_offset);
 }
 
 // Nahodna mutace poctu flow v MoveTuple
