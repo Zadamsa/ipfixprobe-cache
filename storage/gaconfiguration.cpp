@@ -34,17 +34,17 @@ GAConfiguration::GAConfiguration(){};
 GAConfiguration GAConfiguration::mutate() const{
     GAConfiguration new_configuration = *this;
     while(new_configuration == *this) {
-        new_configuration.mutate_counts(0.2);
+        new_configuration.mutate_counts(0.1);
         new_configuration.fix_counts();
-        new_configuration.mutate_counts_by_one(0.4);
+        new_configuration.mutate_counts_by_one(0.2);
         new_configuration.fix_counts();
-        new_configuration.mutate_increment(0.3);
+        new_configuration.mutate_increment(0.1);
         new_configuration.fix_targets();
-        new_configuration.mutate_targets(0.2);
+        new_configuration.mutate_targets(0.1);
         new_configuration.fix_targets();
-        new_configuration.mutate_targets_by_one(0.4);
+        new_configuration.mutate_targets_by_one(0.2);
         new_configuration.fix_targets();
-        new_configuration.mutate_insert_pos(0.2);
+        new_configuration.mutate_insert_pos(0.1);
     }
     /*if (new_configuration.is_not_valid()){
         new_configuration.write_to_file("invalid_gaconfig.bin");
