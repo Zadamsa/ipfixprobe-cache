@@ -9,12 +9,14 @@ namespace ipxp {
 class GAConfiguration{
 public:
     GAConfiguration(uint32_t line_size);
+    GAConfiguration(const GAConfiguration& o);
     GAConfiguration();
     GAConfiguration mutate() const;
     void read_from_file(const std::string& filename);
     void write_to_file(const std::string& filename) const;
     bool operator==(const GAConfiguration& o) const noexcept;
     bool operator!=(const GAConfiguration& o) const noexcept;
+    GAConfiguration& operator=(const GAConfiguration& o) noexcept;
     std::tuple<uint32_t,uint32_t,uint32_t,uint32_t,std::vector<uint32_t>> unpack() const noexcept;
     std::string to_string() const noexcept;
 private:

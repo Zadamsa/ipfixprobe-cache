@@ -13,6 +13,12 @@ namespace ipxp {
 
 //Vytvori nahodnou(ale validni) konfiguraci
 GAConfiguration::GAConfiguration(uint32_t line_size): m_line_size(line_size){
+    m_rng = std::mt19937(std::random_device()());
+    m_probability_dist = std::uniform_int_distribution<std::mt19937::result_type>(0,1000);
+    m_pair_dist = std::uniform_int_distribution<std::mt19937::result_type>(0,m_line_size/4 - 1);
+    m_count_dist = std::uniform_int_distribution<std::mt19937::result_type>(1,m_line_size/4 );
+    m_insert_dist = std::uniform_int_distribution<std::mt19937::result_type>(0,m_line_size - 1);
+
     uint32_t prev = 0;
     uint32_t generated_nodes_count = 0;
     for( uint32_t i = 0; i < line_size/4; i++){
@@ -26,6 +32,31 @@ GAConfiguration::GAConfiguration(uint32_t line_size): m_line_size(line_size){
     mutate_insert_pos(1);
     fix_counts();
     fix_targets();
+
+}
+
+GAConfiguration::GAConfiguration(const GAConfiguration& o){
+    m_moves = o.m_moves;
+    m_short_pos = o.m_short_pos;
+    m_medium_pos = o.m_medium_pos;
+    m_long_pos = o.m_long_pos;
+    m_never_pos = o.m_never_pos;
+    m_line_size = o.m_line_size;
+    m_rng = std::mt19937(std::random_device()());
+    m_probability_dist = std::uniform_int_distribution<std::mt19937::result_type>(0,1000);
+    m_pair_dist = std::uniform_int_distribution<std::mt19937::result_type>(0,m_line_size/4 - 1);
+    m_count_dist = std::uniform_int_distribution<std::mt19937::result_type>(1,m_line_size/4 );
+    m_insert_dist = std::uniform_int_distribution<std::mt19937::result_type>(0,m_line_size - 1);
+}
+
+GAConfiguration& GAConfiguration::operator=(const GAConfiguration& o) noexcept{
+    m_moves = o.m_moves;
+    m_short_pos = o.m_short_pos;
+    m_medium_pos = o.m_medium_pos;
+    m_long_pos = o.m_long_pos;
+    m_never_pos = o.m_never_pos;
+    m_line_size = o.m_line_size;
+    return *this;
 }
 
 GAConfiguration::GAConfiguration(){};
