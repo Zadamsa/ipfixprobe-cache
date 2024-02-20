@@ -33,7 +33,7 @@ GAConfiguration GAFlowCache::get_configuration() const noexcept{
 
 void GAFlowCache::set_configuration(const GAConfiguration& src) noexcept{
     m_configuration = src;
-    std::tie(m_insert_pos,m_unpacked_configuration) = src.unpack();
+    std::tie(m_insert_pos,m_medium_offset,m_never_offset,m_unpacked_configuration) = src.unpack();
 }
 OptionsParser* GAFlowCache::get_parser() const{
     return new GACacheOptParser();
@@ -52,6 +52,26 @@ uint32_t GAFlowCache::enhance_existing_flow_record(uint32_t flow_index) noexcept
     // Tady se pouziva rozbalena konfigurace ke zvoleni nove pozice pro flow
     cyclic_rotate_records(line_index + m_unpacked_configuration[flow_index - line_index],flow_index);
     return line_index;
+}
+
+int GAFlowCache::insert_pkt(Packet& pkt) noexcept {
+    m_pkt_dist = PacketClassifier::classifyInstance(pkt.ip_proto,pkt.tcp_flags,pkt.tcp_window,pkt.ip_payload_len);
+    return NHTFlowCache::insert_pkt(pkt);
+}
+
+uint32_t GAFlowCache::free_place_in_full_line(uint32_t line_begin) noexcept
+{
+    uint32_t line_end = line_begin + m_line_size;
+    prepare_and_export(line_end - 1, FlowEndReason::FLOW_END_LACK_OF_RECOURSES);
+    uint32_t flow_new_index;
+    if (m_pkt_dist == PacketDistance::DISTANCE_SHORT)
+        flow_new_index = line_begin + m_insert_pos;
+    else if (m_pkt_dist == PacketDistance::DISTANCE_MEDIUM)
+        flow_new_index = line_begin + m_medium_offset;
+    else if (m_pkt_dist == PacketDistance::DISTANCE_NEVER)
+        flow_new_index = line_begin + m_never_offset;
+    cyclic_rotate_records(flow_new_index, line_end - 1);
+    return flow_new_index;
 }
 
 void GAFlowCache::print_report() const noexcept{

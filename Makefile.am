@@ -93,6 +93,8 @@ ipfixprobe_storage_src=\
 		storage/movetuple.hpp \
 		storage/gaelaborationcacheoptparser.cpp \
 		storage/gaelaborationcacheoptparser.hpp \
+		storage/packetclassifier.cpp \
+		storage/packetclassifier.hpp \
 		storage/xxhash.c \
 		storage/xxhash.h
 

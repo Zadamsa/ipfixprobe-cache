@@ -8,6 +8,7 @@
 #include "cache.hpp"
 #include "gacacheoptparser.hpp"
 #include "gaconfiguration.hpp"
+#include "packetclassifier.hpp"
 
 namespace ipxp {
 // Trida rozsiruje NHTFlowCache tak, aby se pouzivala predem nastavena configurace k presunu flow v radku
@@ -24,11 +25,15 @@ public:
 protected:
     void get_opts_from_parser(const GACacheOptParser& parser);
     uint32_t enhance_existing_flow_record(uint32_t flow_index) noexcept override;
-
+    uint32_t free_place_in_full_line(uint32_t line_begin) noexcept override;
+    int insert_pkt(Packet& pkt) noexcept override;
     std::string m_infilename = ""; ///< Name of file that contains configuration
     GAConfiguration m_configuration; ///< Configuration that will be used to move flows in cache line
 private:
     std::vector<uint32_t> m_unpacked_configuration; ///< Decoded m_configuration for easier work with it.
+    uint32_t m_medium_offset = 0;
+    uint32_t m_never_offset = 0;
+    PacketDistance m_pkt_dist;
 };
 
 } // namespace ipxp

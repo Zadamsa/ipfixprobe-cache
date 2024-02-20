@@ -100,6 +100,12 @@ void GAConfiguration::mutate_increment(float probability){
 void GAConfiguration::mutate_insert_pos(float probability){
     if (roll(probability))
         m_insert_pos = m_insert_dist(m_rng);
+    std::uniform_int_distribution<std::mt19937::result_type> medium_dist(m_insert_pos,m_line_size - 1);
+    if (roll(probability))
+        m_medium_offset = medium_dist(m_rng);
+    std::uniform_int_distribution<std::mt19937::result_type> never_dist(m_medium_offset,m_line_size - 1);
+    if (roll(probability))
+        m_never_offset = never_dist(m_rng);
 }
 
 // Nahodna mutace poctu flow v MoveTuple
@@ -119,6 +125,8 @@ void GAConfiguration::read_from_file(const std::string& filename){
     if (in_line_size != m_line_size)
         throw PluginError("Invalid GA configuration line length. Config = "s + std::to_string(in_line_size) + ", Cache = " + std::to_string(m_line_size));
     ifs.read((char*)&m_insert_pos,sizeof(m_insert_pos));
+    ifs.read((char*)&m_medium_offset,sizeof(m_line_size));
+    ifs.read((char*)&m_never_offset,sizeof(m_line_size));
     for(uint32_t i = 0; i < m_line_size/4; i++)
         ifs.read((char*)&m_moves[i],sizeof(m_moves[0]));
     if (!ifs)
@@ -132,6 +140,8 @@ void GAConfiguration::write_to_file(const std::string& filename) const {
         throw PluginError("Can't open GA configuration savefile: " + filename);
     ofs.write((char*)&m_line_size,sizeof(m_line_size));
     ofs.write((char*)&m_insert_pos,sizeof(m_insert_pos));
+    ofs.write((char*)&m_medium_offset,sizeof(m_line_size));
+    ofs.write((char*)&m_never_offset,sizeof(m_line_size));
     for(uint32_t i = 0; i < m_line_size/4; i++)
         ofs.write((char*)&  m_moves[i],sizeof(m_moves[0]));
     if (!ofs)
@@ -199,16 +209,16 @@ bool GAConfiguration::operator!=(const GAConfiguration& o) const noexcept{
 }
 
 //Prevede configurace do formy, kde unpacked_configuration[i] = na jakou pozice se ma posunout i-y flow
-std::pair<uint32_t,std::vector<uint32_t>> GAConfiguration::unpack() const noexcept{
+std::tuple<uint32_t,uint32_t,uint32_t,std::vector<uint32_t>> GAConfiguration::unpack() const noexcept{
     std::vector<uint32_t> res;
     for(const auto& mt : m_moves)
         for(uint32_t i = 0; i < mt.m_count; i++)
             res.push_back(mt.m_target + ( mt.m_increment ? i : 0 ) );
-    return {m_insert_pos,res};
+    return {m_insert_pos,m_medium_offset,m_never_offset,res};
 }
 
 std::string GAConfiguration::to_string() const noexcept{
-    std::string res = "{";
+    std::string res = std::to_string(m_insert_pos) +"-"+std::to_string(m_medium_offset)+"-"+std::to_string(m_never_offset)+"{";
     for(const auto& mp: m_moves){
         if (&mp != &m_moves.front())
             res += ',';

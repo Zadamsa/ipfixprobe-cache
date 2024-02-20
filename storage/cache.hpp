@@ -124,13 +124,13 @@ protected:
         int ret,
         bool source_flow,
         FlowEndReason reason) noexcept;
-    uint32_t free_place_in_full_line(uint32_t line_begin) noexcept;
+    virtual uint32_t free_place_in_full_line(uint32_t line_begin) noexcept;
     bool tcp_connection_reset(Packet& pkt, uint32_t flow_index, bool source) noexcept;
     void create_new_flow(uint32_t flow_index, Packet& pkt, uint64_t hashval) noexcept;
     bool update_flow(uint32_t flow_index, Packet& pkt,bool source) noexcept;
     virtual uint32_t make_place_for_record(uint32_t line_index) noexcept;
     std::tuple<bool, bool,uint32_t, uint64_t> find_flow_position(Packet& pkt) noexcept;
-    int insert_pkt(Packet& pkt) noexcept;
+    virtual int insert_pkt(Packet& pkt) noexcept;
     bool timeouts_expired(Packet& pkt, uint32_t flow_index) noexcept;
     bool create_hash_key(const Packet& pkt) noexcept;
     void export_flow(uint32_t index);
