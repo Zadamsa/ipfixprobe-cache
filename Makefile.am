@@ -62,6 +62,7 @@ endif
 ipfixprobe_storage_src=\
 		storage/fragmentationCache/ringBuffer.hpp \
 		storage/fragmentationCache/timevalUtils.hpp \
+		storage/fragmentationCache/timevalUtils.cpp \
 		storage/fragmentationCache/fragmentationKeyData.hpp \
 		storage/fragmentationCache/fragmentationTable.hpp \
 		storage/fragmentationCache/fragmentationTable.cpp \

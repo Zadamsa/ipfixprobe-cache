@@ -49,7 +49,8 @@
 #include <ipfixprobe/ring.h>
 #include <sys/time.h>
 #include <thread>
-
+#include "fragmentationCache/timevalUtils.hpp"
+#include <cmath>
 namespace ipxp {
 
 __attribute__((constructor)) static void register_this_plugin() noexcept
@@ -87,6 +88,7 @@ NHTFlowCache::NHTFlowCache()
     //rte_convert_rss_key(key, m_rss_key, sizeof(key));
     //set_hash_function([this](const void* ptr,uint32_t len){ return rte_softrss_be((uint32_t *)ptr, len/4, (const uint8_t*)m_rss_key);});
     set_hash_function([](const void* ptr,uint32_t len){ return XXH64(ptr, len, 0);});
+    m_graph_export.m_graph_datastream = std::ofstream("graph.data");
     test_attributes();
 }
 
@@ -207,6 +209,7 @@ void NHTFlowCache::init(const char* params)
         throw PluginError(e.what());
     }
     init(*parser);
+    //gettimeofday(&m_flood_measurement.m_last_measurement, nullptr);
 }
 
 /**
@@ -444,6 +447,39 @@ void NHTFlowCache::try_to_fill_ports_to_fragmented_packet(Packet& packet)
     m_fragmentation_cache.process_packet(packet);
 }
 
+bool NHTFlowCache::is_being_flooded(const Packet& pkt) noexcept{
+    if (pkt.ts - m_flood_measurement.m_last_measurement < timeval{m_flood_measurement.m_interval_length,0})
+        return false;
+
+    m_flood_measurement.m_last_measurement = pkt.ts;
+    auto interval_statistics = m_statistics - m_flood_statistics;
+    m_flood_statistics = m_statistics;
+    m_flood_measurement.m_measurement_count++;
+
+    m_flood_measurement.m_last_mean = m_flood_measurement.m_coef * (interval_statistics.m_not_empty + interval_statistics.m_empty)
+        + (1 - m_flood_measurement.m_coef) * m_flood_measurement.m_last_mean;
+    int32_t forecasting_error = (interval_statistics.m_not_empty + interval_statistics.m_empty) - m_flood_measurement.m_last_mean;
+    m_flood_measurement.m_error_summ += forecasting_error;
+    m_flood_measurement.m_error_summ2 += (forecasting_error * forecasting_error);
+    auto error_mean = m_flood_measurement.m_error_summ / m_flood_measurement.m_measurement_count;
+    m_flood_measurement.m_deviation = std::sqrt((m_flood_measurement.m_error_summ2 - 2 * error_mean * m_flood_measurement.m_error_summ + error_mean * error_mean)/
+        m_flood_measurement.m_measurement_count);
+    auto threshold = m_flood_measurement.m_last_mean + std::max(m_flood_measurement.m_threshold * m_flood_measurement.m_deviation,m_flood_measurement.m_min);
+    m_flood_measurement.m_cusum = std::max(m_flood_measurement.m_cusum + interval_statistics.m_not_empty + interval_statistics.m_empty - threshold,0.0);
+    auto cusum_threshold = m_flood_measurement.m_threshold * m_flood_measurement.m_deviation;
+
+    return m_flood_measurement.m_cusum > cusum_threshold;
+}
+
+void NHTFlowCache::export_graph_data(const Packet& pkt) noexcept{
+    if (pkt.ts - m_graph_export.m_last_measurement < timeval{1,0})
+        return ;
+    auto interval_stats = m_statistics - m_graph_export.m_last_statistics;
+    m_graph_export.m_last_measurement = pkt.ts;
+    m_graph_export.m_last_statistics = m_statistics;
+    m_graph_export.m_graph_datastream << pkt.ts.tv_sec << " " << interval_stats.m_expired << std::endl;
+}
+
 /**
  * @brief Main packet insertion function.
  * @param pkt Incoming packet.
@@ -459,6 +495,9 @@ int NHTFlowCache::insert_pkt(Packet& pkt) noexcept
     // Saves key fields of flow to FlowKey structures
     if (!create_hash_key(pkt))
         return 0;
+    export_graph_data(pkt);
+    if (is_being_flooded(pkt))
+        std::cout<<"Alarm11!!\n";
     // Tries to find index of flow to which packet belongs
     auto [record_found, source, flow_index, hashval] = find_flow_position(pkt);
     flow_index = record_found ? enhance_existing_flow_record(flow_index)

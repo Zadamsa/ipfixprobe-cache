@@ -62,6 +62,8 @@
 #include <variant>
 #include <thread>
 #include "fragmentationCache/fragmentationCache.hpp"
+#include <sys/time.h>
+#include "fstream"
 
 namespace ipxp {
 
@@ -106,6 +108,7 @@ protected:
         m_statistics; ///< Total statistics about cache efficiency from the program start
     CacheStatistics m_last_statistics; ///< Cache statistics for last
                                        ///< m_periodic_statistics_sleep_time amount of time
+    CacheStatistics m_flood_statistics;
     bool m_exit; ///< Used for stopping background statistics thread
     std::chrono::duration<double>
         m_periodic_statistics_sleep_time; ///< Amount of time in which periodic statistics must
@@ -113,8 +116,16 @@ protected:
     std::unique_ptr<std::thread> m_statistics_thread; ///< Pointer to periodic statistics thread
     FragmentationCache
         m_fragmentation_cache; ///< Fragmentation cache used for completing packets ports
+    struct GraphExport{
+        std::ofstream m_graph_datastream;
+        timeval m_last_measurement{0,0};
+        uint32_t m_interval = 1;
+        CacheStatistics m_last_statistics;
+    } m_graph_export;
+
     std::function<uint64_t(const void*,uint32_t)> m_hash_function;
 
+    void export_graph_data(const Packet& pkt) noexcept;
     void try_to_fill_ports_to_fragmented_packet(Packet& packet);
     void allocate_tables();
     void export_periodic_statistics(std::ostream& stream) noexcept;
@@ -149,6 +160,24 @@ protected:
 
     static bool has_tcp_eof_flags(const Flow& flow) noexcept;
     static void test_attributes();
+    bool is_being_flooded(const Packet& Pkt) noexcept;
+
+
+    struct FloodMeasurement{
+        timeval m_last_measurement;
+        uint64_t m_measurement_count = 0;
+        uint64_t m_flows_created = 0;
+        uint32_t m_last_mean = 0;
+        uint64_t m_error_summ = 0;
+        uint64_t m_error_summ2 = 0;
+        uint64_t m_cusum = 0;
+        const uint32_t m_interval_length = 5;
+        const uint32_t m_span = 1000;
+        const float m_coef = 2/(m_span/m_interval_length + 1);
+        double m_deviation = 0;
+        const uint32_t m_threshold = 5;
+        const double m_min = 7000;
+    } m_flood_measurement;
 };
 
 } // namespace ipxp
