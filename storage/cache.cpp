@@ -89,6 +89,9 @@ NHTFlowCache::NHTFlowCache()
     //set_hash_function([this](const void* ptr,uint32_t len){ return rte_softrss_be((uint32_t *)ptr, len/4, (const uint8_t*)m_rss_key);});
     set_hash_function([](const void* ptr,uint32_t len){ return XXH64(ptr, len, 0);});
     m_graph_export.m_graph_datastream = std::ofstream("graph.data");
+    m_graph_export.m_graph_new_flows_datastream = std::ofstream("graph_new_flows.data");
+    m_graph_export.m_graph_cusum_datastream = std::ofstream("graph_cusum.data");
+    m_graph_export.m_graph_cusum_threshold_datastream = std::ofstream("graph_cusum_threshold.data");
     test_attributes();
 }
 
@@ -467,17 +470,21 @@ bool NHTFlowCache::is_being_flooded(const Packet& pkt) noexcept{
     auto threshold = m_flood_measurement.m_last_mean + std::max(m_flood_measurement.m_threshold * m_flood_measurement.m_deviation,m_flood_measurement.m_min);
     m_flood_measurement.m_cusum = std::max(m_flood_measurement.m_cusum + interval_statistics.m_not_empty + interval_statistics.m_empty - threshold,0.0);
     auto cusum_threshold = m_flood_measurement.m_threshold * m_flood_measurement.m_deviation;
-
+    m_graph_export.m_graph_cusum_threshold_datastream << pkt.ts.tv_sec << " " << cusum_threshold << std::endl;
+    m_graph_export.m_graph_cusum_datastream << pkt.ts.tv_sec << " " << m_flood_measurement.m_cusum << std::endl;
     return m_flood_measurement.m_cusum > cusum_threshold;
 }
 
-void NHTFlowCache::export_graph_data(const Packet& pkt) noexcept{
+void NHTFlowCache::export_graph_data(const Packet& pkt){
     if (pkt.ts - m_graph_export.m_last_measurement < timeval{1,0})
         return ;
     auto interval_stats = m_statistics - m_graph_export.m_last_statistics;
     m_graph_export.m_last_measurement = pkt.ts;
     m_graph_export.m_last_statistics = m_statistics;
     m_graph_export.m_graph_datastream << pkt.ts.tv_sec << " " << interval_stats.m_expired << std::endl;
+    m_graph_export.m_graph_new_flows_datastream << pkt.ts.tv_sec << " " << interval_stats.m_not_empty + interval_stats.m_empty << std::endl;
+    if (!m_graph_export.m_graph_datastream || !m_graph_export.m_graph_new_flows_datastream)
+        throw PluginError("Cant save graph to file");
 }
 
 /**
@@ -497,7 +504,7 @@ int NHTFlowCache::insert_pkt(Packet& pkt) noexcept
         return 0;
     export_graph_data(pkt);
     if (is_being_flooded(pkt))
-        std::cout<<"Alarm11!!\n";
+        std::cout<<"Alarm11!!" + std::to_string(pkt.ts.tv_sec) + "\n";
     // Tries to find index of flow to which packet belongs
     auto [record_found, source, flow_index, hashval] = find_flow_position(pkt);
     flow_index = record_found ? enhance_existing_flow_record(flow_index)

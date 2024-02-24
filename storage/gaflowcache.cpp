@@ -44,6 +44,11 @@ void GAFlowCache::get_opts_from_parser(const GACacheOptParser& parser){
     m_infilename = parser.m_infilename;
 }
 
+bool GAFlowCache::is_being_flooded(const Packet& Pkt) noexcept{
+    return false;
+}
+void GAFlowCache::export_graph_data(const Packet& pkt){}
+
 uint32_t GAFlowCache::enhance_existing_flow_record(uint32_t flow_index) noexcept{
     uint32_t line_index = flow_index & m_line_mask;
     m_statistics.m_lookups += (flow_index - line_index + 1);

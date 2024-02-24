@@ -29,6 +29,9 @@ protected:
     int insert_pkt(Packet& pkt) noexcept override;
     std::string m_infilename = ""; ///< Name of file that contains configuration
     GAConfiguration m_configuration; ///< Configuration that will be used to move flows in cache line
+    bool is_being_flooded(const Packet& Pkt) noexcept override;
+    void export_graph_data(const Packet& pkt) override;
+
 private:
     std::vector<uint32_t> m_unpacked_configuration; ///< Decoded m_configuration for easier work with it.
     uint32_t m_short_pos = 0;

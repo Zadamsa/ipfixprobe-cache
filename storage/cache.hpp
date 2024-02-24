@@ -118,6 +118,9 @@ protected:
         m_fragmentation_cache; ///< Fragmentation cache used for completing packets ports
     struct GraphExport{
         std::ofstream m_graph_datastream;
+        std::ofstream m_graph_new_flows_datastream;
+        std::ofstream m_graph_cusum_datastream;
+        std::ofstream m_graph_cusum_threshold_datastream;
         timeval m_last_measurement{0,0};
         uint32_t m_interval = 1;
         CacheStatistics m_last_statistics;
@@ -125,7 +128,7 @@ protected:
 
     std::function<uint64_t(const void*,uint32_t)> m_hash_function;
 
-    void export_graph_data(const Packet& pkt) noexcept;
+    virtual void export_graph_data(const Packet& pkt);
     void try_to_fill_ports_to_fragmented_packet(Packet& packet);
     void allocate_tables();
     void export_periodic_statistics(std::ostream& stream) noexcept;
@@ -160,7 +163,7 @@ protected:
 
     static bool has_tcp_eof_flags(const Flow& flow) noexcept;
     static void test_attributes();
-    bool is_being_flooded(const Packet& Pkt) noexcept;
+    virtual bool is_being_flooded(const Packet& Pkt) noexcept;
 
 
     struct FloodMeasurement{
