@@ -33,6 +33,7 @@ class FlowRecord {
 public:
     Flow m_flow;
     bool m_swapped;
+    timeval m_last_second_access;
 
     FlowRecord();
     ~FlowRecord();

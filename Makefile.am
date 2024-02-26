@@ -96,6 +96,10 @@ ipfixprobe_storage_src=\
 		storage/gaelaborationcacheoptparser.hpp \
 		storage/packetclassifier.cpp \
 		storage/packetclassifier.hpp \
+		storage/lru2cache.cpp \
+		storage/lru2cache.hpp \
+		storage/maxheap.cpp \
+		storage/maxheap.hpp \
 		storage/xxhash.c \
 		storage/xxhash.h
 

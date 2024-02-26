@@ -143,7 +143,7 @@ protected:
     void create_new_flow(uint32_t flow_index, Packet& pkt, uint64_t hashval) noexcept;
     bool update_flow(uint32_t flow_index, Packet& pkt,bool source) noexcept;
     virtual uint32_t make_place_for_record(uint32_t line_index) noexcept;
-    std::tuple<bool, bool,uint32_t, uint64_t> find_flow_position(Packet& pkt) noexcept;
+    virtual std::tuple<bool, bool,uint32_t, uint64_t> find_flow_position(Packet& pkt) noexcept;
     virtual int insert_pkt(Packet& pkt) noexcept;
     bool timeouts_expired(Packet& pkt, uint32_t flow_index) noexcept;
     bool create_hash_key(const Packet& pkt) noexcept;
@@ -154,9 +154,9 @@ protected:
 
     bool process_last_tcp_packet(Packet& pkt, uint32_t flow_index) noexcept;
     void get_opts_from_parser(const CacheOptParser& parser);
-    std::pair<bool, uint32_t> find_existing_record(uint64_t hashval) const noexcept;
+    virtual std::pair<bool, uint32_t> find_existing_record(uint64_t hashval) const noexcept;
     virtual uint32_t enhance_existing_flow_record(uint32_t flow_index) noexcept;
-    std::pair<bool, uint32_t> find_empty_place(uint32_t begin_line) const noexcept;
+    virtual std::pair<bool, uint32_t> find_empty_place(uint32_t begin_line) const noexcept;
     void prepare_and_export(uint32_t flow_index, FlowEndReason reason) noexcept;
     uint64_t hash(const void* ptr, uint32_t len) const noexcept;
     void set_hash_function(std::function<uint64_t(const void*,uint32_t)> function) noexcept;

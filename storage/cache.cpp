@@ -135,10 +135,10 @@ void NHTFlowCache::test_attributes()
 void NHTFlowCache::get_opts_from_parser(const CacheOptParser& parser)
 {
     m_cache_size = parser.m_cache_size;
-    m_line_size = parser.m_line_size;
     m_active = parser.m_active;
     m_inactive = parser.m_inactive;
     m_split_biflow = parser.m_split_biflow;
+    m_line_size = parser.m_line_size;
     m_periodic_statistics_sleep_time = std::chrono::duration<double>(parser.m_periodic_statistics_sleep_time);
     m_enable_fragmentation_cache = parser.m_enable_fragmentation_cache;
 }
@@ -502,9 +502,9 @@ int NHTFlowCache::insert_pkt(Packet& pkt) noexcept
     // Saves key fields of flow to FlowKey structures
     if (!create_hash_key(pkt))
         return 0;
-    export_graph_data(pkt);
-    if (is_being_flooded(pkt))
-        std::cout<<"Alarm11!!" + std::to_string(pkt.ts.tv_sec) + "\n";
+    //export_graph_data(pkt);
+    //if (is_being_flooded(pkt))
+    //    std::cout<<"Alarm11!!" + std::to_string(pkt.ts.tv_sec) + "\n";
     // Tries to find index of flow to which packet belongs
     auto [record_found, source, flow_index, hashval] = find_flow_position(pkt);
     flow_index = record_found ? enhance_existing_flow_record(flow_index)
