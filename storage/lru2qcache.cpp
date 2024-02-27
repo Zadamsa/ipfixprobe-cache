@@ -42,7 +42,8 @@ uint32_t LRU2QCache::enhance_existing_flow_record(uint32_t flow_index) noexcept{
 
 std::pair<bool, uint32_t> LRU2QCache::find_empty_place_in_secondary_buffer(uint32_t begin_line) const noexcept{
     uint32_t end_line = begin_line + m_line_size;
-    for (uint32_t flow_index = begin_line + m_delimiter; flow_index < end_line; flow_index++) {
+    //for (uint32_t flow_index = end_line - 1; flow_index >= begin_line + m_delimiter ; flow_index--) {
+    for (uint32_t flow_index = end_line - 1; flow_index >= begin_line && flow_index != std::numeric_limits<uint32_t>::max(); flow_index--) {
         if (m_flow_table[flow_index]->is_empty())
             return {true, flow_index};
     }
@@ -51,6 +52,7 @@ std::pair<bool, uint32_t> LRU2QCache::find_empty_place_in_secondary_buffer(uint3
 }
 
 uint32_t LRU2QCache::make_place_for_record(uint32_t line_index) noexcept{
+    //auto [empty_place_found, flow_index] = find_empty_place_in_secondary_buffer(line_index);
     auto [empty_place_found, flow_index] = find_empty_place_in_secondary_buffer(line_index);
     if (empty_place_found) {
         m_statistics.m_empty++;

@@ -98,6 +98,8 @@ ipfixprobe_storage_src=\
 		storage/packetclassifier.hpp \
 		storage/lru2qcache.cpp \
 		storage/lru2qcache.hpp \
+		storage/lru2qfullcache.cpp \
+		storage/lru2qfullcache.hpp \
 		storage/xxhash.c \
 		storage/xxhash.h
 
