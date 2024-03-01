@@ -59,7 +59,7 @@ void FlowRecord::erase()
     m_flow.src_tcp_flags = 0;
     m_flow.dst_tcp_flags = 0;
     m_swapped = false;
-    m_last_second_access = timeval{-1,0};
+    m_last_second_access = TIME_MAX;
 }
 
 /**
@@ -76,7 +76,7 @@ void FlowRecord::reuse()
     m_flow.dst_bytes = 0;
     m_flow.src_tcp_flags = 0;
     m_flow.dst_tcp_flags = 0;
-    m_last_second_access = timeval{-1,0};
+    m_last_second_access = TIME_MAX;
 }
 
 /**
@@ -113,7 +113,7 @@ void FlowRecord::update(const Packet& pkt, bool src)
  */
 void FlowRecord::create(const Packet& pkt, uint64_t hash, bool key_swapped)
 {
-    m_last_second_access =  timeval{-1,0};
+    m_last_second_access =  TIME_MAX;
     m_flow.src_packets = 1;
 
     m_hash = hash;

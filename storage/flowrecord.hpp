@@ -26,14 +26,23 @@
 #include <ipfixprobe/flowifc.hpp>
 #include <ipfixprobe/packet.hpp>
 #include <string>
+#include "limits"
 namespace ipxp {
 
+enum ReferenceType{
+    LIR,HIR
+};
+
 class FlowRecord {
-    uint64_t m_hash; ///< Hash value of the flow.
 public:
+    uint64_t m_hash; ///< Hash value of the flow.
+    static const constexpr timeval TIME_MAX = timeval{std::numeric_limits<time_t>::max(),0};
     Flow m_flow;
     bool m_swapped;
+    //timeval m_last_access;
     timeval m_last_second_access;
+    ReferenceType m_reference_type;
+
 
     FlowRecord();
     ~FlowRecord();
@@ -45,6 +54,9 @@ public:
     inline __attribute__((always_inline)) bool belongs(uint64_t hash) const
     {
         return hash == m_hash;
+    }
+    bool operator==(const FlowRecord& fr) const noexcept{
+        return m_hash == fr.m_hash;
     }
     void create(const Packet& pkt, uint64_t pkt_hash, bool key_swapped);
     void update(const Packet& pkt, bool src);

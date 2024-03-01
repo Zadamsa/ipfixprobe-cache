@@ -151,6 +151,7 @@ protected:
     static uint8_t get_export_reason(Flow& flow);
 
     void cyclic_rotate_records(uint32_t begin,uint32_t end) noexcept;
+    void cyclic_rotate_records_reversed(uint32_t begin, uint32_t end) noexcept;
 
     bool process_last_tcp_packet(Packet& pkt, uint32_t flow_index) noexcept;
     void get_opts_from_parser(const CacheOptParser& parser);
@@ -174,9 +175,10 @@ protected:
         uint64_t m_error_summ = 0;
         uint64_t m_error_summ2 = 0;
         uint64_t m_cusum = 0;
-        const uint32_t m_interval_length = 5;
-        const uint32_t m_span = 1000;
-        const float m_coef = 2/(m_span/m_interval_length + 1);
+        static constexpr const uint32_t m_interval_length = 5;
+        static constexpr const uint32_t m_span = 100;
+        //static constexpr const float m_coef = 2/(m_span/m_interval_length + 1);
+        const float m_coef = 0.3;
         double m_deviation = 0;
         const uint32_t m_threshold = 5;
         const double m_min = 7000;
