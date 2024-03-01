@@ -17,15 +17,16 @@ public:
     bool operator==(const GAConfiguration& o) const noexcept;
     bool operator!=(const GAConfiguration& o) const noexcept;
     GAConfiguration& operator=(const GAConfiguration& o) noexcept;
-    std::tuple<uint32_t,uint32_t,uint32_t,uint32_t,std::vector<uint32_t>> unpack() const noexcept;
+    std::tuple<uint32_t,int32_t,int32_t,int32_t,int32_t,std::vector<uint32_t>> unpack() const noexcept;
     std::string to_string() const noexcept;
 private:
     // Pocet MoveTuple je zvolen tak, aby v prumeru kazdy MoveTuple obsahoval 4 flow
     std::vector<MoveTuple> m_moves;
-    uint32_t m_short_pos = 0;
-    uint32_t m_medium_pos = 0;
-    uint32_t m_long_pos = 0;
-    uint32_t m_never_pos = 0;
+    int32_t m_short_pos = 0;
+    int32_t m_medium_pos = 0;
+    int32_t m_long_pos = 0;
+    int32_t m_never_pos = 0;
+    uint32_t m_insert_pos = 0;
     uint32_t m_line_size = 0;
 
     std::mt19937 m_rng = std::mt19937(std::random_device()());
@@ -33,6 +34,7 @@ private:
     std::uniform_int_distribution<std::mt19937::result_type> m_pair_dist = std::uniform_int_distribution<std::mt19937::result_type>(0,m_line_size/4 - 1);
     std::uniform_int_distribution<std::mt19937::result_type> m_count_dist = std::uniform_int_distribution<std::mt19937::result_type>(1,m_line_size/4 );
     std::uniform_int_distribution<std::mt19937::result_type> m_insert_dist = std::uniform_int_distribution<std::mt19937::result_type>(0,m_line_size - 1);
+    std::uniform_int_distribution<std::mt19937::result_type> m_offset_dist = std::uniform_int_distribution<std::mt19937::result_type>(0,m_line_size);
 
     void mutate_counts(float probability);
     void mutate_targets(float probability);

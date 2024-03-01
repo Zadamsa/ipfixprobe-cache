@@ -130,21 +130,24 @@ void GAConfiguration::mutate_increment(float probability){
 // Mutace pozice vkladani novych flow
 void GAConfiguration::mutate_insert_pos(float probability){
     if (roll(probability))
-        m_short_pos = m_insert_dist(m_rng);
+        m_insert_pos = m_insert_dist(m_rng);
 
-    std::uniform_int_distribution<std::mt19937::result_type> medium_dist(m_short_pos,m_line_size - 1);
+    if (roll(probability))
+        m_short_pos = m_offset_dist(m_rng) - m_line_size/2;
+
+    std::uniform_int_distribution<std::mt19937::result_type> medium_dist(m_short_pos,m_line_size/2);
     if (roll(probability))
         m_medium_pos = medium_dist(m_rng);
     else
         m_medium_pos = std::max(m_medium_pos,m_short_pos);
 
-    std::uniform_int_distribution<std::mt19937::result_type> long_dist(m_medium_pos,m_line_size - 1);
+    std::uniform_int_distribution<std::mt19937::result_type> long_dist(m_medium_pos,m_line_size/2);
     if (roll(probability))
         m_long_pos = long_dist(m_rng);
     else
         m_long_pos = std::max(m_long_pos,m_medium_pos);
 
-    std::uniform_int_distribution<std::mt19937::result_type> never_dist(m_long_pos,m_line_size - 1);
+    std::uniform_int_distribution<std::mt19937::result_type> never_dist(m_long_pos,m_line_size/2);
     if (roll(probability))
         m_never_pos = never_dist(m_rng);
     else
@@ -167,6 +170,7 @@ void GAConfiguration::read_from_file(const std::string& filename){
     ifs.read((char*)&in_line_size,sizeof(in_line_size));
     if (in_line_size != m_line_size)
         throw PluginError("Invalid GA configuration line length. Config = "s + std::to_string(in_line_size) + ", Cache = " + std::to_string(m_line_size));
+    ifs.read((char*)&m_insert_pos,sizeof(m_insert_pos));
     ifs.read((char*)&m_short_pos,sizeof(m_short_pos));
     ifs.read((char*)&m_medium_pos,sizeof(m_medium_pos));
     ifs.read((char*)&m_long_pos,sizeof(m_long_pos));
@@ -183,6 +187,7 @@ void GAConfiguration::write_to_file(const std::string& filename) const {
     if (!ofs)
         throw PluginError("Can't open GA configuration savefile: " + filename);
     ofs.write((char*)&m_line_size,sizeof(m_line_size));
+    ofs.write((char*)&m_insert_pos,sizeof(m_insert_pos));
     ofs.write((char*)&m_short_pos,sizeof(m_short_pos));
     ofs.write((char*)&m_medium_pos,sizeof(m_medium_pos));
     ofs.write((char*)&m_long_pos,sizeof(m_long_pos));
@@ -254,16 +259,16 @@ bool GAConfiguration::operator!=(const GAConfiguration& o) const noexcept{
 }
 
 //Prevede configurace do formy, kde unpacked_configuration[i] = na jakou pozice se ma posunout i-y flow
-std::tuple<uint32_t,uint32_t,uint32_t,uint32_t,std::vector<uint32_t>> GAConfiguration::unpack() const noexcept{
+std::tuple<uint32_t,int32_t,int32_t,int32_t,int32_t,std::vector<uint32_t>> GAConfiguration::unpack() const noexcept{
     std::vector<uint32_t> res;
     for(const auto& mt : m_moves)
         for(uint32_t i = 0; i < mt.m_count; i++)
             res.push_back(mt.m_target + ( mt.m_increment ? i : 0 ) );
-    return {m_short_pos,m_medium_pos,m_long_pos,m_never_pos,res};
+    return {m_insert_pos,m_short_pos,m_medium_pos,m_long_pos,m_never_pos,res};
 }
 
 std::string GAConfiguration::to_string() const noexcept{
-    std::string res = std::to_string(m_short_pos) +"-"+std::to_string(m_medium_pos)+"-"+std::to_string(m_long_pos)+"-"+std::to_string(m_never_pos)+"{";
+    std::string res = std::to_string(m_insert_pos) +":"+std::to_string(m_short_pos) +"^"+std::to_string(m_medium_pos)+"^"+std::to_string(m_long_pos)+"^"+std::to_string(m_never_pos)+"{";
     for(const auto& mp: m_moves){
         if (&mp != &m_moves.front())
             res += ',';

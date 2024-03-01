@@ -25,7 +25,7 @@ public:
 protected:
     void get_opts_from_parser(const GACacheOptParser& parser);
     uint32_t enhance_existing_flow_record(uint32_t flow_index) noexcept override;
-    uint32_t free_place_in_full_line(uint32_t line_begin) noexcept override;
+    //uint32_t free_place_in_full_line(uint32_t line_begin) noexcept override;
     int insert_pkt(Packet& pkt) noexcept override;
     std::string m_infilename = ""; ///< Name of file that contains configuration
     GAConfiguration m_configuration; ///< Configuration that will be used to move flows in cache line

@@ -33,7 +33,7 @@ GAConfiguration GAFlowCache::get_configuration() const noexcept{
 
 void GAFlowCache::set_configuration(const GAConfiguration& src) noexcept{
     m_configuration = src;
-    std::tie(m_short_pos,m_medium_pos,m_long_pos,m_never_pos,m_unpacked_configuration) = src.unpack();
+    std::tie(m_insert_pos,m_short_pos,m_medium_pos,m_long_pos,m_never_pos,m_unpacked_configuration) = src.unpack();
 }
 OptionsParser* GAFlowCache::get_parser() const{
     return new GACacheOptParser();
@@ -54,9 +54,27 @@ uint32_t GAFlowCache::enhance_existing_flow_record(uint32_t flow_index) noexcept
     m_statistics.m_lookups += (flow_index - line_index + 1);
     m_statistics.m_lookups2 += (flow_index - line_index + 1) * (flow_index - line_index + 1);
     m_statistics.m_hits++;
+    uint32_t offset;
     // Tady se pouziva rozbalena konfigurace ke zvoleni nove pozice pro flow
-    cyclic_rotate_records(line_index + m_unpacked_configuration[flow_index - line_index],flow_index);
-    return line_index;
+    if (m_pkt_dist == PacketDistance::DISTANCE_SHORT)
+        offset = m_short_pos;
+    else if (m_pkt_dist == PacketDistance::DISTANCE_MEDIUM)
+        offset = m_medium_pos;
+    else if (m_pkt_dist == PacketDistance::DISTANCE_LONG)
+        offset = m_long_pos;
+    else
+        offset = m_never_pos;
+    auto final_pos = line_index + m_unpacked_configuration[flow_index - line_index];
+    if (final_pos >= line_index + m_line_size - offset)
+        final_pos = line_index + m_line_size - 1;
+    else if (final_pos < line_index - offset)
+        final_pos = line_index;
+
+    if (final_pos > flow_index)
+        final_pos = flow_index;
+    cyclic_rotate_records( final_pos,flow_index);
+
+    return final_pos;
 }
 
 int GAFlowCache::insert_pkt(Packet& pkt) noexcept {
@@ -64,7 +82,7 @@ int GAFlowCache::insert_pkt(Packet& pkt) noexcept {
     return NHTFlowCache::insert_pkt(pkt);
 }
 
-uint32_t GAFlowCache::free_place_in_full_line(uint32_t line_begin) noexcept
+/*uint32_t GAFlowCache::free_place_in_full_line(uint32_t line_begin) noexcept
 {
     uint32_t line_end = line_begin + m_line_size;
     prepare_and_export(line_end - 1, FlowEndReason::FLOW_END_LACK_OF_RECOURSES);
@@ -79,7 +97,7 @@ uint32_t GAFlowCache::free_place_in_full_line(uint32_t line_begin) noexcept
         flow_new_index = line_begin + m_never_pos;
     cyclic_rotate_records(flow_new_index, line_end - 1);
     return flow_new_index;
-}
+}*/
 
 void GAFlowCache::print_report() const noexcept{
     if (m_statistics.m_hits) {
