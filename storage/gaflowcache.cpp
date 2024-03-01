@@ -69,6 +69,8 @@ uint32_t GAFlowCache::enhance_existing_flow_record(uint32_t flow_index) noexcept
         final_pos = line_index + m_line_size - 1;
     else if (final_pos < line_index - offset)
         final_pos = line_index;
+    else
+        final_pos += offset;
 
     if (final_pos > flow_index)
         final_pos = flow_index;
