@@ -37,6 +37,7 @@ GAConfiguration::GAConfiguration(uint32_t line_size): m_line_size(line_size){
 
 GAConfiguration::GAConfiguration(const GAConfiguration& o){
     m_moves = o.m_moves;
+    m_insert_pos = o.m_insert_pos;
     m_short_pos = o.m_short_pos;
     m_medium_pos = o.m_medium_pos;
     m_long_pos = o.m_long_pos;
@@ -52,6 +53,7 @@ GAConfiguration::GAConfiguration(const GAConfiguration& o){
 GAConfiguration& GAConfiguration::operator=(const GAConfiguration& o) noexcept{
     m_moves = o.m_moves;
     m_short_pos = o.m_short_pos;
+    m_insert_pos = o.m_insert_pos;
     m_medium_pos = o.m_medium_pos;
     m_long_pos = o.m_long_pos;
     m_never_pos = o.m_never_pos;
@@ -252,7 +254,7 @@ bool GAConfiguration::roll(double probability){
 }
 
 bool GAConfiguration::operator==(const GAConfiguration& o) const noexcept{
-    return m_moves == o.m_moves && std::tie(m_short_pos,m_medium_pos,m_long_pos,m_never_pos) == std::tie(o.m_short_pos,o.m_medium_pos,o.m_long_pos,o.m_never_pos);
+    return m_moves == o.m_moves && std::tie(m_insert_pos,m_short_pos,m_medium_pos,m_long_pos,m_never_pos) == std::tie(o.m_insert_pos,o.m_short_pos,o.m_medium_pos,o.m_long_pos,o.m_never_pos);
 }
 bool GAConfiguration::operator!=(const GAConfiguration& o) const noexcept{
     return !(*this == o);

@@ -125,19 +125,13 @@ protected:
         uint32_t m_interval = 1;
         CacheStatistics m_last_statistics;
     } m_graph_export;
-
     std::function<uint64_t(const void*,uint32_t)> m_hash_function;
 
     virtual void export_graph_data(const Packet& pkt);
     void try_to_fill_ports_to_fragmented_packet(Packet& packet);
     void allocate_tables();
     void export_periodic_statistics(std::ostream& stream) noexcept;
-    void flush(
-        Packet& pkt,
-        uint32_t flow_index,
-        int ret,
-        bool source_flow,
-        FlowEndReason reason) noexcept;
+    void flush(Packet& pkt,uint32_t flow_index,int ret,bool source_flow,FlowEndReason reason) noexcept;
     virtual uint32_t free_place_in_full_line(uint32_t line_begin) noexcept;
     bool tcp_connection_reset(Packet& pkt, uint32_t flow_index, bool source) noexcept;
     void create_new_flow(uint32_t flow_index, Packet& pkt, uint64_t hashval) noexcept;
