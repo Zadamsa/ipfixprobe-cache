@@ -370,6 +370,7 @@ void NHTFlowCache::create_new_flow(
 uint32_t NHTFlowCache::free_place_in_full_line(uint32_t line_begin) noexcept
 {
     uint32_t line_end = line_begin + m_line_size;
+    //std::cout<<m_flow_table[line_end - 1]->m_flow.time_last.tv_usec << "\n";
     prepare_and_export(line_end - 1, FlowEndReason::FLOW_END_LACK_OF_RECOURSES);
     uint32_t flow_new_index = line_begin + m_insert_pos;
     cyclic_rotate_records(flow_new_index, line_end - 1);
@@ -555,6 +556,22 @@ bool NHTFlowCache::timeouts_expired(Packet& pkt, uint32_t flow_index) noexcept
     return false;
 }
 
+void NHTFlowCache::print_rows() const noexcept{
+    std::cout<<"Frame:" << m_print_counter << "\n";
+    for(uint32_t line = 0; line < m_cache_size/m_line_size; line++) {
+        std::cout<<"[";
+        for (uint32_t flow = 0; flow < m_line_size; flow++){
+            if (m_flow_table[line * m_line_size + flow]->is_empty())
+                std::cout<<"e,";
+            else
+                std::cout<<std::to_string(m_flow_table[line * m_line_size + flow]->m_flow.time_last.tv_sec) << "." <<
+                    std::to_string(m_flow_table[line * m_line_size + flow]->m_flow.time_last.tv_usec) + ",";
+        }
+        std::cout<<"]\n";
+    }
+    std::cout<<"==============================================================================================\n\n"<<std::endl;
+}
+
 /**
  * @brief Time measurement for insert_pkt.
  * @param pkt Incoming packet.
@@ -566,6 +583,8 @@ int NHTFlowCache::put_pkt(Packet& pkt)
     m_statistics.m_put_time += std::chrono::duration_cast<std::chrono::nanoseconds>(
                       std::chrono::high_resolution_clock::now() - start)
                       .count();
+    //if (m_print_counter++%10000 < 100)
+    //    print_rows();
     return res;
 }
 

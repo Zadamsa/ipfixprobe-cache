@@ -154,12 +154,14 @@ protected:
 
     bool process_last_tcp_packet(Packet& pkt, uint32_t flow_index) noexcept;
     void get_opts_from_parser(const CacheOptParser& parser);
-    std::pair<bool, uint32_t> find_existing_record(uint64_t hashval) const noexcept;
+    virtual std::pair<bool, uint32_t> find_existing_record(uint64_t hashval) const noexcept;
     virtual uint32_t enhance_existing_flow_record(uint32_t flow_index) noexcept;
-    std::pair<bool, uint32_t> find_empty_place(uint32_t begin_line) const noexcept;
+    virtual std::pair<bool, uint32_t> find_empty_place(uint32_t begin_line) const noexcept;
     void prepare_and_export(uint32_t flow_index, FlowEndReason reason) noexcept;
     uint64_t hash(const void* ptr, uint32_t len) const noexcept;
     void set_hash_function(std::function<uint64_t(const void*,uint32_t)> function) noexcept;
+    void print_rows() const noexcept;
+    uint64_t m_print_counter = 0;
 
     static bool has_tcp_eof_flags(const Flow& flow) noexcept;
     static void test_attributes();
