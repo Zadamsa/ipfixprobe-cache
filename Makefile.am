@@ -11,7 +11,7 @@ DISTCHECK_CONFIGURE_FLAGS="--with-systemdsystemunitdir=$$dc_install_base/$(syste
 
 ipfixprobe_LDFLAGS=-lpthread -ldl -latomic
 ipfixprobe_CFLAGS=-I$(srcdir)/include/ -fPIC
-ipfixprobe_CXXFLAGS=-std=gnu++17 -msse4.2 -mavx2 -Wno-write-strings -I$(srcdir)/include/ -fPIC
+ipfixprobe_CXXFLAGS=-std=gnu++17 -mavx2 -Wno-write-strings -I$(srcdir)/include/ -fPIC
 
 if OS_CYGWIN
 ipfixprobe_CXXFLAGS+=-Wl,--export-all-symbols
@@ -62,6 +62,7 @@ endif
 ipfixprobe_storage_src=\
 		storage/fragmentationCache/ringBuffer.hpp \
 		storage/fragmentationCache/timevalUtils.hpp \
+		storage/fragmentationCache/timevalUtils.cpp \
 		storage/fragmentationCache/fragmentationKeyData.hpp \
 		storage/fragmentationCache/fragmentationTable.hpp \
 		storage/fragmentationCache/fragmentationTable.cpp \

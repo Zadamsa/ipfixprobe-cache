@@ -488,8 +488,8 @@ int NHTFlowCache::insert_pkt(Packet& pkt) noexcept
     // Calls PRE_CREATE event for new packet
     plugins_pre_create(pkt);
     // Tries to fill up ports if packet is fragmented
-    if (m_enable_fragmentation_cache)
-        try_to_fill_ports_to_fragmented_packet(pkt);
+    //if (m_enable_fragmentation_cache)
+    //    try_to_fill_ports_to_fragmented_packet(pkt);
     // Saves key fields of flow to FlowKey structures
     if (!create_hash_key(pkt))
         return 0;
@@ -582,7 +582,7 @@ void NHTFlowCache::export_expired(time_t ts)
     for (uint32_t i = m_timeout_idx; i < m_timeout_idx + m_insert_pos; i++) {
         if (!m_flow_table[i]->is_empty()
             && ts - m_flow_table[i]->m_flow.time_last.tv_sec >= m_inactive) {
-            m_statistics.m_exported_on_periodic_scan++;
+            //m_statistics.m_exported_on_periodic_scan++;
             prepare_and_export(
                 i,
                 has_tcp_eof_flags(m_flow_table[i]->m_flow)
