@@ -6,6 +6,7 @@
 #define CACHE_CPP_PALRUCACHE_HPP
 #include "cache.hpp"
 #include <emmintrin.h>
+#include <mmintrin.h>
 #include <tmmintrin.h>
 #include <smmintrin.h>
 namespace ipxp {
@@ -39,8 +40,8 @@ private:
         } m_hashes;
 
         //uint64_t m_lru_list[2] = {0x0001020304050607,0x08090A0B0C0D0E0F};
-        __m64 m_lru_list = (__m64)0x0706050403020100;
-        //uint64_t m_lru_list = 0x0001020304050607;
+        //__m64 m_lru_list = (__m64)0x0706050403020100;
+        uint64_t m_lru_list = 0x0001020304050607;
         //uint64_t m_lru_list = 0x0405060700010203;
         //uint64_t m_lru_list = 0x0706050403020100;
     };
