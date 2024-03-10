@@ -149,6 +149,7 @@ void NHTFlowCache::init(OptionsParser& in_parser){
         throw PluginError("Bad parser for NHTFlowCache");
     get_opts_from_parser(*parser);
     m_line_mask = (m_cache_size - 1) & ~(m_line_size - 1);
+    m_line_count = m_cache_size / m_line_size;
     m_insert_pos = m_line_size / 2;
 
     if (m_export_queue == nullptr) {

@@ -87,6 +87,7 @@ public:
 protected:
     uint32_t m_cache_size; ///< Maximal count of records in cache
     uint32_t m_line_size; ///< Maximal count of records in one row
+    uint32_t m_line_count; ///< Maximal count of records in one row
     uint32_t m_line_mask; ///< Line mask xored with flow index returns start of the row
     uint32_t m_insert_pos; ///< Insert position of new flow, if row has no empty space
     uint32_t m_qsize; ///< Export queue size
@@ -129,12 +130,12 @@ protected:
 
     virtual void export_graph_data(const Packet& pkt);
     void try_to_fill_ports_to_fragmented_packet(Packet& packet);
-    void allocate_tables();
+    virtual void allocate_tables();
     void export_periodic_statistics(std::ostream& stream) noexcept;
     void flush(Packet& pkt,uint32_t flow_index,int ret,bool source_flow,FlowEndReason reason) noexcept;
     virtual uint32_t free_place_in_full_line(uint32_t line_begin) noexcept;
     bool tcp_connection_reset(Packet& pkt, uint32_t flow_index, bool source) noexcept;
-    void create_new_flow(uint32_t flow_index, Packet& pkt, uint64_t hashval) noexcept;
+    virtual void create_new_flow(uint32_t flow_index, Packet& pkt, uint64_t hashval) noexcept;
     bool update_flow(uint32_t flow_index, Packet& pkt,bool source) noexcept;
     virtual uint32_t make_place_for_record(uint32_t line_index) noexcept;
     std::tuple<bool, bool,uint32_t, uint64_t> find_flow_position(Packet& pkt) noexcept;
@@ -148,10 +149,10 @@ protected:
 
     bool process_last_tcp_packet(Packet& pkt, uint32_t flow_index) noexcept;
     void get_opts_from_parser(const CacheOptParser& parser);
-    std::pair<bool, uint32_t> find_existing_record(uint64_t hashval) const noexcept;
+    virtual std::pair<bool, uint32_t> find_existing_record(uint64_t hashval) const noexcept;
     virtual uint32_t enhance_existing_flow_record(uint32_t flow_index) noexcept;
-    std::pair<bool, uint32_t> find_empty_place(uint32_t begin_line) const noexcept;
-    void prepare_and_export(uint32_t flow_index, FlowEndReason reason) noexcept;
+    virtual std::pair<bool, uint32_t> find_empty_place(uint32_t begin_line) const noexcept;
+    virtual void prepare_and_export(uint32_t flow_index, FlowEndReason reason) noexcept;
     uint64_t hash(const void* ptr, uint32_t len) const noexcept;
     void set_hash_function(std::function<uint64_t(const void*,uint32_t)> function) noexcept;
 
