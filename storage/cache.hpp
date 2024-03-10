@@ -142,7 +142,7 @@ protected:
     virtual int insert_pkt(Packet& pkt) noexcept;
     bool timeouts_expired(Packet& pkt, uint32_t flow_index) noexcept;
     bool create_hash_key(const Packet& pkt) noexcept;
-    void export_flow(uint32_t index);
+    virtual void export_flow(uint32_t index);
     static uint8_t get_export_reason(Flow& flow);
 
     void cyclic_rotate_records(uint32_t begin,uint32_t end) noexcept;

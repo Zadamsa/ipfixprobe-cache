@@ -21,9 +21,10 @@ public:
     OptionsParser* get_parser() const override;
     std::string get_name() const noexcept override;
     void init(OptionsParser& in_parser) override;
-    void prepare_and_export(uint32_t flow_index, FlowEndReason reason) noexcept override;
+    //void prepare_and_export(uint32_t flow_index, FlowEndReason reason) noexcept override;
     void create_new_flow(uint32_t flow_index,Packet& pkt,uint64_t hashval) noexcept;
     void allocate_tables() override;
+    void export_flow(uint32_t index) override;
 private:
     uint16_t m_offset;
     struct MetaData {
@@ -35,13 +36,13 @@ private:
             }
         };
         union {
-            alignas(16) HashData m_hashes_array[8] = {};
-            __m128i m_hashes_reg;
+            HashData m_hashes_array[4] = {};
+            uint64_t m_hashes_reg;
         } m_hashes;
 
         //uint64_t m_lru_list[2] = {0x0001020304050607,0x08090A0B0C0D0E0F};
         //__m64 m_lru_list = (__m64)0x0706050403020100;
-        uint64_t m_lru_list = 0x0001020304050607;
+        uint64_t m_lru_list = 0x0000000100020003;
         //uint64_t m_lru_list = 0x0405060700010203;
         //uint64_t m_lru_list = 0x0706050403020100;
     };

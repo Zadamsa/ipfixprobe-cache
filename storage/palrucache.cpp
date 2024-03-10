@@ -29,11 +29,12 @@ void PALRUCache::init(OptionsParser& in_parser){
 
 std::pair<bool, uint32_t> PALRUCache::find_existing_record(uint64_t hashval) const noexcept
 {
+    return NHTFlowCache::find_existing_record(hashval);
     uint32_t begin_line = hashval & m_line_mask;
     //__m128i metadata = _mm_load_si128((__m128i*)(&m_metadata[control_block_index].m_hashes));
-    //__m128i hash_expanded = ;
-    //__m128i cmp_res = ;
-    __m128i min = _mm_minpos_epu16(_mm_xor_si128(m_metadata[begin_line >> m_offset].m_hashes.m_hashes_reg, _mm_set1_epi16((uint16_t)MetaData::HashData{(uint16_t)(hashval >> 49),1})));
+    __m128i hash_expanded = _mm_set1_epi16((uint16_t)MetaData::HashData{(uint16_t)(hashval >> 49),1});
+    __m128i cmp_res = _mm_xor_si128(_mm_cvtsi64_si128(m_metadata[begin_line >> m_offset].m_hashes.m_hashes_reg), hash_expanded);
+    __m128i min = _mm_minpos_epu16(cmp_res);
     return _mm_extract_epi16(min, 0) ? std::pair{false, 0U } :std::pair{true, begin_line + _mm_extract_epi16(min, 1)};
     //__m128i cmp_res = _mm_cmpeq_epi16(m_metadata[begin_line >> m_offset].m_hashes.m_hashes_reg, hash_expanded);
     //auto mask = _mm_movemask_epi8(cmp_res);
@@ -53,6 +54,7 @@ static inline __m128i expand_to_uint16_t(uint64_t v) noexcept{
                      (v   & 0xFF00000000000000) >> 8);
     return _mm_set_epi64((__m64)low,(__m64)high);
 }
+
 uint32_t PALRUCache::enhance_existing_flow_record(uint32_t flow_index) noexcept
 {
     /*static const uint64_t masks[16][2] = {
@@ -71,12 +73,18 @@ uint32_t PALRUCache::enhance_existing_flow_record(uint32_t flow_index) noexcept
         0x0400010203050607, 0x0500010203040607,
         0x0600010203040507, 0x0700010203040506
     };*/
-    constexpr static const uint64_t masks[8] = {
+    /*constexpr static const uint64_t masks[8] = {
         0x0706050403020100, 0x0706050403020001,
         0x0706050403010002, 0x0706050402010003,
         0x0706050302010004, 0x0706040302010005,
         0x0705040302010006, 0x0605040302010007
-    };
+    };*/
+    static uint64_t masks[10] = {
+        0x0100070605040302, 0x8080808080808080,
+        0x0302070605040100, 0x8080808080808080,
+        0x0504070603020100, 0x8080808080808080,
+        0x0706050403020100, 0x8080808080808080,
+        0x0706050403020100, 0x8080808080808080};
     uint32_t line_index = flow_index & m_line_mask;
     m_statistics.m_lookups++;
     m_statistics.m_lookups2++;
@@ -89,7 +97,7 @@ uint32_t PALRUCache::enhance_existing_flow_record(uint32_t flow_index) noexcept
     //__m64 list = m_metadata[flow_index >> m_offset].m_lru_list;
     //__m64 extended_pos = _mm_set1_pi8(base_pos);
     __m128i extended_pos = _mm_set1_epi16(base_pos);
-    __m128i list = expand_to_uint16_t(m_metadata[flow_index >> m_offset].m_lru_list);
+    __m128i list = _mm_cvtsi64_si128(m_metadata[flow_index >> m_offset].m_lru_list);
     //__m128i cmp_res = _mm_cmpeq_epi8(list, extended_pos);
     __m128i cmp_res = _mm_xor_si128(list, extended_pos);
     __m128i min = _mm_minpos_epu16(cmp_res);
@@ -99,7 +107,7 @@ uint32_t PALRUCache::enhance_existing_flow_record(uint32_t flow_index) noexcept
     //uint16_t significant_bits = _mm_movemask_epi8(cmp_res);
     //uint8_t significant_bits = _mm_movemask_pi8(cmp_res);
     //uint8_t current_pos = __builtin_ffs(significant_bits) - 1;
-    uint8_t current_pos = _mm_extract_epi16(min, 1);
+    uint8_t current_pos = 3 - _mm_extract_epi16(min, 1);
     //__m128i shift_mask = _mm_load_si128((__m128i*)&masks[current_pos]);
     //__m64 shift_mask = (__m64)masks[current_pos];
     //list = _mm_shuffle_epi8(list,shift_mask);
@@ -108,9 +116,9 @@ uint32_t PALRUCache::enhance_existing_flow_record(uint32_t flow_index) noexcept
     //m_metadata[flow_index >> m_offset].m_lru_list = list;
 
     //uint64_t extracted_bits = ((list >> (4 * (15 - current_pos))) & 0xF) << 60;
-    uint64_t mask = std::numeric_limits<uint64_t>::max() >> (8 * (current_pos + 1));
+    uint64_t mask = std::numeric_limits<uint64_t>::max() >> (16 * (current_pos + 1));
     uint64_t saved_bits =  m_metadata[flow_index >> m_offset].m_lru_list & mask;
-    m_metadata[flow_index >> m_offset].m_lru_list = ((m_metadata[flow_index >> m_offset].m_lru_list >> 8) & ~mask) | (base_pos << 60) | saved_bits;
+    m_metadata[flow_index >> m_offset].m_lru_list = ((m_metadata[flow_index >> m_offset].m_lru_list >> 16) & ~mask) | (base_pos << 48) | saved_bits;
 
     return flow_index;
 }
@@ -127,11 +135,14 @@ std::pair<bool, uint32_t> PALRUCache::find_empty_place(uint32_t begin_line) cons
     uint32_t most_significant_bits = (~(((high * 0x200040008001)>>56) | ((low * 0x200040008001) >> 60))) & 0xFF;
     auto x = begin_line + __builtin_ffs(most_significant_bits);
     return most_significant_bits == 0 ? std::pair{false,0U} : std::pair{true,begin_line + __builtin_ffs(most_significant_bits) - 1};*/
-    uint64_t high = *((uint64_t*)&m_metadata[begin_line >> m_offset].m_hashes.m_hashes_array[0]) & 0x8000800080008000;
-    uint64_t low = *((uint64_t*)&m_metadata[begin_line >> m_offset].m_hashes.m_hashes_array[4])  & 0x8000800080008000;
-    uint8_t most_significant_bits = (((high * 0x200040008001)>>60) | ((low * 0x200040008001) >> 56));
+    //uint64_t high = *((uint64_t*)&m_metadata[begin_line >> m_offset].m_hashes.m_hashes_array[0]) & 0x8000800080008000;
+    //uint64_t low = *((uint64_t*)&m_metadata[begin_line >> m_offset].m_hashes.m_hashes_array[4])  & 0x8000800080008000;
+    //uint8_t most_significant_bits = (((high * 0x200040008001)>>60) | ((low * 0x200040008001) >> 56));
     //auto x = begin_line + __builtin_ffs(~most_significant_bits);
-    return most_significant_bits == 0xFF ? std::pair{false,0U} : std::pair{true,begin_line + __builtin_ffs(~most_significant_bits) - 1};
+    uint8_t most_significant_bits = ((m_metadata[begin_line >> m_offset].m_hashes.m_hashes_reg & 0x8000800080008000) * 0x200040008001) >> 60;
+    auto res = most_significant_bits == 0xF ? std::pair{false,0U} : std::pair{true,begin_line + __builtin_ffs(~most_significant_bits) - 1};
+    return res;
+    return most_significant_bits == 0xF ? std::pair{false,0U} : std::pair{true,begin_line + __builtin_ffs(~most_significant_bits) - 1};
     /*static const __m128i mask = _mm_set_epi64x(0x8000800080008000, 0x8000800080008000);
     __m128i metadata_xored = _mm_and_si128(m_metadata[begin_line >> m_offset].m_hashes.m_hashes_reg,mask);
     __m128i min = _mm_minpos_epu16(metadata_xored);
@@ -152,7 +163,7 @@ uint32_t PALRUCache::free_place_in_full_line(uint32_t line_begin) noexcept
     //__m128i list = _mm_load_si128((__m128i*)&m_metadata[line_begin >> m_offset].m_lru_list);
     //__m64 list = m_metadata[line_begin >> m_offset].m_lru_list;
     //uint8_t last_flow_index = (uint64_t)m_metadata[line_begin >> m_offset].m_lru_list >> 56;
-    uint8_t last_flow_index = m_metadata[line_begin >> m_offset].m_lru_list;
+    uint16_t last_flow_index = m_metadata[line_begin >> m_offset].m_lru_list;
     /*__m128i mask = _mm_set_epi8(
         8, 15, 14, 13, 12, 11, 10, 9,
         7, 6, 5, 4, 3, 2, 1, 0);*/
@@ -162,7 +173,7 @@ uint32_t PALRUCache::free_place_in_full_line(uint32_t line_begin) noexcept
     //m_metadata[line_begin >> m_offset].m_lru_list = _mm_shuffle_pi8(  m_metadata[line_begin >> m_offset].m_lru_list , mask);
     const uint64_t shift_mask = 0xFFFFFFFF00000000;
     m_metadata[line_begin >> m_offset].m_lru_list = (m_metadata[line_begin >> m_offset].m_lru_list & shift_mask)
-        | (( (m_metadata[line_begin >> m_offset].m_lru_list & 0xFFFFFF00FFFFFFFF) >> 8) & ~shift_mask) | ((uint64_t)last_flow_index << 40);
+        | ((m_metadata[line_begin >> m_offset].m_lru_list & 0x00000000FFFF0000) >> 16) | ((m_metadata[line_begin >> m_offset].m_lru_list & 0x000000000000FFFF) << 16);
     //m_metadata[line_begin >> m_offset].m_lru_list = list;
 
     /*uint8_t index = list & 0xF;
@@ -176,11 +187,17 @@ uint32_t PALRUCache::free_place_in_full_line(uint32_t line_begin) noexcept
     return line_begin + last_flow_index;
 }
 
-void PALRUCache::prepare_and_export(uint32_t flow_index, FlowEndReason reason) noexcept
+/*void PALRUCache::prepare_and_export(uint32_t flow_index, FlowEndReason reason) noexcept
 {
     uint32_t line_index = flow_index & m_line_mask;
     m_metadata[flow_index >> m_offset].m_hashes.m_hashes_array[flow_index - line_index].m_valid = 0;
     NHTFlowCache::prepare_and_export(flow_index,reason);
+}*/
+
+void PALRUCache::export_flow(uint32_t index){
+    uint32_t line_index = index & m_line_mask;
+    m_metadata[index >> m_offset].m_hashes.m_hashes_array[index - line_index].m_valid = 0;
+    NHTFlowCache::export_flow(index);
 }
 
 void PALRUCache::create_new_flow(uint32_t flow_index,Packet& pkt,uint64_t hashval) noexcept{

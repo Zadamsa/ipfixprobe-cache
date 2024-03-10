@@ -439,9 +439,11 @@ uint32_t NHTFlowCache::make_place_for_record(uint32_t line_index) noexcept
     auto [empty_place_found, flow_index] = find_empty_place(line_index);
     if (empty_place_found) {
         m_statistics.m_empty++;
+        //std::cout << "Found empty place;\n";
     } else {
         m_statistics.m_not_empty++;
         flow_index = free_place_in_full_line(line_index);
+        //std::cout << "Exported last record;\n";
     }
     return flow_index;
 }
@@ -513,8 +515,10 @@ int NHTFlowCache::insert_pkt(Packet& pkt) noexcept
     }
     // Tries to find index of flow to which packet belongs
     auto [record_found, source, flow_index, hashval] = find_flow_position(pkt);
+    //record_found ? std::cout << "Found " << hashval << " at " << flow_index << " \n" : std::cout << "Not found " << hashval << " \n";
     flow_index = record_found ? enhance_existing_flow_record(flow_index)
                               : make_place_for_record(hashval & m_line_mask);
+    //record_found ? std::cout << "Enhaced " << hashval << " to " << flow_index << " \n" : std::cout << "Empty place was gained at " << flow_index << " \n";
     // Reinsert flow on tcp FIN/RST flags
     if (tcp_connection_reset(pkt, flow_index,source))
         return 0;
