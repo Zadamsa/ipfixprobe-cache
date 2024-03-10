@@ -32,11 +32,14 @@ std::pair<bool, uint32_t> PALRUCache::find_existing_record(uint64_t hashval) con
     uint32_t begin_line = hashval & m_line_mask;
     //__m128i metadata = _mm_load_si128((__m128i*)(&m_metadata[control_block_index].m_hashes));
     __m128i hash_expanded = _mm_set1_epi16((uint16_t)MetaData::HashData{(uint16_t)(hashval >> 49),1});
-    __m128i cmp_res = _mm_cmpeq_epi16(m_metadata[begin_line >> m_offset].m_hashes.m_hashes_reg, hash_expanded);
-    auto mask = _mm_movemask_epi8(cmp_res);
-    uint16_t pos = __builtin_ffs(mask);
+    __m128i cmp_res = _mm_xor_si128(m_metadata[begin_line >> m_offset].m_hashes.m_hashes_reg, hash_expanded);
+    __m128i min = _mm_minpos_epu16(cmp_res);
+    return _mm_extract_epi16(min, 0) ? std::pair{false, 0U } :std::pair{true, begin_line + _mm_extract_epi16(min, 1)};
+    //__m128i cmp_res = _mm_cmpeq_epi16(m_metadata[begin_line >> m_offset].m_hashes.m_hashes_reg, hash_expanded);
+    //auto mask = _mm_movemask_epi8(cmp_res);
+    //uint16_t pos = __builtin_ffs(mask);
 
-    return pos ? std::pair{true, begin_line + (pos - 1)/2} : std::pair{false, 0U };
+    //return pos ? std::pair{true, begin_line + (pos - 1)/2} : std::pair{false, 0U };
 }
 
 uint32_t PALRUCache::enhance_existing_flow_record(uint32_t flow_index) noexcept
