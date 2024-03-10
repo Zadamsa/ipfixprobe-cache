@@ -31,9 +31,9 @@ std::pair<bool, uint32_t> PALRUCache::find_existing_record(uint64_t hashval) con
 {
     uint32_t begin_line = hashval & m_line_mask;
     //__m128i metadata = _mm_load_si128((__m128i*)(&m_metadata[control_block_index].m_hashes));
-    __m128i hash_expanded = _mm_set1_epi16((uint16_t)MetaData::HashData{(uint16_t)(hashval >> 49),1});
-    __m128i cmp_res = _mm_xor_si128(m_metadata[begin_line >> m_offset].m_hashes.m_hashes_reg, hash_expanded);
-    __m128i min = _mm_minpos_epu16(cmp_res);
+    //__m128i hash_expanded = ;
+    //__m128i cmp_res = ;
+    __m128i min = _mm_minpos_epu16(_mm_xor_si128(m_metadata[begin_line >> m_offset].m_hashes.m_hashes_reg, _mm_set1_epi16((uint16_t)MetaData::HashData{(uint16_t)(hashval >> 49),1})));
     return _mm_extract_epi16(min, 0) ? std::pair{false, 0U } :std::pair{true, begin_line + _mm_extract_epi16(min, 1)};
     //__m128i cmp_res = _mm_cmpeq_epi16(m_metadata[begin_line >> m_offset].m_hashes.m_hashes_reg, hash_expanded);
     //auto mask = _mm_movemask_epi8(cmp_res);
@@ -98,16 +98,35 @@ uint32_t PALRUCache::enhance_existing_flow_record(uint32_t flow_index) noexcept
     return flow_index;
 }
 
-std::pair<bool, uint32_t> PALRUCache::find_empty_place(uint32_t begin_line) const noexcept
-{
+std::pair<bool, uint32_t> PALRUCache::find_empty_place(uint32_t begin_line) const noexcept{
+    /*uint64_t high = (((uint64_t)m_metadata[begin_line >> m_offset].m_hashes.m_hashes_array[0] << 48) |
+                     ((uint64_t)m_metadata[begin_line >> m_offset].m_hashes.m_hashes_array[1] << 32) |
+                     ((uint64_t)m_metadata[begin_line >> m_offset].m_hashes.m_hashes_array[2] << 16) |
+                     ((uint64_t)m_metadata[begin_line >> m_offset].m_hashes.m_hashes_array[3])) & 0x8000800080008000;
+    uint64_t low = (((uint64_t)m_metadata[begin_line >> m_offset].m_hashes.m_hashes_array[4] << 48) |
+                    ((uint64_t)m_metadata[begin_line >> m_offset].m_hashes.m_hashes_array[5] << 32) |
+                    ((uint64_t)m_metadata[begin_line >> m_offset].m_hashes.m_hashes_array[6] << 16) |
+                    ((uint64_t)m_metadata[begin_line >> m_offset].m_hashes.m_hashes_array[7])) & 0x8000800080008000;
+    uint32_t most_significant_bits = (~(((high * 0x200040008001)>>56) | ((low * 0x200040008001) >> 60))) & 0xFF;
+    auto x = begin_line + __builtin_ffs(most_significant_bits);
+    return most_significant_bits == 0 ? std::pair{false,0U} : std::pair{true,begin_line + __builtin_ffs(most_significant_bits) - 1};*/
+    uint64_t high = *((uint64_t*)&m_metadata[begin_line >> m_offset].m_hashes.m_hashes_array[0]) & 0x8000800080008000;
+    uint64_t low = *((uint64_t*)&m_metadata[begin_line >> m_offset].m_hashes.m_hashes_array[4])  & 0x8000800080008000;
+    uint8_t most_significant_bits = (((high * 0x200040008001)>>60) | ((low * 0x200040008001) >> 56));
+    auto x = begin_line + __builtin_ffs(~most_significant_bits);
+    return most_significant_bits == 0xFF ? std::pair{false,0U} : std::pair{true,begin_line + __builtin_ffs(~most_significant_bits) - 1};
+    /*static const __m128i mask = _mm_set_epi64x(0x8000800080008000, 0x8000800080008000);
+    __m128i metadata_xored = _mm_and_si128(m_metadata[begin_line >> m_offset].m_hashes.m_hashes_reg,mask);
+    __m128i min = _mm_minpos_epu16(metadata_xored);
+    return _mm_extract_epi16(min, 0) ? std::pair{false,0U} : std::pair{true,begin_line + _mm_extract_epi16(min, 1)};*/
     //__m128i metadata = _mm_load_si128((__m128i*)(&m_metadata[begin_line >> m_offset].m_hashes));
-    __m128i mask = _mm_set_epi8(
+    /*__m128i mask = _mm_set_epi8(
         -1, -1, -1, -1, -1, -1, -1, -1,
         15, 13, 11, 9, 7, 5, 3, 1);
     __m128i metadata = _mm_shuffle_epi8(m_metadata[begin_line >> m_offset].m_hashes.m_hashes_reg, mask);
     uint8_t most_significant_bits = _mm_movemask_epi8(metadata);
 
-    return most_significant_bits != std::numeric_limits<decltype(most_significant_bits)>::max() ? std::pair{true,begin_line + __builtin_ffs(~most_significant_bits) - 1} : std::pair{false, 0U};
+    return most_significant_bits != std::numeric_limits<decltype(most_significant_bits)>::max() ? std::pair{true,begin_line + __builtin_ffs(~most_significant_bits) - 1} : std::pair{false, 0U};*/
 }
 
 uint32_t PALRUCache::free_place_in_full_line(uint32_t line_begin) noexcept
