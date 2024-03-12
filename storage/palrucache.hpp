@@ -9,6 +9,7 @@
 #include <mmintrin.h>
 #include <tmmintrin.h>
 #include <smmintrin.h>
+#include <immintrin.h>
 namespace ipxp {
 
 class PALRUCache :public NHTFlowCache{
@@ -35,18 +36,22 @@ private:
                 return *(uint16_t*) this;
             }
         };
-        union {
-            HashData m_hashes_array[4] = {};
-            uint64_t m_hashes_reg;
+        union{
+            HashData m_hashes_array[32] = {};
+            __m256i m_hashes_reg[2];
         } m_hashes;
 
         //uint64_t m_lru_list[2] = {0x0001020304050607,0x08090A0B0C0D0E0F};
         //__m64 m_lru_list = (__m64)0x0706050403020100;
-        uint64_t m_lru_list = 0x0000000100020003;
+        //uint64_t m_lru_list = 0x0000000100020003;
+        //__m256i m_lru_list = _mm256_set_epi64x(0x18191a1b1c1d1e1f,  0x1011121314151617,0x08090a0b0c0d0e0f,0x0001020304050607);
+        //__m256i m_lru_list = _mm256_set_epi64x(0x0001020304050607,0x08090a0b0c0d0e0f, 0x1011121314151617,0x18191a1b1c1d1e1f);
+        __m256i m_lru_list = _mm256_set_epi64x(0x1f1e1d1c1b1a1918, 0x1716151413121110, 0x0f0e0d0c0b0a0908, 0x0706050403020100);
         //uint64_t m_lru_list = 0x0405060700010203;
         //uint64_t m_lru_list = 0x0706050403020100;
     };
     std::vector<MetaData> m_metadata;
+    //std::vector<MetaData, std::allocator<std::aligned_storage<sizeof(MetaData), alignof(MetaData)>::type>> m_metadata;
 };
 
 } // namespace ipxp

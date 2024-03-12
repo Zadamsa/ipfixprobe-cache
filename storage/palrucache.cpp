@@ -1,6 +1,79 @@
 #include "palrucache.hpp"
 namespace ipxp {
 
+/*alignas(32) static constexpr uint64_t masks[32][4] =
+    {{0x0706050403020100, 0x0f0e0d0c0b0a0908, 0x1716151413121110, 0x1f1e1d1c1b1a1918},
+     {0x0706050403020100, 0x0f0e0d0c0b0a0908, 0x1716151413121110, 0x1e1f1d1c1b1a1918},
+     {0x0706050403020100, 0x0f0e0d0c0b0a0908, 0x1716151413121110, 0x1d1f1e1c1b1a1918},
+     {0x0706050403020100, 0x0f0e0d0c0b0a0908, 0x1716151413121110, 0x1c1f1e1d1b1a1918},
+     {0x0706050403020100, 0x0f0e0d0c0b0a0908, 0x1716151413121110, 0x1b1f1e1d1c1a1918},
+     {0x0706050403020100, 0x0f0e0d0c0b0a0908, 0x1716151413121110, 0x1a1f1e1d1c1b1918},
+     {0x0706050403020100, 0x0f0e0d0c0b0a0908, 0x1716151413121110, 0x191f1e1d1c1b1a18},
+     {0x0706050403020100, 0x0f0e0d0c0b0a0908, 0x1716151413121110, 0x181f1e1d1c1b1a19},
+     {0x0706050403020100, 0x0f0e0d0c0b0a0908, 0x1816151413121110, 0x171f1e1d1c1b1a19},
+     {0x0706050403020100, 0x0f0e0d0c0b0a0908, 0x1817151413121110, 0x161f1e1d1c1b1a19},
+     {0x0706050403020100, 0x0f0e0d0c0b0a0908, 0x1817161413121110, 0x151f1e1d1c1b1a19},
+     {0x0706050403020100, 0x0f0e0d0c0b0a0908, 0x1817161513121110, 0x141f1e1d1c1b1a19},
+     {0x0706050403020100, 0x0f0e0d0c0b0a0908, 0x1817161514121110, 0x131f1e1d1c1b1a19},
+     {0x0706050403020100, 0x0f0e0d0c0b0a0908, 0x1817161514131110, 0x121f1e1d1c1b1a19},
+     {0x0706050403020100, 0x0f0e0d0c0b0a0908, 0x1817161514131210, 0x111f1e1d1c1b1a19},
+     {0x0706050403020100, 0x0f0e0d0c0b0a0908, 0x1817161514131211, 0x101f1e1d1c1b1a19},
+     {0x0706050403020100, 0x100e0d0c0b0a0908, 0x1817161514131211, 0x0f1f1e1d1c1b1a19},
+     {0x0706050403020100, 0x100f0d0c0b0a0908, 0x1817161514131211, 0x0e1f1e1d1c1b1a19},
+     {0x0706050403020100, 0x100f0e0c0b0a0908, 0x1817161514131211, 0x0d1f1e1d1c1b1a19},
+     {0x0706050403020100, 0x100f0e0d0b0a0908, 0x1817161514131211, 0x0c1f1e1d1c1b1a19},
+     {0x0706050403020100, 0x100f0e0d0c0a0908, 0x1817161514131211, 0x0b1f1e1d1c1b1a19},
+     {0x0706050403020100, 0x100f0e0d0c0b0908, 0x1817161514131211, 0x0a1f1e1d1c1b1a19},
+     {0x0706050403020100, 0x100f0e0d0c0b0a08, 0x1817161514131211, 0x091f1e1d1c1b1a19},
+     {0x0706050403020100, 0x100f0e0d0c0b0a09, 0x1817161514131211, 0x081f1e1d1c1b1a19},
+     {0x0806050403020100, 0x100f0e0d0c0b0a09, 0x1817161514131211, 0x071f1e1d1c1b1a19},
+     {0x0807050403020100, 0x100f0e0d0c0b0a09, 0x1817161514131211, 0x061f1e1d1c1b1a19},
+     {0x0807060403020100, 0x100f0e0d0c0b0a09, 0x1817161514131211, 0x051f1e1d1c1b1a19},
+     {0x0807060503020100, 0x100f0e0d0c0b0a09, 0x1817161514131211, 0x041f1e1d1c1b1a19},
+     {0x0807060504020100, 0x100f0e0d0c0b0a09, 0x1817161514131211, 0x031f1e1d1c1b1a19},
+     {0x0807060504030100, 0x100f0e0d0c0b0a09, 0x1817161514131211, 0x021f1e1d1c1b1a19},
+     {0x0807060504030200, 0x100f0e0d0c0b0a09, 0x1817161514131211, 0x011f1e1d1c1b1a19},
+     {0x0807060504030201, 0x100f0e0d0c0b0a09, 0x1817161514131211, 0x001f1e1d1c1b1a19}};*/
+alignas(32) static constexpr uint64_t masks[32][4] =
+    {{0x0706050403020100, 0x0f0e0d0c0b0a0908, 0x1716151413121110, 0x1f1e1d1c1b1a1918},
+     {0x0706050403020001, 0x0f0e0d0c0b0a0908, 0x1716151413121110, 0x1f1e1d1c1b1a1918},
+     {0x0706050403010002, 0x0f0e0d0c0b0a0908, 0x1716151413121110, 0x1f1e1d1c1b1a1918},
+     {0x0706050402010003, 0x0f0e0d0c0b0a0908, 0x1716151413121110, 0x1f1e1d1c1b1a1918},
+     {0x0706050302010004, 0x0f0e0d0c0b0a0908, 0x1716151413121110, 0x1f1e1d1c1b1a1918},
+     {0x0706040302010005, 0x0f0e0d0c0b0a0908, 0x1716151413121110, 0x1f1e1d1c1b1a1918},
+     {0x0705040302010006, 0x0f0e0d0c0b0a0908, 0x1716151413121110, 0x1f1e1d1c1b1a1918},
+     {0x0605040302010007, 0x0f0e0d0c0b0a0908, 0x1716151413121110, 0x1f1e1d1c1b1a1918},
+     {0x0605040302010008, 0x0f0e0d0c0b0a0907, 0x1716151413121110, 0x1f1e1d1c1b1a1918},
+     {0x0605040302010009, 0x0f0e0d0c0b0a0807, 0x1716151413121110, 0x1f1e1d1c1b1a1918},
+     {0x060504030201000a, 0x0f0e0d0c0b090807, 0x1716151413121110, 0x1f1e1d1c1b1a1918},
+     {0x060504030201000b, 0x0f0e0d0c0a090807, 0x1716151413121110, 0x1f1e1d1c1b1a1918},
+     {0x060504030201000c, 0x0f0e0d0b0a090807, 0x1716151413121110, 0x1f1e1d1c1b1a1918},
+     {0x060504030201000d, 0x0f0e0c0b0a090807, 0x1716151413121110, 0x1f1e1d1c1b1a1918},
+     {0x060504030201000e, 0x0f0d0c0b0a090807, 0x1716151413121110, 0x1f1e1d1c1b1a1918},
+     {0x060504030201000f, 0x0e0d0c0b0a090807, 0x1716151413121110, 0x1f1e1d1c1b1a1918},
+     {0x06050403020100ff, 0x0e0d0c0b0a090807, 0x17161514131211ff, 0x1f1e1d1c1b1a1918},
+     {0x06050403020100ff, 0x0e0d0c0b0a090807, 0x17161514131210ff, 0x1f1e1d1c1b1a1918},
+     {0x06050403020100ff, 0x0e0d0c0b0a090807, 0x17161514131110ff, 0x1f1e1d1c1b1a1918},
+     {0x06050403020100ff, 0x0e0d0c0b0a090807, 0x17161514121110ff, 0x1f1e1d1c1b1a1918},
+     {0x06050403020100ff, 0x0e0d0c0b0a090807, 0x17161513121110ff, 0x1f1e1d1c1b1a1918},
+     {0x06050403020100ff, 0x0e0d0c0b0a090807, 0x17161413121110ff, 0x1f1e1d1c1b1a1918},
+     {0x06050403020100ff, 0x0e0d0c0b0a090807, 0x17151413121110ff, 0x1f1e1d1c1b1a1918},
+     {0x06050403020100ff, 0x0e0d0c0b0a090807, 0x16151413121110ff, 0x1f1e1d1c1b1a1918},
+     {0x06050403020100ff, 0x0e0d0c0b0a090807, 0x16151413121110ff, 0x1f1e1d1c1b1a1917},
+     {0x06050403020100ff, 0x0e0d0c0b0a090807, 0x16151413121110ff, 0x1f1e1d1c1b1a1817},
+     {0x06050403020100ff, 0x0e0d0c0b0a090807, 0x16151413121110ff, 0x1f1e1d1c1b191817},
+     {0x06050403020100ff, 0x0e0d0c0b0a090807, 0x16151413121110ff, 0x1f1e1d1c1a191817},
+     {0x06050403020100ff, 0x0e0d0c0b0a090807, 0x16151413121110ff, 0x1f1e1d1b1a191817},
+     {0x06050403020100ff, 0x0e0d0c0b0a090807, 0x16151413121110ff, 0x1f1e1c1b1a191817},
+     {0x06050403020100ff, 0x0e0d0c0b0a090807, 0x16151413121110ff, 0x1f1d1c1b1a191817},
+     {0x06050403020100ff, 0x0e0d0c0b0a090807, 0x16151413121110ff, 0x1e1d1c1b1a191817}};
+
+alignas(32) static constexpr uint64_t rotate_mask[] = {0x0706050403020100, 0x0f0e0d0c0b0a0908, 0x161514131211101f, 0x1e1d1c1b1a191817};
+alignas(32) static constexpr uint64_t and_mask[] = {0x8000800080008000, 0x8000800080008000, 0x8000800080008000, 0x8000800080008000};
+alignas(32) static constexpr uint64_t or_mask[] = {0x0080008000800080, 0x0080008000800080, 0x0080008000800080, 0x0080008000800080};
+alignas(32) static constexpr uint64_t first_byte_mask[] = {0xFF, 0, 0, 0};
+alignas(32) static constexpr uint64_t mid_byte_mask[] = { 0, 0, 0xFF, 0};
+
 __attribute__((constructor)) static void register_this_plugin() noexcept
 {
     static PluginRecord rec = PluginRecord("palrucache", []() { return new PALRUCache(); });
@@ -24,175 +97,74 @@ void PALRUCache::allocate_tables()
 
 void PALRUCache::init(OptionsParser& in_parser){
     NHTFlowCache::init(in_parser);
-    m_offset = __builtin_ctz(m_line_mask);
+    //m_offset = __builtin_ctz(m_line_mask);
+    m_offset = 6;
 }
 
 std::pair<bool, uint32_t> PALRUCache::find_existing_record(uint64_t hashval) const noexcept
 {
-    return NHTFlowCache::find_existing_record(hashval);
-    uint32_t begin_line = hashval & m_line_mask;
-    //__m128i metadata = _mm_load_si128((__m128i*)(&m_metadata[control_block_index].m_hashes));
-    __m128i hash_expanded = _mm_set1_epi16((uint16_t)MetaData::HashData{(uint16_t)(hashval >> 49),1});
-    __m128i cmp_res = _mm_xor_si128(_mm_cvtsi64_si128(m_metadata[begin_line >> m_offset].m_hashes.m_hashes_reg), hash_expanded);
-    __m128i min = _mm_minpos_epu16(cmp_res);
-    return _mm_extract_epi16(min, 0) ? std::pair{false, 0U } :std::pair{true, begin_line + _mm_extract_epi16(min, 1)};
-    //__m128i cmp_res = _mm_cmpeq_epi16(m_metadata[begin_line >> m_offset].m_hashes.m_hashes_reg, hash_expanded);
-    //auto mask = _mm_movemask_epi8(cmp_res);
-    //uint16_t pos = __builtin_ffs(mask);
-
-    //return pos ? std::pair{true, begin_line + (pos - 1)/2} : std::pair{false, 0U };
-}
-
-static inline __m128i expand_to_uint16_t(uint64_t v) noexcept{
-    uint64_t high = (((v & 0xFF)) |
-                     ((v & 0xFF00)<< 8) |
-                     ((v & 0xFF0000)<< 16) |
-                      (v  & 0xFF000000)<< 24);
-    uint64_t low = (((v  & 0xFF00000000)) >> 32 |
-                    ((v  & 0xFF0000000000) >> 24) |
-                    ((v  & 0xFF000000000000) >> 16) |
-                     (v   & 0xFF00000000000000) >> 8);
-    return _mm_set_epi64((__m64)low,(__m64)high);
-}
+    //return NHTFlowCache::find_existing_record(hashval);
+    /*uint32_t begin_line = hashval & m_line_mask;
+    __m256i hash_expanded = _mm256_set1_epi16((uint16_t)MetaData::HashData{(uint16_t)(hashval >> 49),1});
+    __m256i cmp_res1 = _mm256_xor_si256(m_metadata[begin_line >> m_offset].m_hashes.m_hashes_reg[0], hash_expanded);
+    __m256i cmp_res2 = _mm256_xor_si256(m_metadata[begin_line >> m_offset].m_hashes.m_hashes_reg[1], hash_expanded);
+    __m256i min1 = _mm256_min_epu16(cmp_res1);
+    __m256i min2 = _mm256_min_epu16(cmp_res2);
+    return _mm_extract_epi16(min1, 0) != 0 && _mm_extract_epi16(min2, 0) != 0 ? std::pair{false, 0U } :
+                                                                              std::pair{true, begin_line + (_mm256_extract_epi16(min1, 0) ? _mm256_extract_epi16(min2, 1) : _mm256_extract_epi16(min1, 1)) };
+*/}
 
 uint32_t PALRUCache::enhance_existing_flow_record(uint32_t flow_index) noexcept
 {
-    /*static const uint64_t masks[16][2] = {
-        {0x0001020304050607, 0x08090A0B0C0D0E0F}, {0x0100020304050607, 0x08090A0B0C0D0E0F},
-        {0x0200010304050607, 0x08090A0B0C0D0E0F}, {0x0300010204050607, 0x08090A0B0C0D0E0F},
-        {0x0400010203050607, 0x08090A0B0C0D0E0F}, {0x0500010203040607, 0x08090A0B0C0D0E0F},
-        {0x0600010203040507, 0x08090A0B0C0D0E0F}, {0x0700010203040506, 0x08090A0B0C0D0E0F},
-        {0x0800010203040506, 0x07090A0B0C0D0E0F}, {0x0900010203040506, 0x07080A0B0C0D0E0F},
-        {0x0A00010203040506, 0x0708090B0C0D0E0F}, {0x0B00010203040506, 0x0708090A0C0D0E0F},
-        {0x0C00010203040506, 0x0708090A0B0D0E0F}, {0x0D00010203040506, 0x0708090A0B0C0E0F},
-        {0x0E00010203040506, 0x0708090A0B0C0D0F}, {0x0F00010203040506, 0x0708090A0B0C0D0E},
-    };*/
-    /*static const uint64_t masks[8] = {
-        0x0001020304050607, 0x0100020304050607,
-        0x0200010304050607, 0x0300010204050607,
-        0x0400010203050607, 0x0500010203040607,
-        0x0600010203040507, 0x0700010203040506
-    };*/
-    /*constexpr static const uint64_t masks[8] = {
-        0x0706050403020100, 0x0706050403020001,
-        0x0706050403010002, 0x0706050402010003,
-        0x0706050302010004, 0x0706040302010005,
-        0x0705040302010006, 0x0605040302010007
-    };*/
-    static uint64_t masks[10] = {
-        0x0100070605040302, 0x8080808080808080,
-        0x0302070605040100, 0x8080808080808080,
-        0x0504070603020100, 0x8080808080808080,
-        0x0706050403020100, 0x8080808080808080,
-        0x0706050403020100, 0x8080808080808080};
+
     uint32_t line_index = flow_index & m_line_mask;
     m_statistics.m_lookups++;
     m_statistics.m_lookups2++;
     m_statistics.m_hits++;
     uint64_t base_pos = flow_index - line_index;
 
-   // __m128i list = _mm_load_si128((__m128i*)&m_metadata[flow_index >> m_offset].m_lru_list);
-    //__m64 list = (__m64)m_metadata[flow_index >> m_offset].m_lru_list;
-    //__m64 list = _mm_set_pi64x(m_metadata[flow_index >> m_offset].m_lru_list);
-    //__m64 list = m_metadata[flow_index >> m_offset].m_lru_list;
-    //__m64 extended_pos = _mm_set1_pi8(base_pos);
-    __m128i extended_pos = _mm_set1_epi16(base_pos);
-    __m128i list = _mm_cvtsi64_si128(m_metadata[flow_index >> m_offset].m_lru_list);
-    //__m128i cmp_res = _mm_cmpeq_epi8(list, extended_pos);
-    __m128i cmp_res = _mm_xor_si128(list, extended_pos);
-    __m128i min = _mm_minpos_epu16(cmp_res);
-    //__m64 cmp_res = _mm_cmpeq_pi8(m_metadata[flow_index >> m_offset].m_lru_list, extended_pos);
-    //__m64 cmp_res = _m_pxor(m_metadata[flow_index >> m_offset].m_lru_list, extended_pos);
+    __m256i extended_pos = _mm256_set1_epi8(base_pos);
+    //__m256i list = m_metadata[1 >> m_offset].m_lru_list;
+    __m256i cmp_res = _mm256_cmpeq_epi8(m_metadata[flow_index >> m_offset].m_lru_list, extended_pos);
+    uint32_t most_significant_bits = _mm256_movemask_epi8(cmp_res);
 
-    //uint16_t significant_bits = _mm_movemask_epi8(cmp_res);
-    //uint8_t significant_bits = _mm_movemask_pi8(cmp_res);
-    //uint8_t current_pos = __builtin_ffs(significant_bits) - 1;
-    uint8_t current_pos = 3 - _mm_extract_epi16(min, 1);
-    //__m128i shift_mask = _mm_load_si128((__m128i*)&masks[current_pos]);
-    //__m64 shift_mask = (__m64)masks[current_pos];
-    //list = _mm_shuffle_epi8(list,shift_mask);
-    //m_metadata[flow_index >> m_offset].m_lru_list = _mm_shuffle_pi8(m_metadata[flow_index >> m_offset].m_lru_list,shift_mask);
-    //_mm_store_si128((__m128i*)&m_metadata[flow_index >> m_offset].m_lru_list, list);
-    //m_metadata[flow_index >> m_offset].m_lru_list = list;
-
-    //uint64_t extracted_bits = ((list >> (4 * (15 - current_pos))) & 0xF) << 60;
-    uint64_t mask = std::numeric_limits<uint64_t>::max() >> (16 * (current_pos + 1));
-    uint64_t saved_bits =  m_metadata[flow_index >> m_offset].m_lru_list & mask;
-    m_metadata[flow_index >> m_offset].m_lru_list = ((m_metadata[flow_index >> m_offset].m_lru_list >> 16) & ~mask) | (base_pos << 48) | saved_bits;
-
+    uint8_t current_pos =  __builtin_ffs(most_significant_bits) - 1;
+    __m256i shift_mask = _mm256_load_si256((__m256i*)&masks[current_pos]);
+    uint8_t last_in_first_half;
+    if (current_pos >= 16){
+        last_in_first_half = _mm256_extract_epi8(m_metadata[flow_index >> m_offset].m_lru_list,15);
+    }
+    m_metadata[flow_index >> m_offset].m_lru_list = _mm256_shuffle_epi8(m_metadata[flow_index >> m_offset].m_lru_list, shift_mask);
+    if (current_pos >= 16){
+        __m256i byte_mask1 = _mm256_load_si256((__m256i*)&first_byte_mask);
+        __m256i byte_mask2 = _mm256_load_si256((__m256i*)&mid_byte_mask);
+        __m256i val1 = _mm256_and_si256(_mm256_set1_epi8(base_pos),byte_mask1);
+        __m256i val2 = _mm256_and_si256(_mm256_set1_epi8(last_in_first_half),byte_mask2);
+        m_metadata[flow_index >> m_offset].m_lru_list = _mm256_add_epi8(m_metadata[flow_index >> m_offset].m_lru_list,val1);
+        m_metadata[flow_index >> m_offset].m_lru_list = _mm256_add_epi8(m_metadata[flow_index >> m_offset].m_lru_list,val2);
+    }
     return flow_index;
 }
 
 std::pair<bool, uint32_t> PALRUCache::find_empty_place(uint32_t begin_line) const noexcept{
-    /*uint64_t high = (((uint64_t)m_metadata[begin_line >> m_offset].m_hashes.m_hashes_array[0] << 48) |
-                     ((uint64_t)m_metadata[begin_line >> m_offset].m_hashes.m_hashes_array[1] << 32) |
-                     ((uint64_t)m_metadata[begin_line >> m_offset].m_hashes.m_hashes_array[2] << 16) |
-                     ((uint64_t)m_metadata[begin_line >> m_offset].m_hashes.m_hashes_array[3])) & 0x8000800080008000;
-    uint64_t low = (((uint64_t)m_metadata[begin_line >> m_offset].m_hashes.m_hashes_array[4] << 48) |
-                    ((uint64_t)m_metadata[begin_line >> m_offset].m_hashes.m_hashes_array[5] << 32) |
-                    ((uint64_t)m_metadata[begin_line >> m_offset].m_hashes.m_hashes_array[6] << 16) |
-                    ((uint64_t)m_metadata[begin_line >> m_offset].m_hashes.m_hashes_array[7])) & 0x8000800080008000;
-    uint32_t most_significant_bits = (~(((high * 0x200040008001)>>56) | ((low * 0x200040008001) >> 60))) & 0xFF;
-    auto x = begin_line + __builtin_ffs(most_significant_bits);
-    return most_significant_bits == 0 ? std::pair{false,0U} : std::pair{true,begin_line + __builtin_ffs(most_significant_bits) - 1};*/
-    //uint64_t high = *((uint64_t*)&m_metadata[begin_line >> m_offset].m_hashes.m_hashes_array[0]) & 0x8000800080008000;
-    //uint64_t low = *((uint64_t*)&m_metadata[begin_line >> m_offset].m_hashes.m_hashes_array[4])  & 0x8000800080008000;
-    //uint8_t most_significant_bits = (((high * 0x200040008001)>>60) | ((low * 0x200040008001) >> 56));
-    //auto x = begin_line + __builtin_ffs(~most_significant_bits);
-    uint8_t most_significant_bits = ((m_metadata[begin_line >> m_offset].m_hashes.m_hashes_reg & 0x8000800080008000) * 0x200040008001) >> 60;
-    auto res = most_significant_bits == 0xF ? std::pair{false,0U} : std::pair{true,begin_line + __builtin_ffs(~most_significant_bits) - 1};
+    __m256i mask = _mm256_load_si256((__m256i*)&and_mask);
+    __m256i mask2 = _mm256_load_si256((__m256i*)&or_mask);
+    auto res1 = ((uint64_t)_mm256_movemask_epi8(_mm256_or_si256(_mm256_and_si256(m_metadata[begin_line >> m_offset].m_hashes.m_hashes_reg[1],mask),mask2)));
+    auto res2 = (uint64_t)_mm256_movemask_epi8(_mm256_or_si256(_mm256_and_si256(m_metadata[begin_line >> m_offset].m_hashes.m_hashes_reg[0],mask),mask2)) & 0xFFFFFFFF;
+    uint64_t most_significant_bits =  res1 << 32 | res2;
+    auto res = (~most_significant_bits == 0) ? std::pair{false,0U} : std::pair{true,begin_line + (__builtin_ffsll(~most_significant_bits) - 1)/2};
     return res;
-    return most_significant_bits == 0xF ? std::pair{false,0U} : std::pair{true,begin_line + __builtin_ffs(~most_significant_bits) - 1};
-    /*static const __m128i mask = _mm_set_epi64x(0x8000800080008000, 0x8000800080008000);
-    __m128i metadata_xored = _mm_and_si128(m_metadata[begin_line >> m_offset].m_hashes.m_hashes_reg,mask);
-    __m128i min = _mm_minpos_epu16(metadata_xored);
-    return _mm_extract_epi16(min, 0) ? std::pair{false,0U} : std::pair{true,begin_line + _mm_extract_epi16(min, 1)};*/
-    //__m128i metadata = _mm_load_si128((__m128i*)(&m_metadata[begin_line >> m_offset].m_hashes));
-    /*__m128i mask = _mm_set_epi8(
-        -1, -1, -1, -1, -1, -1, -1, -1,
-        15, 13, 11, 9, 7, 5, 3, 1);
-    __m128i metadata = _mm_shuffle_epi8(m_metadata[begin_line >> m_offset].m_hashes.m_hashes_reg, mask);
-    uint8_t most_significant_bits = _mm_movemask_epi8(metadata);
-
-    return most_significant_bits != std::numeric_limits<decltype(most_significant_bits)>::max() ? std::pair{true,begin_line + __builtin_ffs(~most_significant_bits) - 1} : std::pair{false, 0U};*/
 }
 
 uint32_t PALRUCache::free_place_in_full_line(uint32_t line_begin) noexcept
 {
-    //uint32_t line_end = line_begin + m_line_size;
-    //__m128i list = _mm_load_si128((__m128i*)&m_metadata[line_begin >> m_offset].m_lru_list);
-    //__m64 list = m_metadata[line_begin >> m_offset].m_lru_list;
-    //uint8_t last_flow_index = (uint64_t)m_metadata[line_begin >> m_offset].m_lru_list >> 56;
-    uint16_t last_flow_index = m_metadata[line_begin >> m_offset].m_lru_list;
-    /*__m128i mask = _mm_set_epi8(
-        8, 15, 14, 13, 12, 11, 10, 9,
-        7, 6, 5, 4, 3, 2, 1, 0);*/
-    //__m64 mask = (__m64)0x0001020307040506;
-    //constexpr static const __m64 mask = (__m64)0x0605040703020100;
-    //list = _mm_shuffle_epi8(list, mask);
-    //m_metadata[line_begin >> m_offset].m_lru_list = _mm_shuffle_pi8(  m_metadata[line_begin >> m_offset].m_lru_list , mask);
-    const uint64_t shift_mask = 0xFFFFFFFF00000000;
-    m_metadata[line_begin >> m_offset].m_lru_list = (m_metadata[line_begin >> m_offset].m_lru_list & shift_mask)
-        | ((m_metadata[line_begin >> m_offset].m_lru_list & 0x00000000FFFF0000) >> 16) | ((m_metadata[line_begin >> m_offset].m_lru_list & 0x000000000000FFFF) << 16);
-    //m_metadata[line_begin >> m_offset].m_lru_list = list;
+    uint8_t last_flow_index = _mm256_extract_epi8(m_metadata[line_begin >> m_offset].m_lru_list,31);
+    __m256i shift_mask = _mm256_load_si256((__m256i*)&rotate_mask);
+    m_metadata[line_begin >> m_offset].m_lru_list = _mm256_shuffle_epi8(m_metadata[line_begin >> m_offset].m_lru_list, shift_mask);
 
-    /*uint8_t index = list & 0xF;
-    //uint64_t extracted_bits = ((list >> (4 * (15 - pos))) & 0xF) << 60;
-    uint64_t mask = std::numeric_limits<uint64_t>::max() << (m_line_size - m_insert_pos);
-    uint64_t saved_bits =  list & mask;
-    list = ((list >> 4) & ~mask) | (index << (m_insert_pos - 1)) | saved_bits;*/
     prepare_and_export(line_begin + last_flow_index, FlowEndReason::FLOW_END_LACK_OF_RECOURSES);
-    //uint32_t flow_new_index = line_begin + m_insert_pos;
-    //cyclic_rotate_records(flow_new_index, line_end - 1);
     return line_begin + last_flow_index;
 }
-
-/*void PALRUCache::prepare_and_export(uint32_t flow_index, FlowEndReason reason) noexcept
-{
-    uint32_t line_index = flow_index & m_line_mask;
-    m_metadata[flow_index >> m_offset].m_hashes.m_hashes_array[flow_index - line_index].m_valid = 0;
-    NHTFlowCache::prepare_and_export(flow_index,reason);
-}*/
 
 void PALRUCache::export_flow(uint32_t index){
     uint32_t line_index = index & m_line_mask;
