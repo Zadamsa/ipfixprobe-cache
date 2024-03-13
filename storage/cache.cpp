@@ -51,6 +51,7 @@
 #include <thread>
 #include "fragmentationCache/timevalUtils.hpp"
 #include <cmath>
+#include "murmur3.h"
 namespace ipxp {
 
 __attribute__((constructor)) static void register_this_plugin() noexcept
@@ -87,12 +88,16 @@ NHTFlowCache::NHTFlowCache()
     //uint32_t key[]  = {0xDEADBEEF, 0xBAADC0DE, 0xFACEFEED, 0xDEADF00D};
     //rte_convert_rss_key(key, m_rss_key, sizeof(key));
     //set_hash_function([this](const void* ptr,uint32_t len){ return rte_softrss_be((uint32_t *)ptr, len/4, (const uint8_t*)m_rss_key);});
-    set_hash_function([](const void* ptr,uint32_t len){ return XXH64(ptr, len, 0);});
-    m_graph_export.m_graph_datastream = std::ofstream("graph.data");
+    //set_hash_function([](const void* ptr,uint32_t len){ return XXH64(ptr, len, 0);});
+    set_hash_function([](const void* ptr,uint32_t len){ uint64_t res[2];
+        MurmurHash3_x64_128 (ptr, len, 0,&res);
+        return res[0];
+    });
+    /*m_graph_export.m_graph_datastream = std::ofstream("graph.data");
     m_graph_export.m_graph_new_flows_datastream = std::ofstream("graph_new_flows.data");
     m_graph_export.m_graph_cusum_datastream = std::ofstream("graph_cusum.data");
     m_graph_export.m_graph_cusum_threshold_datastream = std::ofstream("graph_cusum_threshold.data");
-    test_attributes();
+    */test_attributes();
 }
 
 void NHTFlowCache::set_hash_function(std::function<uint64_t(const void*,uint32_t)> function) noexcept{
@@ -502,14 +507,14 @@ int NHTFlowCache::insert_pkt(Packet& pkt) noexcept
     // Saves key fields of flow to FlowKey structures
     if (!create_hash_key(pkt))
         return 0;
-    export_graph_data(pkt);
+    /*export_graph_data(pkt);
     if (is_being_flooded(pkt)){
         auto raw_time = pkt.ts.tv_sec;
         tm* time_info = localtime(&raw_time);
         char buffer[80];
         strftime(buffer, sizeof(buffer), "%Y-%m-%d %H:%M:%S", time_info);
         std::cout<<"Flood detected at " << buffer << "\n";
-    }
+    }*/
     // Tries to find index of flow to which packet belongs
     auto [record_found, source, flow_index, hashval] = find_flow_position(pkt);
     flow_index = record_found ? enhance_existing_flow_record(flow_index)
