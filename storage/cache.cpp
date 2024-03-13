@@ -51,7 +51,7 @@
 #include <thread>
 #include "fragmentationCache/timevalUtils.hpp"
 #include <cmath>
-#include "farmhash.h"
+#include "sfhash.hpp"
 namespace ipxp {
 
 __attribute__((constructor)) static void register_this_plugin() noexcept
@@ -89,7 +89,7 @@ NHTFlowCache::NHTFlowCache()
     //rte_convert_rss_key(key, m_rss_key, sizeof(key));
     //set_hash_function([this](const void* ptr,uint32_t len){ return rte_softrss_be((uint32_t *)ptr, len/4, (const uint8_t*)m_rss_key);});
     //set_hash_function([](const void* ptr,uint32_t len){ return XXH64(ptr, len, 0);});
-    set_hash_function([](const void* ptr,uint32_t len){return NAMESPACE_FOR_HASH_FUNCTIONS::Hash((const char*)ptr, len);});
+    set_hash_function([](const void* ptr,uint32_t len){return SuperFastHash((const signed char*)ptr, len);});
     /*m_graph_export.m_graph_datastream = std::ofstream("graph.data");
     m_graph_export.m_graph_new_flows_datastream = std::ofstream("graph_new_flows.data");
     m_graph_export.m_graph_cusum_datastream = std::ofstream("graph_cusum.data");
