@@ -37,8 +37,8 @@ private:
             }
         };
         union{
-            HashData m_hashes_array[32] = {};
-            __m256i m_hashes_reg[2];
+            HashData m_hashes_array[16] = {};
+            __m256i m_hashes_reg;
         } m_hashes;
 
         //uint64_t m_lru_list[2] = {0x0001020304050607,0x08090A0B0C0D0E0F};
@@ -46,7 +46,7 @@ private:
         //uint64_t m_lru_list = 0x0000000100020003;
         //__m256i m_lru_list = _mm256_set_epi64x(0x18191a1b1c1d1e1f,  0x1011121314151617,0x08090a0b0c0d0e0f,0x0001020304050607);
         //__m256i m_lru_list = _mm256_set_epi64x(0x0001020304050607,0x08090a0b0c0d0e0f, 0x1011121314151617,0x18191a1b1c1d1e1f);
-        __m256i m_lru_list = _mm256_set_epi64x(0x1f1e1d1c1b1a1918, 0x1716151413121110, 0x0f0e0d0c0b0a0908, 0x0706050403020100);
+        __m128i m_lru_list = _mm_set_epi64x(0x0f0e0d0c0b0a0908, 0x0706050403020100);
         //uint64_t m_lru_list = 0x0405060700010203;
         //uint64_t m_lru_list = 0x0706050403020100;
     };
