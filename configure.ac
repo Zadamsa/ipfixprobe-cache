@@ -110,7 +110,6 @@ else
 AM_CONDITIONAL([HAVE_GOOGLETEST], [test])
 fi
 
-
 ### openssl
 AC_ARG_ENABLE([legacy-ssl],
        AC_HELP_STRING([--enable-legacy-ssl],[Compile ipfixprobe on centos7.]),
