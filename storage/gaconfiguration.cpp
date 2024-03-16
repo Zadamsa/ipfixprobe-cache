@@ -163,11 +163,23 @@ void GAConfiguration::mutate_counts(float probability){
     });
 }
 
+uint32_t GAConfiguration::distance(const GAConfiguration& a,const GAConfiguration& b) noexcept{
+    uint32_t res = 0;
+    for(int i = 0; i < a.m_moves.size(); i++){
+        res += std::abs(a.m_moves[i].m_target - b.m_moves[i].m_target);
+        res += std::abs(a.m_moves[i].m_count - b.m_moves[i].m_count);
+        res += a.m_moves[i].m_increment != b.m_moves[i].m_increment;
+    }
+    res += std::abs(a.m_short_pos - b.m_short_pos);
+    res += std::abs(a.m_medium_pos - b.m_medium_pos);
+    res += std::abs(a.m_long_pos - b.m_long_pos);
+    res += std::abs(a.m_never_pos - b.m_never_pos);
+    res += std::abs(a.m_insert_pos - b.m_insert_pos);
+    return res;
+}
+
 // Nacist konfigurace ze souboru
-void GAConfiguration::read_from_file(const std::string& filename){
-    std::ifstream ifs(filename,std::ios::binary);
-    if (!ifs)
-        throw PluginError("Can't open GA configuration file: " + filename);
+void GAConfiguration::read_from_file(std::ifstream& ifs){
     uint32_t in_line_size;
     ifs.read((char*)&in_line_size,sizeof(in_line_size));
     if (in_line_size != m_line_size)
@@ -179,15 +191,19 @@ void GAConfiguration::read_from_file(const std::string& filename){
     ifs.read((char*)&m_never_pos,sizeof(m_never_pos));
     for(uint32_t i = 0; i < m_line_size/4; i++)
         ifs.read((char*)&m_moves[i],sizeof(m_moves[0]));
+}
+
+void GAConfiguration::read_from_file(const std::string& filename){
+    std::ifstream ifs(filename,std::ios::binary);
+    if (!ifs)
+        throw PluginError("Can't open GA configuration file: " + filename);
+    read_from_file(ifs);
     if (!ifs)
         throw PluginError("Invalid GA configuration file: " + filename);
 }
 
 // Ulozit konfigurace do souboru
-void GAConfiguration::write_to_file(const std::string& filename) const {
-    std::ofstream ofs(filename,std::ios::binary);
-    if (!ofs)
-        throw PluginError("Can't open GA configuration savefile: " + filename);
+void GAConfiguration::write_to_file(std::ofstream& ofs) const{
     ofs.write((char*)&m_line_size,sizeof(m_line_size));
     ofs.write((char*)&m_insert_pos,sizeof(m_insert_pos));
     ofs.write((char*)&m_short_pos,sizeof(m_short_pos));
@@ -196,6 +212,13 @@ void GAConfiguration::write_to_file(const std::string& filename) const {
     ofs.write((char*)&m_never_pos,sizeof(m_never_pos));
     for(uint32_t i = 0; i < m_line_size/4; i++)
         ofs.write((char*)&  m_moves[i],sizeof(m_moves[0]));
+}
+
+void GAConfiguration::write_to_file(const std::string& filename) const {
+    std::ofstream ofs(filename,std::ios::binary);
+    if (!ofs)
+        throw PluginError("Can't open GA configuration savefile: " + filename);
+    write_to_file(ofs);
     if (!ofs)
         throw PluginError("Can't save to GA configuration file: " + filename);
 }

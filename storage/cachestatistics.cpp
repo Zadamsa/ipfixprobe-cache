@@ -75,19 +75,27 @@ bool CacheStatistics::operator<(const CacheStatistics& o) const noexcept{
     return m_not_empty < o.m_not_empty;
 }
 
+void CacheStatistics::read_from_file(std::ifstream& ifs){
+    ifs.read((char*)&m_not_empty,sizeof(m_not_empty));
+}
+
 void CacheStatistics::read_from_file(const std::string& filename){
     std::ifstream ifs(filename,std::ios::binary);
     if (!ifs)
         throw PluginError("Can't open GA statistics savefile: " + filename);
-    ifs.read((char*)&m_not_empty,sizeof(m_not_empty));
+    read_from_file(ifs);
     if (!ifs)
         throw PluginError("Invalid GA statistics file: " + filename);
+}
+
+void CacheStatistics::write_to_file(std::ofstream& ofs) const{
+    ofs.write((char*)&m_not_empty,sizeof(m_not_empty));
 }
 void CacheStatistics::write_to_file(const std::string& filename) const{
     std::ofstream ofs(filename,std::ios::binary);
     if (!ofs)
         throw PluginError("Can't open GA statistics savefile: " + filename);
-    ofs.write((char*)&m_not_empty,sizeof(m_not_empty));
+    write_to_file(ofs);
     if (!ofs)
         throw PluginError("Can't save to GA statistics file: " + filename);
 }

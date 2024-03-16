@@ -19,6 +19,7 @@ public:
     GAConfiguration& operator=(const GAConfiguration& o) noexcept;
     std::tuple<uint32_t,int32_t,int32_t,int32_t,int32_t,std::vector<uint32_t>> unpack() const noexcept;
     std::string to_string() const noexcept;
+    static uint32_t distance(const GAConfiguration& a,const GAConfiguration& b) noexcept;
 private:
     // Pocet MoveTuple je zvolen tak, aby v prumeru kazdy MoveTuple obsahoval 4 flow
     std::vector<MoveTuple> m_moves;

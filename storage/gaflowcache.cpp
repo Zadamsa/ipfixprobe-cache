@@ -23,7 +23,6 @@ void GAFlowCache::init(OptionsParser& in_parser){
     if (m_infilename != "")
         m_configuration.read_from_file(m_infilename);
     set_configuration(m_configuration);
-
 }
 
 // Vrati kopie aktualne konfiguraci
@@ -35,6 +34,7 @@ void GAFlowCache::set_configuration(const GAConfiguration& src) noexcept{
     m_configuration = src;
     std::tie(m_insert_pos,m_short_pos,m_medium_pos,m_long_pos,m_never_pos,m_unpacked_configuration) = src.unpack();
 }
+
 OptionsParser* GAFlowCache::get_parser() const{
     return new GACacheOptParser();
 }
@@ -47,6 +47,7 @@ void GAFlowCache::get_opts_from_parser(const GACacheOptParser& parser){
 bool GAFlowCache::is_being_flooded(const Packet& Pkt) noexcept{
     return false;
 }
+
 void GAFlowCache::export_graph_data(const Packet& pkt){}
 
 uint32_t GAFlowCache::enhance_existing_flow_record(uint32_t flow_index) noexcept{
