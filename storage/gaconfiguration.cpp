@@ -165,16 +165,16 @@ void GAConfiguration::mutate_counts(float probability){
 
 uint32_t GAConfiguration::distance(const GAConfiguration& a,const GAConfiguration& b) noexcept{
     uint32_t res = 0;
-    for(int i = 0; i < a.m_moves.size(); i++){
-        res += std::abs(a.m_moves[i].m_target - b.m_moves[i].m_target);
-        res += std::abs(a.m_moves[i].m_count - b.m_moves[i].m_count);
+    for(size_t i = 0; i < a.m_moves.size(); i++){
+        res += std::abs((int)(a.m_moves[i].m_target - b.m_moves[i].m_target));
+        res += std::abs((int)(a.m_moves[i].m_count - b.m_moves[i].m_count));
         res += a.m_moves[i].m_increment != b.m_moves[i].m_increment;
     }
     res += std::abs(a.m_short_pos - b.m_short_pos);
     res += std::abs(a.m_medium_pos - b.m_medium_pos);
     res += std::abs(a.m_long_pos - b.m_long_pos);
     res += std::abs(a.m_never_pos - b.m_never_pos);
-    res += std::abs(a.m_insert_pos - b.m_insert_pos);
+    res += std::abs((int)(a.m_insert_pos - b.m_insert_pos));
     return res;
 }
 

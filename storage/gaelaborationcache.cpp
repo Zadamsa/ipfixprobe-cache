@@ -13,6 +13,14 @@ __attribute__((constructor)) static void register_this_plugin() noexcept
     register_plugin(&rec);
 }
 
+OptionsParser* GAElaborationCache::get_parser() const{
+    return new GAElaborationCacheOptParser();
+}
+
+std::string GAElaborationCache::get_name() const noexcept{
+    return "gaelabcache";
+}
+
 void GAElaborationCache::get_opts_from_parser(const GAElaborationCacheOptParser& parser){
     GAFlowCache::get_opts_from_parser(parser);
     m_generation_size = parser.m_generation_size;
@@ -20,7 +28,7 @@ void GAElaborationCache::get_opts_from_parser(const GAElaborationCacheOptParser&
     m_outfilename = parser.m_outfilename;
 }
 
-void GAElaborationCache::start_workers(){
+void GAElaborationCache::start_workers(GAElaborationCacheOptParser* parser){
     std::vector<GAConfiguration> configurations;
     // Pokud nebyl zadan vstupni soubor, musi GAElaborationCache vytvorit generace nahodnych jedincu
     // a ulozit konfigurace nejlepsiho.
@@ -58,7 +66,7 @@ void GAElaborationCache::init(OptionsParser& in_parser) {
     get_opts_from_parser(*parser);
     //Nastavit prazdne jmeno souboru aby GAFlowCache se nesnazili nacist konfigurace ze souboru
     parser->m_infilename = "";
-    start_workers();
+    start_workers(parser);
 
 }
 
@@ -76,12 +84,7 @@ void GAElaborationCache::create_generation(std::vector<GAConfiguration>& configu
     }
 }
 
-OptionsParser* GAElaborationCache::get_parser() const{
-    return new GAElaborationCacheOptParser();
-}
-std::string GAElaborationCache::get_name() const noexcept{
-    return "gaelabcache";
-}
+
 void GAElaborationCache::set_queue(ipx_ring_t* queue){
     GAFlowCache::set_queue(queue);
 }
@@ -132,7 +135,6 @@ void GAElaborationCache::finish(){
                                                    return a->get_total_statistics() < b->get_total_statistics();
                                                 }
     );
-    const auto best_example = m_caches[0]->get_configuration();
     // Nacist statistiky rodicovske konfigurace, pokud existuje
     bool parent_exists = true;
     CacheStatistics parent_statics;
@@ -144,14 +146,15 @@ void GAElaborationCache::finish(){
     save_best_configuration(parent_exists,parent_statics);
 }
 
-void GAElaborationCache::save_best_configuration(bool parent_exists,const CacheStatistics& parent_statics) const{
+void GAElaborationCache::save_best_configuration(bool parent_exists,const CacheStatistics& parent_statics){
+    const auto& best_example = m_caches[0];
     // Pokud rodicovska konfigurace existuje, a je lepsi nez libovolny z potomku, ulozit ji
-    if (parent_exists && parent_statics < (*best_example)->get_total_statistics()){
+    if (parent_exists && parent_statics < (best_example)->get_total_statistics()){
         m_configuration.write_to_file(m_outfilename);
         parent_statics.write_to_file(m_outfilename + ".stats");
     }else{
-        (*best_example)->get_configuration().write_to_file(m_outfilename);
-        (*best_example)->get_total_statistics().write_to_file(m_outfilename + ".stats");
+        (best_example)->get_configuration().write_to_file(m_outfilename);
+        (best_example)->get_total_statistics().write_to_file(m_outfilename + ".stats");
     }
 }
 

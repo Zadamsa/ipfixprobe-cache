@@ -88,6 +88,8 @@ ipfixprobe_storage_src=\
 		storage/gaconfiguration.hpp \
 		storage/gaelaborationcache.cpp \
 		storage/gaelaborationcache.hpp \
+		storage/hcelaborationcache.cpp \
+		storage/hcelaborationcache.hpp \
 		storage/gaflowcache.cpp \
 		storage/gaflowcache.hpp \
 		storage/movetuple.cpp \

@@ -13,7 +13,9 @@ public:
     GAConfiguration();
     GAConfiguration mutate() const;
     void read_from_file(const std::string& filename);
+    void read_from_file(std::ifstream& ifs);
     void write_to_file(const std::string& filename) const;
+    void write_to_file(std::ofstream& ofs) const;
     bool operator==(const GAConfiguration& o) const noexcept;
     bool operator!=(const GAConfiguration& o) const noexcept;
     GAConfiguration& operator=(const GAConfiguration& o) noexcept;

@@ -37,8 +37,8 @@ protected:
     void cache_worker(uint32_t worker_id) noexcept;
     void get_opts_from_parser(const GAElaborationCacheOptParser& parser);
     virtual void create_generation(std::vector<GAConfiguration>& configurations, const GAConfiguration& default_config) const noexcept;
-    virtual void start_workers();
-    virtual void save_best_configuration(bool parent_exists,const CacheStatistics& parent_statics) const;
+    virtual void start_workers(GAElaborationCacheOptParser* parser);
+    virtual void save_best_configuration(bool parent_exists,const CacheStatistics& parent_statics);
 
 
     uint8_t m_generation_size = 0;
