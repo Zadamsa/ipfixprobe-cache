@@ -109,6 +109,9 @@ void HCElaborationFlowCache::save_best_configuration(bool parent_exists,const Ca
         }
     }
     if (!global_min_exists || m_infilename == "" || best_stats < global_min_statics){
+        std::cout<<"~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\n";
+        std::cout<< "Just has replaced "<<global_min_statics.m_not_empty << " with new minimum " << best_stats.m_not_empty << "\n";
+        std::cout<<"~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\n";
         best_config.write_to_file(m_outfilename + ".global_min");
         best_stats.write_to_file(m_outfilename + ".global_min.stats");
     }
