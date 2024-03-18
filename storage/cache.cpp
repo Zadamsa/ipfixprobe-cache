@@ -502,14 +502,14 @@ int NHTFlowCache::insert_pkt(Packet& pkt) noexcept
     // Saves key fields of flow to FlowKey structures
     if (!create_hash_key(pkt))
         return 0;
-    export_graph_data(pkt);
+    /*export_graph_data(pkt);
     if (is_being_flooded(pkt)){
         auto raw_time = pkt.ts.tv_sec;
         tm* time_info = localtime(&raw_time);
         char buffer[80];
         strftime(buffer, sizeof(buffer), "%Y-%m-%d %H:%M:%S", time_info);
         std::cout<<"Flood detected at " << buffer << "\n";
-    }
+    }*/
     // Tries to find index of flow to which packet belongs
     auto [record_found, source, flow_index, hashval] = find_flow_position(pkt);
     flow_index = record_found ? enhance_existing_flow_record(flow_index)
