@@ -1,5 +1,5 @@
 #include "hcelaborationcache.hpp"
-
+#include <unistd.h>
 namespace ipxp {
 
 __attribute__((constructor)) static void register_this_plugin() noexcept
@@ -87,8 +87,8 @@ void HCElaborationFlowCache::save_best_configuration(bool parent_exists,const Ca
         std::uniform_real_distribution<double> distribution(0.0, 1.0);
         for(auto it = m_caches.begin(); it != m_caches.end(); ++it){
             const auto config = (*it)->get_configuration();
-            const auto denom =((m_heat + (it - m_caches.begin())/2) * (-3.0/40) - 2);
-            auto exp = std::exp((double)GAConfiguration::distance(config,best_config)/(4*denom));
+            const auto denom =((m_heat + (it - m_caches.begin())) * (-3.0/40) - 2);
+            auto exp = std::exp((double)GAConfiguration::distance(config,best_config)/(6*denom));
             if (exp > distribution(generator)){
                 std::cout << std::to_string(it - m_caches.begin()) + "-th configuration replaced\n";
                 best_config = config;
@@ -99,10 +99,14 @@ void HCElaborationFlowCache::save_best_configuration(bool parent_exists,const Ca
 
     bool global_min_exists = true;
     CacheStatistics global_min_statics;
-    try {
-        global_min_statics.read_from_file(m_outfilename + ".global_min.stats");
-    }catch (...){
-        global_min_exists = false;
+    for(int i = 0; i < 5 && !global_min_exists; i++) {
+        global_min_exists = true;
+        try {
+            global_min_statics.read_from_file(m_outfilename + ".global_min.stats");
+        } catch (...) {
+            global_min_exists = false;
+            usleep(100);
+        }
     }
     if (!global_min_exists || m_infilename == "" || best_stats < global_min_statics){
         best_config.write_to_file(m_outfilename + ".global_min");
