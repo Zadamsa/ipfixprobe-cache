@@ -97,7 +97,7 @@ void HCElaborationFlowCache::save_best_configuration(bool parent_exists,const Ca
         }
     }
 
-    bool global_min_exists = true;
+    bool global_min_exists = false;
     CacheStatistics global_min_statics;
     for(int i = 0; i < 5 && !global_min_exists; i++) {
         global_min_exists = true;
