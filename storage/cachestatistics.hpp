@@ -35,7 +35,7 @@ struct CacheStatistics {
     uint32_t m_expired;
     uint32_t m_flushed;
     uint32_t m_lookups;
-    uint32_t m_lookups2;
+    uint64_t m_lookups2;
     uint32_t m_exported_on_cache_end;
     uint32_t m_exported_on_periodic_scan;
     uint64_t m_put_time;
