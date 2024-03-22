@@ -7,7 +7,7 @@
 #include <smmintrin.h>
 #include <immintrin.h>
 namespace ipxp {
-//Compilation with CPPFLAGS="-msse4.2 -mavx2 -mavx -march=native" CXXFLAGS="-msse4.2 -mavx2 -mavx -march=native" ./configure  --with-pcap
+//Compilation with autoreconf -i; CPPFLAGS="-msse4.2 -mavx2 -mavx -march=native" CXXFLAGS="-msse4.2 -mavx2 -mavx -march=native" ./configure  --with-pcap; make
 // Start with original cache ./ipfixprobe -i 'pcap;file=pcaps/x.pcap' -s 'cache;'
 // Start with process accelerated cache ./ipfixprobe -i 'pcap;file=pcaps/x.pcap' -s 'palrucache;'
 class PALRUCache :public NHTFlowCache{
