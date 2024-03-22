@@ -1,7 +1,3 @@
-//
-// Created by zaida on 08.03.2024.
-//
-
 #ifndef CACHE_CPP_PALRUCACHE_HPP
 #define CACHE_CPP_PALRUCACHE_HPP
 #include "cache.hpp"
@@ -22,13 +18,14 @@ public:
     OptionsParser* get_parser() const override;
     std::string get_name() const noexcept override;
     void init(OptionsParser& in_parser) override;
-    //void prepare_and_export(uint32_t flow_index, FlowEndReason reason) noexcept override;
     void create_new_flow(uint32_t flow_index,Packet& pkt,uint64_t hashval) noexcept;
     void allocate_tables() override;
     void export_flow(uint32_t index) override;
+    void get_opts_from_parser(const CacheOptParser& parser) override;
+
 private:
-    uint16_t m_offset;
-    struct MetaData {
+    uint16_t m_offset; ///< Offset to calculate index to m_metadata array from flow index
+    struct alignas(32) MetaData {
         struct HashData {
             uint16_t m_hash : 15;
             uint16_t m_valid : 1;
@@ -37,21 +34,12 @@ private:
             }
         };
         union{
-            HashData m_hashes_array[16] = {};
+            HashData m_hashes_array[16] = {}; ///< Always 16 flows in the row regardless command line options
             __m256i m_hashes_reg;
         } m_hashes;
-
-        //uint64_t m_lru_list[2] = {0x0001020304050607,0x08090A0B0C0D0E0F};
-        //__m64 m_lru_list = (__m64)0x0706050403020100;
-        //uint64_t m_lru_list = 0x0000000100020003;
-        //__m256i m_lru_list = _mm256_set_epi64x(0x18191a1b1c1d1e1f,  0x1011121314151617,0x08090a0b0c0d0e0f,0x0001020304050607);
-        //__m256i m_lru_list = _mm256_set_epi64x(0x0001020304050607,0x08090a0b0c0d0e0f, 0x1011121314151617,0x18191a1b1c1d1e1f);
-        __m128i m_lru_list = _mm_set_epi64x(0x0f0e0d0c0b0a0908, 0x0706050403020100);
-        //uint64_t m_lru_list = 0x0405060700010203;
-        //uint64_t m_lru_list = 0x0706050403020100;
+        __m128i m_lru_list = _mm_set_epi64x(0x0f0e0d0c0b0a0908, 0x0706050403020100); ///< Indexes of flows in every byte sorted by last access time
     };
-    std::vector<MetaData> m_metadata;
-    //std::vector<MetaData, std::allocator<std::aligned_storage<sizeof(MetaData), alignof(MetaData)>::type>> m_metadata;
+    std::vector<MetaData> m_metadata; ///< Metadata for every row of cache table
 };
 
 } // namespace ipxp

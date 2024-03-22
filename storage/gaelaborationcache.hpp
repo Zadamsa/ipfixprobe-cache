@@ -35,6 +35,7 @@ public:
     void finish() override;
 private:
     void cache_worker(uint32_t worker_id) noexcept;
+    using NHTFlowCache::get_opts_from_parser;
     void get_opts_from_parser(const GAElaborationCacheOptParser& parser);
     void create_generation(std::vector<GAConfiguration>& configurations, const GAConfiguration& default_config) const noexcept;
 

@@ -148,7 +148,7 @@ protected:
     void cyclic_rotate_records(uint32_t begin,uint32_t end) noexcept;
 
     bool process_last_tcp_packet(Packet& pkt, uint32_t flow_index) noexcept;
-    void get_opts_from_parser(const CacheOptParser& parser);
+    virtual void get_opts_from_parser(const CacheOptParser& parser);
     virtual std::pair<bool, uint32_t> find_existing_record(uint64_t hashval) const noexcept;
     virtual uint32_t enhance_existing_flow_record(uint32_t flow_index) noexcept;
     virtual std::pair<bool, uint32_t> find_empty_place(uint32_t begin_line) const noexcept;
