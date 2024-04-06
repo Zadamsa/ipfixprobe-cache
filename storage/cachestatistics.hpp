@@ -37,6 +37,7 @@ struct CacheStatistics {
     uint32_t m_lookups;
     uint32_t m_lookups2;
     uint64_t m_put_time;
+    CacheStatistics();
     CacheStatistics operator-(const CacheStatistics& o) const noexcept;
     friend std::ostream& operator<<(std::ostream& os, const CacheStatistics& statistics) noexcept;
 };
