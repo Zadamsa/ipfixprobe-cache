@@ -84,6 +84,8 @@ public:
     CacheStatistics& get_total_statistics() noexcept;
     CacheStatistics& get_last_statistics() noexcept;
 
+    uint32_t m_rss_key[10];
+
 protected:
     uint32_t m_cache_size; ///< Maximal count of records in cache
     uint32_t m_line_size; ///< Maximal count of records in one row

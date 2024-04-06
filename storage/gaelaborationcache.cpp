@@ -5,6 +5,7 @@
 #include "gaelaborationcache.hpp"
 #include "gaconfiguration.hpp"
 
+
 namespace ipxp {
 
 __attribute__((constructor)) static void register_this_plugin() noexcept
@@ -43,7 +44,8 @@ void GAElaborationCache::start_workers(GAElaborationCacheOptParser* parser){
         for (uint32_t i = 0; i < m_generation_size; i++)
             configurations.emplace_back(m_line_size);
     }
-    m_done = std::vector<bool>(m_generation_size,true);
+    //m_done = std::vector<bool>(m_generation_size,true);
+    m_done = std::vector<bool>(m_generation_size,false);
     // Nastavit vygenerovane konfigurace a spustit vlakna pro kazdou cache
     for(uint32_t i = 0; i < m_generation_size; i++){
         m_caches.emplace_back(std::make_unique<GAFlowCache>());
@@ -53,10 +55,10 @@ void GAElaborationCache::start_workers(GAElaborationCacheOptParser* parser){
         m_threads.emplace_back(&GAElaborationCache::cache_worker,this,i);
     }
     //Pockat, az vsechni workery budou pripravene
-    std::unique_lock ul(m_mutex);
+    /*std::unique_lock ul(m_mutex);
     m_new_pkt_cond.wait(ul,[this](){return std::all_of(m_done.begin(), m_done.end(), [](bool d) {
                                            return d;
-                                       });});
+                                       });});*/
 }
 
 void GAElaborationCache::init(OptionsParser& in_parser) {
@@ -90,15 +92,22 @@ void GAElaborationCache::set_queue(ipx_ring_t* queue){
 }
 // Synchronizacni funkce pro vkladani noveho paketu do vsech cache
 int GAElaborationCache::put_pkt(Packet& pkt){
+
     std::unique_lock ul(m_mutex);
-    m_done = std::vector<bool>(m_generation_size,false);
-    m_pkt_ptr = &pkt;
+    if (m_packets_buffer.size() == 100'000) {
+        m_done_cond.notify_all();
+        m_new_pkt_cond.wait(ul, [this]() {
+            return std::all_of(m_done.begin(), m_done.end(), [](bool d) { return d; });
+        });
+        m_done = std::vector<bool>(m_generation_size,false);
+        m_packets_buffer.clear();
+    }
+    m_packets_buffer.push_back(pkt);
+    // m_pkt_ptr = &pkt;
     m_pkt_id++;
-    m_done_cond.notify_all();
+
     // Pockat az vsechni cache si vlozi novy paket
-    m_new_pkt_cond.wait(ul,[this](){return std::all_of(m_done.begin(), m_done.end(), [](bool d) {
-                                           return d;
-                                       });});
+
     return 0;
 }
 
@@ -107,29 +116,34 @@ void GAElaborationCache::cache_worker(uint32_t worker_id) noexcept{
     int last_id = 0;
     while(!m_exit){
         std::unique_lock ul(m_mutex);
-        last_id = m_pkt_id;
+        m_done_cond.wait(ul,[this,worker_id](){return (m_packets_buffer.size() == 100'000 && !m_done[worker_id]) || m_exit;});
+        ul.unlock();
+        if (m_done[worker_id])
+            break;
+        last_id += m_packets_buffer.size();
+        for(auto& pkt : m_packets_buffer)
+            m_caches[worker_id]->put_pkt(pkt);
+        //last_id = m_pkt_id;
         m_done[worker_id] = true;
         m_new_pkt_cond.notify_one();
-        m_done_cond.wait(ul,[this,last_id](){return m_pkt_id != last_id || m_exit;});
         //segfault pokud by se nastala desynchronizace
         /*if (m_pkt_id != last_id + 1 && !m_exit)
             *((uint16_t*)0) = 666;*/
-        if (m_exit)
-            return;
-        ul.unlock();
-        m_caches[worker_id]->put_pkt(*m_pkt_ptr);
+        //if (m_exit)
+        //    return;
     }
+    std::cout << last_id << "packets read\n";
 }
 
 void GAElaborationCache::finish(){
-    for(auto& cache_ptr : m_caches)
-        cache_ptr->finish();
     m_exit = true;
-    m_done = std::vector<bool>(m_generation_size,true);
+    //m_done = std::vector<bool>(m_generation_size,true);
     m_done_cond.notify_all();
-
+    std::cout << m_pkt_id << "packets pushed back\n";
     for(auto& thr : m_threads)
         thr.join();
+    for(auto& cache_ptr : m_caches)
+        cache_ptr->finish();
     //Zvolit nejlepsi spravu podle statistik
     std::sort(m_caches.begin(), m_caches.end(),[](const auto& a, const auto& b) {
                                                    return a->get_total_statistics() < b->get_total_statistics();

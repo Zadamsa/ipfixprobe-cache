@@ -52,6 +52,7 @@ protected:
     std::condition_variable m_done_cond;
     std::vector<bool> m_done;
     std::atomic<int> m_pkt_id = 0;
+    std::vector<Packet> m_packets_buffer;
 };
 
 } // namespace ipxp
