@@ -427,8 +427,8 @@ int NHTFlowCache::insert_pkt(Packet& pkt) noexcept
     //Calls PRE_CREATE event for new packet
     plugins_pre_create(pkt);
     //Tries to fill up ports if packet is fragmented
-    if (m_enable_fragmentation_cache)
-        try_to_fill_ports_to_fragmented_packet(pkt);
+    //if (m_enable_fragmentation_cache)
+    //    try_to_fill_ports_to_fragmented_packet(pkt);
     //Saves key fields of flow to FlowKey structures
     if (!create_hash_key(pkt))
         return 0;
@@ -484,7 +484,7 @@ int NHTFlowCache::put_pkt(Packet& pkt)
 {
     auto start = std::chrono::high_resolution_clock::now();
     auto res = insert_pkt(pkt);
-    m_statistics.m_put_time += std::chrono::duration_cast<std::chrono::microseconds>(
+    m_statistics.m_put_time += std::chrono::duration_cast<std::chrono::nanoseconds>(
                       std::chrono::high_resolution_clock::now() - start)
                       .count();
     return res;
