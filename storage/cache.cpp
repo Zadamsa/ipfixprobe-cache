@@ -38,8 +38,8 @@
 #include <ipfixprobe/ring.h>
 #include <sys/time.h>
 #include <thread>
-#include <rte_common.h>
-#include <rte_thash.h>
+//#include <rte_common.h>
+//#include <rte_thash.h>
 
 namespace ipxp {
 
@@ -74,10 +74,10 @@ NHTFlowCache::NHTFlowCache()
     , m_periodic_statistics_sleep_time(0s)
     , m_fragmentation_cache(0, 0)
 {
-    uint32_t key[]  = {0xDEADBEEF, 0xBAADC0DE, 0xFACEFEED, 0xDEADF00D};
-    rte_convert_rss_key(key, m_rss_key, sizeof(key));
-    set_hash_function([this](const void* ptr,uint32_t len){ return rte_softrss_be((uint32_t *)ptr, len/4, (const uint8_t*)m_rss_key);});
-    //set_hash_function([](const void* ptr,uint32_t len){ return XXH64(ptr, size, 0);});
+    //uint32_t key[]  = {0xDEADBEEF, 0xBAADC0DE, 0xFACEFEED, 0xDEADF00D};
+    //rte_convert_rss_key(key, m_rss_key, sizeof(key));
+    //set_hash_function([this](const void* ptr,uint32_t len){ return rte_softrss_be((uint32_t *)ptr, len/4, (const uint8_t*)m_rss_key);});
+    set_hash_function([](const void* ptr,uint32_t len){ return XXH64(ptr, len, 0);});
     test_attributes();
 }
 
@@ -496,7 +496,7 @@ int NHTFlowCache::put_pkt(Packet& pkt)
 {
     auto start = std::chrono::high_resolution_clock::now();
     auto res = insert_pkt(pkt);
-    m_statistics.m_put_time += std::chrono::duration_cast<std::chrono::microseconds>(
+    m_statistics.m_put_time += std::chrono::duration_cast<std::chrono::nanoseconds>(
                                    std::chrono::high_resolution_clock::now() - start)
                                    .count();
     return res;
