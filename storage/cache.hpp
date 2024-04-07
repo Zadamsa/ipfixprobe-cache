@@ -64,6 +64,8 @@
 #include "fragmentationCache/fragmentationCache.hpp"
 #include <sys/time.h>
 #include "fstream"
+#include <atomic>
+#include "condition_variable"
 
 namespace ipxp {
 
@@ -116,6 +118,7 @@ protected:
         m_periodic_statistics_sleep_time; ///< Amount of time in which periodic statistics must
                                           ///< reset
     std::unique_ptr<std::thread> m_statistics_thread; ///< Pointer to periodic statistics thread
+    std::unique_ptr<std::thread> m_export_thread; ///< Pointer to periodic statistics thread
     FragmentationCache
         m_fragmentation_cache; ///< Fragmentation cache used for completing packets ports
     struct GraphExport{
@@ -156,10 +159,12 @@ protected:
     void prepare_and_export(uint32_t flow_index, FlowEndReason reason) noexcept;
     uint64_t hash(const void* ptr, uint32_t len) const noexcept;
     void set_hash_function(std::function<uint64_t(const void*,uint32_t)> function) noexcept;
+    void export_expired_body(time_t ts) noexcept;
 
     static bool has_tcp_eof_flags(const Flow& flow) noexcept;
     static void test_attributes();
     virtual bool is_being_flooded(const Packet& Pkt) noexcept;
+    void export_thread_function()noexcept;
 
 
     struct FloodMeasurement{
@@ -177,6 +182,13 @@ protected:
         const uint32_t m_threshold = 5;
         const double m_min = 7000;
     } m_flood_measurement;
+
+    timeval m_export_sleep_time{0,100};
+    struct AtomicLockedLine{uint32_t m_export_line = -1;uint32_t m_process_line = -1;};
+    std::atomic<AtomicLockedLine> m_locked_lines;// = std::atomic<uint32_t>(0);
+    //std::atomic<bool> m_line_is_locked;
+    // = std::atomic<bool>(false);
+    //std::condition_variable_any m_cond;
 };
 
 } // namespace ipxp
