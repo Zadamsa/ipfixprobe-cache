@@ -651,7 +651,7 @@ void NHTFlowCache::export_thread_function()noexcept{
 
 void NHTFlowCache::export_expired_body(time_t ts) noexcept
 {
-    for (uint32_t i = m_timeout_idx; i < m_timeout_idx + m_insert_pos; i++) {
+    for (uint32_t i = m_timeout_idx; i < m_timeout_idx + m_line_size; i++) {
         if (!m_flow_table[i]->is_empty()
             && ts - m_flow_table[i]->m_flow.time_last.tv_sec >= m_inactive) {
             m_statistics.m_exported_on_periodic_scan++;
@@ -662,7 +662,7 @@ void NHTFlowCache::export_expired_body(time_t ts) noexcept
                     : ipxp::FlowEndReason::FLOW_END_IDLE_TIMEOUT);
         }
     }
-    m_timeout_idx = (m_timeout_idx + m_insert_pos) & (m_cache_size - 1);
+    m_timeout_idx = (m_timeout_idx + m_line_size) & (m_cache_size - 1);
 }
 
 /**
