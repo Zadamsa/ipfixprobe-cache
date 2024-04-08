@@ -116,6 +116,7 @@ NHTFlowCache::~NHTFlowCache()
     m_exit = true;
     if (m_periodic_statistics_sleep_time != 0s)
         m_statistics_thread->join();
+    PacketClock::stop();
     m_export_thread->join();
 }
 
@@ -546,7 +547,7 @@ int NHTFlowCache::insert_pkt(Packet& pkt) noexcept
             return 0;
     }
     // Checks part of cache for possible timeouts
-    export_expired(pkt.ts.tv_sec);
+    //export_expired(pkt.ts.tv_sec);
     return 0;
 }
 
@@ -641,7 +642,7 @@ void NHTFlowCache::export_expired(time_t ts)
 void NHTFlowCache::export_thread_function()noexcept{
     while(!m_exit){
         auto now = PacketClock::now();
-        auto until = now + std::chrono::microseconds(m_export_sleep_time.tv_usec);
+        auto until = now + std::chrono::microseconds(m_export_sleep_time * 1000);
         std::this_thread::sleep_until(until);
         auto x = PacketClock::now() - now;
         export_expired(PacketClock::now_as_timeval().tv_sec);
