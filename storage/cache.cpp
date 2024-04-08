@@ -328,11 +328,11 @@ uint32_t NHTFlowCache::enhance_existing_flow_record(uint32_t flow_index) noexcep
     return line_index;
 }
 
-std::pair<bool, uint32_t> NHTFlowCache::find_empty_place(uint32_t begin_line) const noexcept
+std::pair<bool, uint32_t> NHTFlowCache::find_empty_place(uint32_t begin_line) noexcept
 {
     uint32_t end_line = begin_line + m_line_size;
     for (uint32_t flow_index = begin_line; flow_index < end_line; flow_index++) {
-        if (m_flow_table[flow_index]->is_empty())
+        if (m_flow_table[flow_index]->is_empty() || timeouts_expired(PacketClock::now_as_timeval().tv_sec,flow_index))
             return {true, flow_index};
     }
     // No empty place was found.
@@ -540,7 +540,7 @@ int NHTFlowCache::insert_pkt(Packet& pkt) noexcept
         create_new_flow(flow_index, pkt, hashval);
     else {
         // Returned index contains target flow, checks for possible timeouts to reinsert
-        if (timeouts_expired(pkt, flow_index))
+        if (timeouts_expired(pkt.ts.tv_sec, flow_index))
             return insert_pkt(pkt);
         // Finally update flow data
         if (update_flow(flow_index, pkt,source))
@@ -558,10 +558,10 @@ int NHTFlowCache::insert_pkt(Packet& pkt) noexcept
  * @return True if successfully exported flow
  * Export flow if any of the timeouts expired
  */
-bool NHTFlowCache::timeouts_expired(Packet& pkt, uint32_t flow_index) noexcept
+bool NHTFlowCache::timeouts_expired(time_t tv, uint32_t flow_index) noexcept
 {
     // Check if flow record is expired (inactive timeout)
-    if (pkt.ts.tv_sec - m_flow_table[flow_index]->m_flow.time_last.tv_sec >= m_inactive) {
+    if (tv - m_flow_table[flow_index]->m_flow.time_last.tv_sec >= m_inactive) {
         prepare_and_export(
             flow_index,
             has_tcp_eof_flags(m_flow_table[flow_index]->m_flow)
@@ -570,7 +570,7 @@ bool NHTFlowCache::timeouts_expired(Packet& pkt, uint32_t flow_index) noexcept
         return true;
     }
     // Check if flow record is expired (active timeout)
-    if (pkt.ts.tv_sec - m_flow_table[flow_index]->m_flow.time_first.tv_sec >= m_active) {
+    if (tv - m_flow_table[flow_index]->m_flow.time_first.tv_sec >= m_active) {
         prepare_and_export(flow_index, FlowEndReason::FLOW_END_ACTIVE_TIMEOUT);
         return true;
     }
@@ -642,10 +642,11 @@ void NHTFlowCache::export_expired(time_t ts)
 void NHTFlowCache::export_thread_function()noexcept{
     while(!m_exit){
         auto now = PacketClock::now();
-        auto until = now + std::chrono::microseconds(m_export_sleep_time * 1000);
+        auto until = now + std::chrono::microseconds(m_export_sleep_time);
         std::this_thread::sleep_until(until);
         auto x = PacketClock::now() - now;
-        export_expired(PacketClock::now_as_timeval().tv_sec);
+        for(auto i = 0; i < !PacketClock::has_stopped() && x.count()/1000/m_export_sleep_time; i++ )
+            export_expired(PacketClock::now_as_timeval().tv_sec);
     }
 }
 

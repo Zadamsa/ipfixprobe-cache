@@ -144,7 +144,7 @@ protected:
     virtual uint32_t make_place_for_record(uint32_t line_index) noexcept;
     std::tuple<bool, bool,uint32_t, uint64_t> find_flow_position(Packet& pkt) noexcept;
     virtual int insert_pkt(Packet& pkt) noexcept;
-    bool timeouts_expired(Packet& pkt, uint32_t flow_index) noexcept;
+    bool timeouts_expired(time_t tv, uint32_t flow_index) noexcept;
     bool create_hash_key(const Packet& pkt) noexcept;
     void export_flow(uint32_t index);
     static uint8_t get_export_reason(Flow& flow);
@@ -155,7 +155,7 @@ protected:
     void get_opts_from_parser(const CacheOptParser& parser);
     std::pair<bool, uint32_t> find_existing_record(uint64_t hashval) const noexcept;
     virtual uint32_t enhance_existing_flow_record(uint32_t flow_index) noexcept;
-    std::pair<bool, uint32_t> find_empty_place(uint32_t begin_line) const noexcept;
+    std::pair<bool, uint32_t> find_empty_place(uint32_t begin_line) noexcept;
     void prepare_and_export(uint32_t flow_index, FlowEndReason reason) noexcept;
     uint64_t hash(const void* ptr, uint32_t len) const noexcept;
     void set_hash_function(std::function<uint64_t(const void*,uint32_t)> function) noexcept;
@@ -183,7 +183,7 @@ protected:
         const double m_min = 7000;
     } m_flood_measurement;
 
-    uint32_t m_export_sleep_time = 1;
+    uint32_t m_export_sleep_time = 250;
     struct AtomicLockedLine{uint32_t m_export_line = -1;uint32_t m_process_line = -1;};
     std::atomic<AtomicLockedLine> m_locked_lines;// = std::atomic<uint32_t>(0);
     //std::atomic<bool> m_line_is_locked;

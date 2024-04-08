@@ -31,6 +31,9 @@ public:
     static void stop() noexcept{
         m_current_time = std::chrono::time_point<PacketClock>::max();
     }
+    static bool has_stopped() noexcept{
+        return m_current_time == std::chrono::time_point<PacketClock>::max();
+    }
 private:
     inline static time_point m_current_time;
     inline static timeval m_current_time_tv;
