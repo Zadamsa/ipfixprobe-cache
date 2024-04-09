@@ -203,7 +203,8 @@ void NHTFlowCache::allocate_tables()
         throw PluginError("not enough memory for flow cache allocation");
     }
 }
-/**
+/*
+ * 
  * @brief Main cache initialization.
  * @param params String from command line with options.
  * Parses and checks validity of parameters, creates tables, starts statistics thread.
@@ -642,10 +643,10 @@ void NHTFlowCache::export_expired(time_t ts)
 void NHTFlowCache::export_thread_function()noexcept{
     while(!m_exit){
         auto now = PacketClock::now();
-        auto until = now + std::chrono::microseconds(m_export_sleep_time);
+        auto until = now + std::chrono::nanoseconds(m_export_sleep_time);
         std::this_thread::sleep_until(until);
         auto x = PacketClock::now() - now;
-        for(auto i = 0; i < !PacketClock::has_stopped() && x.count()/1000/m_export_sleep_time; i++ )
+        for(auto i = 0; i < !PacketClock::has_stopped() && x.count()/m_export_sleep_time; i++ )
             export_expired(PacketClock::now_as_timeval().tv_sec);
     }
 }
