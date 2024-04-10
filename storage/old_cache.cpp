@@ -316,10 +316,10 @@ void OldNHTFlowCache::flush(Packet& pkt, size_t flow_index, int ret, bool source
 }
 
 int OldNHTFlowCache::put_pkt(Packet& pkt){
-    auto start = std::chrono::steady_clock::now();
+    auto start = std::chrono::high_resolution_clock::now();
     auto res = insert_pkt(pkt);
     m_put_time += std::chrono::duration_cast<std::chrono::nanoseconds>(
-                                   std::chrono::steady_clock::now() - start)
+                                   std::chrono::high_resolution_clock::now() - start)
                                    .count();
     return res;
 }
