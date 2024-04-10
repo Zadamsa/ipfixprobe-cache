@@ -42,6 +42,7 @@ namespace ipxp {
 class CacheOptParser : public OptionsParser {
 public:
     CacheOptParser();
+    CacheOptParser(const char* name,const char* description);
 
     uint32_t m_cache_size; ///< Count of records in cache.
     uint32_t m_line_size; ///< Count of records in one cache.
@@ -55,6 +56,8 @@ public:
                                        ///< information for fragmented packet
     std::size_t m_frag_cache_size; ///< Count of records in fragmentation cache
     time_t m_frag_cache_timeout; ///< Maximal timeout for fragments
+private:
+    virtual void register_options();
 };
 }; // namespace ipxp
 #endif // IPFIXPROBE_CACHE_CACHEOPTPARSER_H

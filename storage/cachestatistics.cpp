@@ -20,7 +20,8 @@
  *    may be used to endorse or promote products derived from this
  *    software without specific prior written permission.
  */
-
+#include <fstream>
+#include <ipfixprobe/plugin.hpp>
 #include "cachestatistics.hpp"
 
 namespace ipxp {
@@ -33,6 +34,8 @@ CacheStatistics::CacheStatistics()
     , m_flushed(0)
     , m_lookups(0)
     , m_lookups2(0)
+    , m_exported_on_cache_end(0)
+    , m_exported_on_periodic_scan(0)
     , m_put_time(0)
 {
 }
@@ -58,12 +61,44 @@ std::ostream& operator<<(std::ostream& os, const CacheStatistics& statistics) no
     os << "Empty: " << statistics.m_empty << "\n";
     os << "Not empty: " << statistics.m_not_empty << "\n";
     os << "Expired: " << statistics.m_expired << "\n";
+    os << "Exported on cache end: " << statistics.m_exported_on_cache_end << "\n";
+    os << "Exported on periodic scan: " << statistics.m_exported_on_periodic_scan << "\n";
     os << "Flushed: " << statistics.m_flushed << "\n";
     os << "Average Lookup:  " << tmp << "\n";
-    os << "Variance Lookup: " << float(statistics.m_lookups2) / statistics.m_hits - tmp * tmp
-       << "\n";
-    os << "Spent in put_pkt: " << statistics.m_put_time << " us" << std::endl;
+    os << "Variance Lookup: " << float(statistics.m_lookups2) / statistics.m_hits - tmp * tmp << "\n";
+    os << "Spent in put_pkt: " << statistics.m_put_time << " ns" << std::endl;
     return os;
 }
+
+// Pro rozhodnuti jaka sprava je lepsi porovnavaji se pocty exportovani flow z duvodu nedostatku volneho mista v radku
+bool CacheStatistics::operator<(const CacheStatistics& o) const noexcept{
+    return m_not_empty < o.m_not_empty;
+}
+
+void CacheStatistics::read_from_file(std::ifstream& ifs){
+    ifs.read((char*)&m_not_empty,sizeof(m_not_empty));
+}
+
+void CacheStatistics::read_from_file(const std::string& filename){
+    std::ifstream ifs(filename,std::ios::binary);
+    if (!ifs)
+        throw PluginError("Can't open GA statistics savefile: " + filename);
+    read_from_file(ifs);
+    if (!ifs)
+        throw PluginError("Invalid GA statistics file: " + filename);
+}
+
+void CacheStatistics::write_to_file(std::ofstream& ofs) const{
+    ofs.write((char*)&m_not_empty,sizeof(m_not_empty));
+}
+void CacheStatistics::write_to_file(const std::string& filename) const{
+    std::ofstream ofs(filename,std::ios::binary);
+    if (!ofs)
+        throw PluginError("Can't open GA statistics savefile: " + filename);
+    write_to_file(ofs);
+    if (!ofs)
+        throw PluginError("Can't save to GA statistics file: " + filename);
+}
+
 
 } // namespace ipxp

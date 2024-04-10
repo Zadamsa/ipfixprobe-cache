@@ -35,10 +35,18 @@ struct CacheStatistics {
     uint32_t m_expired;
     uint32_t m_flushed;
     uint32_t m_lookups;
-    uint32_t m_lookups2;
+    uint64_t m_lookups2;
+    uint32_t m_exported_on_cache_end;
+    uint32_t m_exported_on_periodic_scan;
     uint64_t m_put_time;
+
     CacheStatistics operator-(const CacheStatistics& o) const noexcept;
+    bool operator<(const CacheStatistics& o) const noexcept;
     friend std::ostream& operator<<(std::ostream& os, const CacheStatistics& statistics) noexcept;
+    void read_from_file(const std::string& filename);
+    void read_from_file(std::ifstream& ifs);
+    void write_to_file(const std::string& filename) const;
+    void write_to_file(std::ofstream& ofs) const;
 };
 } // namespace ipxp
 

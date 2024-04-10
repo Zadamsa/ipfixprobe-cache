@@ -39,6 +39,7 @@ FlowRecord::~FlowRecord()
 /**
  * @brief Remove all information from FlowRecord.
  */
+
 void FlowRecord::erase()
 {
     m_flow.remove_extensions();

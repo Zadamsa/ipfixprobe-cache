@@ -39,6 +39,24 @@ CacheOptParser::CacheOptParser()
     , // Prime for better distribution in hash table
     m_frag_cache_timeout(3)
 {
+    register_options();
+}
+CacheOptParser::CacheOptParser(const char* name,const char* description)
+    : OptionsParser(name, description)
+    , m_cache_size(1 << DEFAULT_FLOW_CACHE_SIZE)
+    , m_line_size(1 << DEFAULT_FLOW_LINE_SIZE)
+    , m_active(300)
+    , m_inactive(30)
+    , m_split_biflow(false)
+    , m_periodic_statistics_sleep_time(0)
+    , m_enable_fragmentation_cache(true)
+    , m_frag_cache_size(10007)
+    , // Prime for better distribution in hash table
+    m_frag_cache_timeout(3)
+{
+    register_options();
+}
+void CacheOptParser::register_options(){
     register_option(
         "s",
         "size",
@@ -57,7 +75,6 @@ CacheOptParser::CacheOptParser()
             return true;
         },
         OptionFlags::RequiredArgument);
-
     register_option(
         "l",
         "line",
@@ -75,7 +92,6 @@ CacheOptParser::CacheOptParser()
             return true;
         },
         OptionFlags::RequiredArgument);
-
     register_option(
         "a",
         "active",
@@ -90,7 +106,6 @@ CacheOptParser::CacheOptParser()
             return true;
         },
         OptionFlags::RequiredArgument);
-
     register_option(
         "i",
         "inactive",
@@ -105,7 +120,19 @@ CacheOptParser::CacheOptParser()
             return true;
         },
         OptionFlags::RequiredArgument);
-
+    register_option(
+        "p",
+        "period",
+        "TIME",
+        "Print cache statistics every period of time",
+        [this](const char *arg){try {
+                m_periodic_statistics_sleep_time = str2num<decltype(m_periodic_statistics_sleep_time)>(arg);
+            } catch(std::invalid_argument &e) {
+                return false;
+            }
+            return true;
+        },
+        OptionFlags::RequiredArgument);
     register_option(
         "S",
         "split",
@@ -113,21 +140,6 @@ CacheOptParser::CacheOptParser()
         "Split biflows into uniflows",
         [this](const char* arg) {
             m_split_biflow = true;
-            return true;
-        },
-        OptionFlags::NoArgument);
-
-    register_option(
-        "p",
-        "period",
-        "TIME",
-        "Print cache statistics every period of time.",
-        [this](const char* arg) {
-            try {
-                m_periodic_statistics_sleep_time = str2num<double>(arg);
-            } catch (std::invalid_argument& e) {
-                return false;
-            }
             return true;
         },
         OptionFlags::NoArgument);

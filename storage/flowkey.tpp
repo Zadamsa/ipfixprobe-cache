@@ -20,7 +20,6 @@
  *    may be used to endorse or promote products derived from this
  *    software without specific prior written permission.
  */
-
 #include "flowkey.hpp"
 
 namespace ipxp {
@@ -39,6 +38,7 @@ FlowKey<IPSize>& FlowKey<IPSize>::operator=(const Packet& pkt) noexcept
  * @brief Create reverse key of flow.
  * @param pkt Incoming packet.
  */
+
 template<uint16_t IPSize>
 FlowKey<IPSize>& FlowKey<IPSize>::save_reversed(const Packet& pkt) noexcept
 {

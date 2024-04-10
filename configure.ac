@@ -126,6 +126,24 @@ AC_ARG_ENABLE([legacy-ssl],
 )
 ### openssl
 
+### asan
+AC_ARG_ENABLE([asan],
+       AC_HELP_STRING([--enable-asan],[Address sanitizer.]),
+       [
+       if test "$enableval" = "yes"; then
+          asan="yes"
+       else
+          asan="no"
+       fi
+         ], [
+          asan="no"
+         ]
+)
+### asan
+
+if test x${asan} = xyes; then
+	  CXXFLAGS="-fsanitize=address $CXXFLAGS"
+fi
 
 AC_ARG_WITH([quic],
         AC_HELP_STRING([--without-quic],[Compile ipfixprobe without quic plugin (which have dependency on openssl-devel)]),
@@ -215,6 +233,12 @@ if [[ -z "$WITH_NDP_TRUE" ]]; then
    RPM_BUILDREQ+=" netcope-common-devel"
 fi
 
+AC_ARG_WITH([debugcache], [AS_HELP_STRING([--with-debugcache], [Enable cache statistic prints])])
+if test "x$with_debugcache" = "xyes"; then
+  CPPFLAGS="$CPPFLAGS -DFLOW_CACHE_STATS"
+fi
+
+
 AC_ARG_WITH([pcap],
         AC_HELP_STRING([--with-pcap],[Compile ipfixprobe with pcap plugin for capturing using libpcap library]),
         [
@@ -248,7 +272,20 @@ if [[ -z "$WITH_PCAP_TRUE" ]]; then
       fi
    fi
 fi
+AC_ARG_WITH([c++17],
+        AC_HELP_STRING([--with-c++17],[Compile ipfixprobe with c++17]),
+        [
+      if test "$withval" = "yes"; then
+         withc17="yes"
+      else
+         withc17="no"
+      fi
+        ], [withc17="no"]
+)
 
+if test x${withc17} = xyes; then
+   CXXFLAGS="${CXXFLAGS} -std=c++17"
+fi
 
 AC_ARG_WITH([unwind],
         AC_HELP_STRING([--with-unwind],[Compile ipfixprobe with libunwind to print stack on crash]),

@@ -366,6 +366,7 @@ void finish(ipxp_conf_t &conf)
       std::setw(20) << "bytes" <<
       std::setw(13) << "dropped" <<
       std::setw(16) << "qtime" <<
+      std::setw(14) << "timeouts" <<
       std::setw(7) << "status" << std::endl;
 
    int idx = 0;
@@ -390,6 +391,7 @@ void finish(ipxp_conf_t &conf)
          std::setw(19) << stats.bytes << " " <<
          std::setw(12) << stats.dropped << " " <<
          std::setw(15) << stats.qtime << " " <<
+         std::setw(14) << stats.timeouts << " " <<
          std::setw(6) << status << std::endl;
       total_packets += stats.packets;
       total_parsed += stats.parsed;
