@@ -36,7 +36,7 @@
 #include <iomanip>
 #include <iostream>
 #include <sys/time.h>
-
+#include "chrono"
 #include "old_cache.hpp"
 #include "xxhash.h"
 #include <ipfixprobe/ring.h>
@@ -315,7 +315,16 @@ void OldNHTFlowCache::flush(Packet& pkt, size_t flow_index, int ret, bool source
     }
 }
 
-int OldNHTFlowCache::put_pkt(Packet& pkt)
+int OldNHTFlowCache::put_pkt(Packet& pkt){
+    auto start = std::chrono::steady_clock::now();
+    auto res = insert_pkt(pkt);
+    m_put_time += std::chrono::duration_cast<std::chrono::nanoseconds>(
+                                   std::chrono::steady_clock::now() - start)
+                                   .count();
+    return res;
+}
+
+int OldNHTFlowCache::insert_pkt(Packet& pkt)
 {
     int ret = plugins_pre_create(pkt);
 
@@ -575,6 +584,8 @@ void OldNHTFlowCache::print_report()
     std::cout << "Flushed: " << m_flushed << std::endl;
     std::cout << "Average Lookup:  " << tmp << std::endl;
     std::cout << "Variance Lookup: " << float(m_lookups2) / m_hits - tmp * tmp << std::endl;
+    std::cout << "Variance Lookup: " << float(m_lookups2) / m_hits - tmp * tmp << std::endl;
+    std::cout << "Spent in put_pkt: " << m_put_time << " ns" << std::endl;
 }
 #endif /* FLOW_CACHE_STATS */
 } // namespace old_cache

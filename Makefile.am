@@ -70,6 +70,8 @@ ipfixprobe_storage_src=\
 		storage/fragmentationCache/fragmentationCache.cpp \
 		storage/cache.cpp \
 		storage/cache.hpp \
+		storage/old_cache.cpp \
+		storage/old_cache.hpp \
 		storage/cacheoptparser.cpp \
 		storage/cacheoptparser.hpp \
 		storage/cachestatistics.cpp \
