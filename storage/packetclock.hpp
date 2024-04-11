@@ -29,14 +29,15 @@ public:
         m_current_time = time_point(std::chrono::duration_cast<duration>(std::chrono::seconds(tv.tv_sec) + std::chrono::microseconds(tv.tv_usec)));
     }
     static void stop() noexcept{
-        m_current_time = std::chrono::time_point<PacketClock>::max();
+        m_stopped = true;
     }
     static bool has_stopped() noexcept{
-        return m_current_time == std::chrono::time_point<PacketClock>::max();
+        return m_stopped;
     }
 private:
     inline static time_point m_current_time;
     inline static timeval m_current_time_tv;
+    inline static bool m_stopped = false;
 };
 
 } // namespace ipxp
