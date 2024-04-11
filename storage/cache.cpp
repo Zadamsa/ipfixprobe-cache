@@ -629,8 +629,12 @@ void NHTFlowCache::export_thread_function()noexcept{
         auto until = now + std::chrono::nanoseconds(m_export_sleep_time);
         std::this_thread::sleep_until(until);
         auto x = PacketClock::now() - now;
-        for(auto i = 0; i < !PacketClock::has_stopped() && x.count()/m_export_sleep_time; i++ )
+        //auto count =
+        for(auto i = 0; !PacketClock::has_stopped() && i < x.count()/m_export_sleep_time; i++ ) {
             export_expired(PacketClock::now_as_timeval().tv_sec);
+            m_sleep_time++;
+        }
+
     }
 }
 
@@ -679,6 +683,7 @@ void NHTFlowCache::print_report() const noexcept
     if (m_statistics.m_hits) {
         std::cout << "==================================================================\nTOTAL\n";
         std::cout << m_statistics;
+        std::cout << "Exported in thread " << m_sleep_time << " times\n";
     }
 }
 /**

@@ -182,6 +182,7 @@ protected:
     uint32_t m_export_sleep_time = 500;
     struct AtomicLockedLine{uint32_t m_export_line = -1;uint32_t m_process_line = -1;};
     std::atomic<AtomicLockedLine> m_locked_lines;// = std::atomic<uint32_t>(0);
+    uint64_t m_sleep_time = 0;
     //std::atomic<bool> m_line_is_locked;
     // = std::atomic<bool>(false);
     //std::condition_variable_any m_cond;
