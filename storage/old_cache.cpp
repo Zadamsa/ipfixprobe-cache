@@ -179,6 +179,7 @@ OldNHTFlowCache::OldNHTFlowCache()
     , m_key_inv()
     , m_flow_table(nullptr)
     , m_flow_records(nullptr)
+    , m_put_time(0)
 {
 }
 
