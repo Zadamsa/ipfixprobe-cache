@@ -183,7 +183,7 @@ protected:
         const double m_min = 7000;
     } m_flood_measurement;
 
-    uint32_t m_export_sleep_time = 100;
+    uint32_t m_export_sleep_time = 100'000;
     struct AtomicLockedLine{uint32_t m_export_line = -1;uint32_t m_process_line = -1;};
     std::atomic<AtomicLockedLine> m_locked_lines;// = std::atomic<uint32_t>(0);
     //std::atomic<bool> m_line_is_locked;
