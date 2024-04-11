@@ -626,13 +626,24 @@ void NHTFlowCache::export_expired(time_t ts)
 void NHTFlowCache::export_thread_function()noexcept{
     while(!m_exit){
         auto now = PacketClock::now();
-        auto until = now + std::chrono::nanoseconds(m_export_sleep_time);
+        if (now == std::chrono::time_point<PacketClock, typename std::chrono::steady_clock::time_point::duration >())
+		throw std::invalid_argument("yyy");
+	auto until = now + std::chrono::nanoseconds(m_export_sleep_time);
         std::this_thread::sleep_until(until);
-        auto x = PacketClock::now() - now;
-        //auto count =
-        for(auto i = 0u; !PacketClock::has_stopped() && i < x.count()/m_export_sleep_time; i++ ) {
+	auto now2 = PacketClock::now();
+        auto x = now2 - now;
+	//auto count =
+	std::cout <<"Count in loop:" << x.count()/m_export_sleep_time <<"\n";
+	//std::cout << "Now is " << now2.__d.count() <<", while before was " << now.__d.count() << "\n";
+        if (x.count()/m_export_sleep_time > 100){
+		auto epochTime = std::chrono::system_clock::from_time_t(0);
+		std::cout<< std::chrono::duration_cast<std::chrono::nanoseconds>(now2 - std::chrono::time_point<PacketClock, typename std::chrono::steady_clock::time_point::duration >()).count() << "   " << std::chrono::duration_cast<std::chrono::nanoseconds>(now -  std::chrono::time_point<PacketClock, typename std::chrono::steady_clock::time_point::duration >()).count() << "\n"; 
+		throw std::invalid_argument("xxx");
+	}
+	for(auto i = 0u; !PacketClock::has_stopped() && i < x.count()/m_export_sleep_time; i++ ) {
             export_expired(PacketClock::now_as_timeval().tv_sec);
             m_sleep_time++;
+	    std::cout<<"m_cleep_time="<<m_sleep_time<<"\n";
         }
 
     }
