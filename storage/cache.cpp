@@ -38,7 +38,8 @@
 #include <ipfixprobe/ring.h>
 #include "cache.hpp"
 #include "xxhash.h"
-
+#include "iostream"
+using namespace std;
 namespace ipxp {
 
 __attribute__((constructor)) static void register_this_plugin()
