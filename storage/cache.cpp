@@ -222,7 +222,7 @@ void NHTFlowCache::init(const char* params)
  * @param index Index of flow in m_flow_table.
  * Exports flow specified by index, replaces it with previously exported flow, clears it.
  */
-void NHTFlowCache::export_flow(uint32_t index)
+inline __attribute__((always_inline)) void NHTFlowCache::export_flow(uint32_t index)
 {
     ipx_ring_push(m_export_queue, &m_flow_table[index]->m_flow);
     std::swap(m_flow_table[index], m_flow_table[m_cache_size + m_qidx]);
@@ -248,7 +248,7 @@ void NHTFlowCache::finish()
             prepare_and_export(i, ipxp::FlowEndReason::FLOW_END_FORCED_END);
 }*/
 
-void NHTFlowCache::prepare_and_export(uint32_t flow_index, FlowEndReason reason) noexcept
+inline __attribute__((always_inline)) void NHTFlowCache::prepare_and_export(uint32_t flow_index, FlowEndReason reason) noexcept
 {
     plugins_pre_export(m_flow_table[flow_index]->m_flow);
     m_flow_table[flow_index]->m_flow.end_reason = reason;
@@ -298,7 +298,7 @@ void NHTFlowCache::flush(
     }
 }
 
-std::pair<bool, uint32_t> NHTFlowCache::find_existing_record(uint64_t hashval) const noexcept
+inline __attribute__((always_inline)) std::pair<bool, uint32_t> NHTFlowCache::find_existing_record(uint64_t hashval) const noexcept
 {
     uint32_t begin_line = hashval & m_line_mask;
     uint32_t end_line = begin_line + m_line_size;
@@ -309,12 +309,20 @@ std::pair<bool, uint32_t> NHTFlowCache::find_existing_record(uint64_t hashval) c
     return {false, 0};
 }
 
+void NHTFlowCache::cyclic_rotate_records(uint32_t begin, uint32_t end) noexcept
+{
+    auto flow = m_flow_table[end];
+    for (uint32_t j = end; j > begin; j--)
+        m_flow_table[j] = m_flow_table[j - 1];
+    m_flow_table[begin] = flow;
+}
+
 /**
  * @brief Move flow to the first position in line.
  * @param flow_index Index of flow to enhance.
  * @return Index of enhanced flow.
  */
-uint32_t NHTFlowCache::enhance_existing_flow_record(uint32_t flow_index) noexcept
+inline __attribute__((always_inline)) uint32_t NHTFlowCache::enhance_existing_flow_record(uint32_t flow_index) noexcept
 {
     uint32_t line_index = flow_index & m_line_mask;
     m_statistics.m_lookups += (flow_index - line_index + 1);
@@ -324,7 +332,7 @@ uint32_t NHTFlowCache::enhance_existing_flow_record(uint32_t flow_index) noexcep
     return line_index;
 }
 
-std::pair<bool, uint32_t> NHTFlowCache::find_empty_place(uint32_t begin_line) const noexcept
+inline __attribute__((always_inline)) std::pair<bool, uint32_t> NHTFlowCache::find_empty_place(uint32_t begin_line) const noexcept
 {
     uint32_t end_line = begin_line + m_line_size;
     for (uint32_t flow_index = begin_line; flow_index < end_line; flow_index++) {
@@ -335,7 +343,7 @@ std::pair<bool, uint32_t> NHTFlowCache::find_empty_place(uint32_t begin_line) co
     return {false, 0};
 }
 
-bool NHTFlowCache::tcp_connection_reset(
+inline __attribute__((always_inline)) bool NHTFlowCache::tcp_connection_reset(
     Packet& pkt,
     uint32_t flow_index,
     bool source) noexcept
@@ -352,7 +360,7 @@ bool NHTFlowCache::tcp_connection_reset(
     return false;
 }
 
-void NHTFlowCache::create_new_flow(
+inline __attribute__((always_inline)) void NHTFlowCache::create_new_flow(
     uint32_t flow_index,
     Packet& pkt,
     uint64_t hashval) noexcept
@@ -369,7 +377,7 @@ void NHTFlowCache::create_new_flow(
  * @param line_begin Target line.
  * @return Index of insert position for new flow if row is full.
  */
-uint32_t NHTFlowCache::free_place_in_full_line(uint32_t line_begin) noexcept
+inline __attribute__((always_inline)) uint32_t NHTFlowCache::free_place_in_full_line(uint32_t line_begin) noexcept
 {
     uint32_t line_end = line_begin + m_line_size;
     prepare_and_export(line_end - 1, FlowEndReason::FLOW_END_LACK_OF_RECOURSES);
@@ -378,13 +386,7 @@ uint32_t NHTFlowCache::free_place_in_full_line(uint32_t line_begin) noexcept
     return flow_new_index;
 }
 
-void NHTFlowCache::cyclic_rotate_records(uint32_t begin, uint32_t end) noexcept
-{
-    auto flow = m_flow_table[end];
-    for (uint32_t j = end; j > begin; j--)
-        m_flow_table[j] = m_flow_table[j - 1];
-    m_flow_table[begin] = flow;
-}
+
 
 /**
  * @brief Updates flow statistics, triggers PRE_UPDATE/POST_UPDATE events.
@@ -415,7 +417,7 @@ bool NHTFlowCache::update_flow(uint32_t flow_index, Packet& pkt, bool source) no
  * value of flow. Calculates hash from Flow Key structure, same for structure with swapped source
  * and destination addresses and ports if first search wasn't successful.
  */
-std::tuple<bool, bool,uint32_t, uint64_t> NHTFlowCache::find_flow_position(Packet& pkt) noexcept
+inline __attribute__((always_inline)) std::tuple<bool, bool,uint32_t, uint64_t> NHTFlowCache::find_flow_position(Packet& pkt) noexcept
 {
     /* Calculates hash value from key created before. */
     auto [ptr, size] = std::visit(
@@ -435,7 +437,7 @@ std::tuple<bool, bool,uint32_t, uint64_t> NHTFlowCache::find_flow_position(Packe
  * Called when existing flow record was not found. Looks for empty place, if place wasn't found
  * makes free place by free_place_in_full_line
  */
-uint32_t NHTFlowCache::make_place_for_record(uint32_t line_index) noexcept
+inline __attribute__((always_inline)) uint32_t NHTFlowCache::make_place_for_record(uint32_t line_index) noexcept
 {
     auto [empty_place_found, flow_index] = find_empty_place(line_index);
     if (empty_place_found) {
@@ -447,7 +449,7 @@ uint32_t NHTFlowCache::make_place_for_record(uint32_t line_index) noexcept
     return flow_index;
 }
 
-void NHTFlowCache::try_to_fill_ports_to_fragmented_packet(Packet& packet)
+inline __attribute__((always_inline)) void NHTFlowCache::try_to_fill_ports_to_fragmented_packet(Packet& packet)
 {
     m_fragmentation_cache.process_packet(packet);
 }
@@ -576,7 +578,7 @@ int NHTFlowCache::put_pkt(Packet& pkt)
     return res;
 }
 
-bool NHTFlowCache::has_tcp_eof_flags(const Flow& flow) noexcept
+inline __attribute__((always_inline)) bool NHTFlowCache::has_tcp_eof_flags(const Flow& flow) noexcept
 {
     // When FIN or RST is set, TCP connection ended naturally
     return (flow.src_tcp_flags | flow.dst_tcp_flags) & (0x01 | 0x04);
