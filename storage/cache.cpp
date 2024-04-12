@@ -501,13 +501,13 @@ int NHTFlowCache::insert_pkt(Packet& pkt) noexcept
     if (!create_hash_key(pkt))
         return 0;
     //export_graph_data(pkt);
-    if (is_being_flooded()){
+    /*if (is_being_flooded()){
         auto raw_time = pkt.ts.tv_sec;
         tm* time_info = localtime(&raw_time);
         char buffer[80];
         strftime(buffer, sizeof(buffer), "%Y-%m-%d %H:%M:%S", time_info);
         std::cout<<"Flood detected at " << buffer << "\n";
-    }
+    }*/
     // Tries to find index of flow to which packet belongs
     auto [record_found, source, flow_index, hashval] = find_flow_position(pkt);
 
@@ -571,16 +571,16 @@ bool NHTFlowCache::timeouts_expired(time_t tv, uint32_t flow_index) noexcept
  */
 int NHTFlowCache::put_pkt(Packet& pkt)
 {
-    auto start = std::chrono::high_resolution_clock::now();
+    //auto start = std::chrono::high_resolution_clock::now();
     auto res = insert_pkt(pkt);
     while(true){
         auto current_value = m_locked_lines.load();
         if(m_locked_lines.compare_exchange_weak(current_value,{ current_value.m_export_line, (uint32_t)-1}))
             break;
     }
-    m_statistics.m_put_time += std::chrono::duration_cast<std::chrono::nanoseconds>(
+   /* m_statistics.m_put_time += std::chrono::duration_cast<std::chrono::nanoseconds>(
                       std::chrono::high_resolution_clock::now() - start)
-                      .count();
+                      .count();*/
     return res;
 }
 
@@ -626,8 +626,8 @@ void NHTFlowCache::export_expired(time_t ts)
 void NHTFlowCache::export_thread_function()noexcept{
     while(!m_exit){
         auto now = PacketClock::now();
-        if (now == std::chrono::time_point<PacketClock, typename std::chrono::steady_clock::time_point::duration >())
-		throw std::invalid_argument("yyy");
+        //if (now == std::chrono::time_point<PacketClock, typename std::chrono::steady_clock::time_point::duration >())
+	//	throw std::invalid_argument("yyy");
 	auto until = now + std::chrono::nanoseconds(m_export_sleep_time);
         std::this_thread::sleep_until(until);
 	auto now2 = PacketClock::now();
