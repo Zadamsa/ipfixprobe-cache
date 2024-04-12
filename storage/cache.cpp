@@ -364,7 +364,7 @@ void NHTFlowCache::create_new_flow(
  * @param line_begin Target line.
  * @return Index of insert position for new flow if row is full.
  */
-uint32_t NHTFlowCache::free_place_in_full_line(uint32_t line_begin) noexcept
+inline __attribute__((always_inline)) uint32_t NHTFlowCache::free_place_in_full_line(uint32_t line_begin) noexcept
 {
     uint32_t line_end = line_begin + m_line_size;
     prepare_and_export(line_end - 1, FlowEndReason::FLOW_END_LACK_OF_RECOURSES);
@@ -410,7 +410,7 @@ bool NHTFlowCache::update_flow(uint32_t flow_index, Packet& pkt, bool source) no
  * value of flow. Calculates hash from Flow Key structure, same for structure with swapped source
  * and destination addresses and ports if first search wasn't successful.
  */
-std::tuple<bool, bool,uint32_t, uint64_t> NHTFlowCache::find_flow_position(Packet& pkt) noexcept
+inline __attribute__((always_inline)) std::tuple<bool, bool,uint32_t, uint64_t> NHTFlowCache::find_flow_position(Packet& pkt) noexcept
 {
     /* Calculates hash value from key created before. */
     auto [ptr, size] = std::visit(
@@ -430,7 +430,7 @@ std::tuple<bool, bool,uint32_t, uint64_t> NHTFlowCache::find_flow_position(Packe
  * Called when existing flow record was not found. Looks for empty place, if place wasn't found
  * makes free place by free_place_in_full_line
  */
-uint32_t NHTFlowCache::make_place_for_record(uint32_t line_index) noexcept
+inline __attribute__((always_inline)) uint32_t NHTFlowCache::make_place_for_record(uint32_t line_index) noexcept
 {
     auto [empty_place_found, flow_index] = find_empty_place(line_index);
     if (empty_place_found) {
@@ -584,7 +584,7 @@ int NHTFlowCache::put_pkt(Packet& pkt)
     return res;
 }
 
-bool NHTFlowCache::has_tcp_eof_flags(const Flow& flow) noexcept
+inline __attribute__((always_inline)) bool NHTFlowCache::has_tcp_eof_flags(const Flow& flow) noexcept
 {
     // When FIN or RST is set, TCP connection ended naturally
     return (flow.src_tcp_flags | flow.dst_tcp_flags) & (0x01 | 0x04);
@@ -632,8 +632,8 @@ void NHTFlowCache::export_thread_function()noexcept{
         std::this_thread::sleep_until(until);
 	auto now2 = PacketClock::now();
         auto x = now2 - now;
-        if (x.count()/m_export_sleep_time > 100)
-		throw std::invalid_argument("xxx");
+        //if (x.count()/m_export_sleep_time > 100)
+	//	throw std::invalid_argument("xxx");
 	for(auto i = 0u; !PacketClock::has_stopped() && i < x.count()/m_export_sleep_time; i++ ) {
             export_expired(PacketClock::now_as_timeval().tv_sec);
             m_sleep_time++;

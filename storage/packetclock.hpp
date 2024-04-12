@@ -35,7 +35,7 @@ public:
     }
     static void stop() noexcept{
         m_stopped = true;
-    	//m_current_time += std::chrono::seconds(10);
+    	m_current_time += std::chrono::seconds(10);
     }
     static bool has_stopped() noexcept{
         return m_stopped;

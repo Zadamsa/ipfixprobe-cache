@@ -66,7 +66,7 @@ std::ostream& operator<<(std::ostream& os, const CacheStatistics& statistics) no
     os << "Flushed: " << statistics.m_flushed << "\n";
     os << "Average Lookup:  " << tmp << "\n";
     os << "Variance Lookup: " << float(statistics.m_lookups2) / statistics.m_hits - tmp * tmp << "\n";
-    os << "Spent in put_pkt: " << statistics.m_put_time << " ns" << std::endl;
+    //os << "Spent in put_pkt: " << statistics.m_put_time << " ns" << std::endl;
     return os;
 }
 
