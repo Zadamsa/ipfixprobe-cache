@@ -221,7 +221,7 @@ void NHTFlowCache::init(const char* params)
  * @param index Index of flow in m_flow_table.
  * Exports flow specified by index, replaces it with previously exported flow, clears it.
  */
-void NHTFlowCache::export_flow(uint32_t index)
+inline __attribute__((always_inline)) void NHTFlowCache::export_flow(uint32_t index)
 {
     ipx_ring_push(m_export_queue, &m_flow_table[index]->m_flow);
     std::swap(m_flow_table[index], m_flow_table[m_cache_size + m_qidx]);
@@ -243,7 +243,7 @@ void NHTFlowCache::finish()
     print_report();
 }
 
-void NHTFlowCache::prepare_and_export(uint32_t flow_index, FlowEndReason reason) noexcept
+inline __attribute__((always_inline)) void NHTFlowCache::prepare_and_export(uint32_t flow_index, FlowEndReason reason) noexcept
 {
     plugins_pre_export(m_flow_table[flow_index]->m_flow);
     m_flow_table[flow_index]->m_flow.end_reason = reason;
@@ -293,7 +293,7 @@ void NHTFlowCache::flush(
     }
 }
 
-std::pair<bool, uint32_t> NHTFlowCache::find_existing_record(uint64_t hashval) const noexcept
+inline __attribute__((always_inline)) std::pair<bool, uint32_t> NHTFlowCache::find_existing_record(uint64_t hashval) const noexcept
 {
     uint32_t begin_line = hashval & m_line_mask;
     uint32_t end_line = begin_line + m_line_size;
@@ -309,7 +309,7 @@ std::pair<bool, uint32_t> NHTFlowCache::find_existing_record(uint64_t hashval) c
  * @param flow_index Index of flow to enhance.
  * @return Index of enhanced flow.
  */
-uint32_t NHTFlowCache::enhance_existing_flow_record(uint32_t flow_index) noexcept
+inline __attribute__((always_inline)) uint32_t NHTFlowCache::enhance_existing_flow_record(uint32_t flow_index) noexcept
 {
     uint32_t line_index = flow_index & m_line_mask;
     m_statistics.m_lookups += (flow_index - line_index + 1);
@@ -319,7 +319,7 @@ uint32_t NHTFlowCache::enhance_existing_flow_record(uint32_t flow_index) noexcep
     return line_index;
 }
 
-std::pair<bool, uint32_t> NHTFlowCache::find_empty_place(uint32_t begin_line) noexcept
+inline __attribute__((always_inline)) std::pair<bool, uint32_t> NHTFlowCache::find_empty_place(uint32_t begin_line) noexcept
 {
     uint32_t end_line = begin_line + m_line_size;
     for (uint32_t flow_index = begin_line; flow_index < end_line; flow_index++) {
@@ -330,7 +330,7 @@ std::pair<bool, uint32_t> NHTFlowCache::find_empty_place(uint32_t begin_line) no
     return {false, 0};
 }
 
-bool NHTFlowCache::tcp_connection_reset(
+inline __attribute__((always_inline)) bool NHTFlowCache::tcp_connection_reset(
     Packet& pkt,
     uint32_t flow_index,
     bool source) noexcept
@@ -373,7 +373,7 @@ uint32_t NHTFlowCache::free_place_in_full_line(uint32_t line_begin) noexcept
     return flow_new_index;
 }
 
-void NHTFlowCache::cyclic_rotate_records(uint32_t begin, uint32_t end) noexcept
+inline __attribute__((always_inline)) void NHTFlowCache::cyclic_rotate_records(uint32_t begin, uint32_t end) noexcept
 {
     auto flow = m_flow_table[end];
     for (uint32_t j = end; j > begin; j--)
@@ -632,18 +632,14 @@ void NHTFlowCache::export_thread_function()noexcept{
         std::this_thread::sleep_until(until);
 	auto now2 = PacketClock::now();
         auto x = now2 - now;
-	//auto count =
-	std::cout <<"Count in loop:" << x.count()/m_export_sleep_time <<"\n";
+	//std::cout <<"Count in loop:" << x.count()/m_export_sleep_time <<"\n";
 	//std::cout << "Now is " << now2.__d.count() <<", while before was " << now.__d.count() << "\n";
-        if (x.count()/m_export_sleep_time > 100){
-		auto epochTime = std::chrono::system_clock::from_time_t(0);
-		std::cout<< std::chrono::duration_cast<std::chrono::nanoseconds>(now2 - std::chrono::time_point<PacketClock, typename std::chrono::steady_clock::time_point::duration >()).count() << "   " << std::chrono::duration_cast<std::chrono::nanoseconds>(now -  std::chrono::time_point<PacketClock, typename std::chrono::steady_clock::time_point::duration >()).count() << "\n"; 
+        if (x.count()/m_export_sleep_time > 100)
 		throw std::invalid_argument("xxx");
-	}
 	for(auto i = 0u; !PacketClock::has_stopped() && i < x.count()/m_export_sleep_time; i++ ) {
             export_expired(PacketClock::now_as_timeval().tv_sec);
             m_sleep_time++;
-	    std::cout<<"m_cleep_time="<<m_sleep_time<<"\n";
+	    //std::cout<<"m_cleep_time="<<m_sleep_time<<"\n";
         }
 
     }
