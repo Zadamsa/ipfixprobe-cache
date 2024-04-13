@@ -40,7 +40,7 @@ std::string PALRUCache::get_name() const noexcept
 void PALRUCache::allocate_tables()
 {
     NHTFlowCache::allocate_tables();
-    m_metadata.resize(m_line_count);
+    m_metadata.resize(m_cache_size/m_line_size);
 }
 
 void PALRUCache::init(OptionsParser& in_parser){
@@ -100,7 +100,7 @@ uint32_t PALRUCache::enhance_existing_flow_record(uint32_t flow_index) noexcept
 }
 
 //Record was not found, try to find empty place in the row
-std::pair<bool, uint32_t> PALRUCache::find_empty_place(uint32_t begin_line) const noexcept{
+std::pair<bool, uint32_t> PALRUCache::find_empty_place(uint32_t begin_line) noexcept{
     __m256i mask = _mm256_load_si256((__m256i*)&or_mask);
     //We need to extract validity bits. Validity bit is every 16-th bit. To use with _mm256_movemask_epi8, which works with bytes, set first bit of every second byte to 1
     uint32_t most_significant_bits = _mm256_movemask_epi8(_mm256_or_si256(m_metadata[begin_line >> m_offset].m_hashes.m_hashes_reg,mask));

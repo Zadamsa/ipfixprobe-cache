@@ -51,6 +51,9 @@
 #include <thread>
 #include "fragmentationCache/timevalUtils.hpp"
 #include <cmath>
+#include "packetclock.hpp"
+//#include <rte_common.h>
+//#include <rte_thash.h>
 namespace ipxp {
 
 __attribute__((constructor)) static void register_this_plugin() noexcept
@@ -87,7 +90,7 @@ NHTFlowCache::NHTFlowCache()
     //uint32_t key[]  = {0xDEADBEEF, 0xBAADC0DE, 0xFACEFEED, 0xDEADF00D};
     //rte_convert_rss_key(key, m_rss_key, sizeof(key));
     //set_hash_function([this](const void* ptr,uint32_t len){ return rte_softrss_be((uint32_t *)ptr, len/4, (const uint8_t*)m_rss_key);});
-    set_hash_function([](const void* ptr,uint32_t len){ return XXH64(ptr, len, 0);});
+    set_hash_function([](const void* ptr,uint32_t len){ return XXH3_64bits(ptr, len);});
     m_graph_export.m_graph_datastream = std::ofstream("graph.data");
     m_graph_export.m_graph_new_flows_datastream = std::ofstream("graph_new_flows.data");
     m_graph_export.m_graph_cusum_datastream = std::ofstream("graph_cusum.data");
@@ -113,6 +116,8 @@ NHTFlowCache::~NHTFlowCache()
     m_exit = true;
     if (m_periodic_statistics_sleep_time != 0s)
         m_statistics_thread->join();
+    PacketClock::stop();
+    m_export_thread->join();
 }
 
 void NHTFlowCache::test_attributes()
@@ -149,7 +154,6 @@ void NHTFlowCache::init(OptionsParser& in_parser){
         throw PluginError("Bad parser for NHTFlowCache");
     get_opts_from_parser(*parser);
     m_line_mask = (m_cache_size - 1) & ~(m_line_size - 1);
-    m_line_count = m_cache_size / m_line_size;
     m_insert_pos = m_line_size / 2;
 
     if (m_export_queue == nullptr) {
@@ -164,6 +168,7 @@ void NHTFlowCache::init(OptionsParser& in_parser){
     allocate_tables();
     if (m_periodic_statistics_sleep_time != 0s)
         m_statistics_thread = std::make_unique<std::thread>(&NHTFlowCache::export_periodic_statistics,this,std::ref(std::cout));
+    m_export_thread = std::make_unique<std::thread>(&NHTFlowCache::export_thread_function,this);
     if (m_enable_fragmentation_cache) {
         try {
             m_fragmentation_cache
@@ -198,7 +203,8 @@ void NHTFlowCache::allocate_tables()
         throw PluginError("not enough memory for flow cache allocation");
     }
 }
-/**
+/*
+ * 
  * @brief Main cache initialization.
  * @param params String from command line with options.
  * Parses and checks validity of parameters, creates tables, starts statistics thread.
@@ -323,11 +329,11 @@ uint32_t NHTFlowCache::enhance_existing_flow_record(uint32_t flow_index) noexcep
     return line_index;
 }
 
-std::pair<bool, uint32_t> NHTFlowCache::find_empty_place(uint32_t begin_line) const noexcept
+std::pair<bool, uint32_t> NHTFlowCache::find_empty_place(uint32_t begin_line) noexcept
 {
     uint32_t end_line = begin_line + m_line_size;
     for (uint32_t flow_index = begin_line; flow_index < end_line; flow_index++) {
-        if (m_flow_table[flow_index]->is_empty())
+        if (m_flow_table[flow_index]->is_empty() || timeouts_expired(PacketClock::now_as_timeval().tv_sec,flow_index))
             return {true, flow_index};
     }
     // No empty place was found.
@@ -439,11 +445,9 @@ uint32_t NHTFlowCache::make_place_for_record(uint32_t line_index) noexcept
     auto [empty_place_found, flow_index] = find_empty_place(line_index);
     if (empty_place_found) {
         m_statistics.m_empty++;
-        //std::cout << "Found empty place;\n";
     } else {
         m_statistics.m_not_empty++;
         flow_index = free_place_in_full_line(line_index);
-        //std::cout << "Exported last record;\n";
     }
     return flow_index;
 }
@@ -497,6 +501,7 @@ void NHTFlowCache::export_graph_data(const Packet& pkt){
  */
 int NHTFlowCache::insert_pkt(Packet& pkt) noexcept
 {
+    PacketClock::set_time(pkt.ts);
     // Calls PRE_CREATE event for new packet
     plugins_pre_create(pkt);
     // Tries to fill up ports if packet is fragmented
@@ -515,10 +520,18 @@ int NHTFlowCache::insert_pkt(Packet& pkt) noexcept
     }*/
     // Tries to find index of flow to which packet belongs
     auto [record_found, source, flow_index, hashval] = find_flow_position(pkt);
-    //record_found ? std::cout << "Found " << hashval << " at " << flow_index << " \n" : std::cout << "Not found " << hashval << " \n";
+
+    bool updated;
+    do{
+        auto current_value = m_locked_lines.load();
+        if (current_value.m_export_line == ( (uint32_t)( hashval & m_line_mask )))
+            continue;
+        updated = m_locked_lines.compare_exchange_weak(current_value,{ current_value.m_export_line, (uint32_t)(hashval & m_line_mask)});
+    }while(!updated);
+
+
     flow_index = record_found ? enhance_existing_flow_record(flow_index)
                               : make_place_for_record(hashval & m_line_mask);
-    //record_found ? std::cout << "Enhaced " << hashval << " to " << flow_index << " \n" : std::cout << "Empty place was gained at " << flow_index << " \n";
     // Reinsert flow on tcp FIN/RST flags
     if (tcp_connection_reset(pkt, flow_index,source))
         return 0;
@@ -528,14 +541,14 @@ int NHTFlowCache::insert_pkt(Packet& pkt) noexcept
         create_new_flow(flow_index, pkt, hashval);
     else {
         // Returned index contains target flow, checks for possible timeouts to reinsert
-        if (timeouts_expired(pkt, flow_index))
+        if (timeouts_expired(pkt.ts.tv_sec, flow_index))
             return insert_pkt(pkt);
         // Finally update flow data
         if (update_flow(flow_index, pkt,source))
             return 0;
     }
     // Checks part of cache for possible timeouts
-    export_expired(pkt.ts.tv_sec);
+    //export_expired(pkt.ts.tv_sec);
     return 0;
 }
 
@@ -546,10 +559,10 @@ int NHTFlowCache::insert_pkt(Packet& pkt) noexcept
  * @return True if successfully exported flow
  * Export flow if any of the timeouts expired
  */
-bool NHTFlowCache::timeouts_expired(Packet& pkt, uint32_t flow_index) noexcept
+bool NHTFlowCache::timeouts_expired(time_t tv, uint32_t flow_index) noexcept
 {
     // Check if flow record is expired (inactive timeout)
-    if (pkt.ts.tv_sec - m_flow_table[flow_index]->m_flow.time_last.tv_sec >= m_inactive) {
+    if (tv - m_flow_table[flow_index]->m_flow.time_last.tv_sec >= m_inactive) {
         prepare_and_export(
             flow_index,
             has_tcp_eof_flags(m_flow_table[flow_index]->m_flow)
@@ -558,7 +571,7 @@ bool NHTFlowCache::timeouts_expired(Packet& pkt, uint32_t flow_index) noexcept
         return true;
     }
     // Check if flow record is expired (active timeout)
-    if (pkt.ts.tv_sec - m_flow_table[flow_index]->m_flow.time_first.tv_sec >= m_active) {
+    if (tv - m_flow_table[flow_index]->m_flow.time_first.tv_sec >= m_active) {
         prepare_and_export(flow_index, FlowEndReason::FLOW_END_ACTIVE_TIMEOUT);
         return true;
     }
@@ -573,6 +586,13 @@ int NHTFlowCache::put_pkt(Packet& pkt)
 {
     auto start = std::chrono::high_resolution_clock::now();
     auto res = insert_pkt(pkt);
+
+    while(true){
+        auto current_value = m_locked_lines.load();
+        if(m_locked_lines.compare_exchange_weak(current_value,{ current_value.m_export_line, (uint32_t)-1}))
+            break;
+    }
+
     m_statistics.m_put_time += std::chrono::duration_cast<std::chrono::nanoseconds>(
                       std::chrono::high_resolution_clock::now() - start)
                       .count();
@@ -593,7 +613,47 @@ bool NHTFlowCache::has_tcp_eof_flags(const Flow& flow) noexcept
  */
 void NHTFlowCache::export_expired(time_t ts)
 {
-    for (uint32_t i = m_timeout_idx; i < m_timeout_idx + m_insert_pos; i++) {
+    bool updated;
+    do{
+        AtomicLockedLine expected_value{(uint32_t)-1, (uint32_t)-1};
+        updated = m_locked_lines.compare_exchange_weak(expected_value,{ m_timeout_idx & m_line_mask, (uint32_t)-1});
+        if (!updated){
+            if (expected_value.m_export_line != (uint32_t)-1){
+                std::this_thread::yield();
+            }else{
+                if (expected_value.m_process_line != ( m_timeout_idx & m_line_mask ))
+                    updated = m_locked_lines.compare_exchange_weak(expected_value,{ m_timeout_idx & m_line_mask, expected_value.m_process_line});
+                else{
+                    updated = m_locked_lines.compare_exchange_weak(expected_value,{ (m_timeout_idx + m_line_size) & m_line_mask, expected_value.m_process_line});
+                    if (updated)
+                        m_timeout_idx = (m_timeout_idx + m_line_size) & m_line_mask;
+                }
+            }
+        }else
+            std::cout<<"";
+    }while(!updated);
+    export_expired_body(ts);
+    while(true){
+        AtomicLockedLine expected_value = m_locked_lines.load();
+        if (m_locked_lines.compare_exchange_weak(expected_value,{ (uint32_t)-1 , expected_value.m_process_line}))
+            break;
+    }
+}
+
+void NHTFlowCache::export_thread_function()noexcept{
+    while(!m_exit){
+        auto now = PacketClock::now();
+        auto until = now + std::chrono::nanoseconds(m_export_sleep_time);
+        std::this_thread::sleep_until(until);
+        auto x = PacketClock::now() - now;
+        for(auto i = 0u; !PacketClock::has_stopped() && i < x.count()/m_export_sleep_time; i++ )
+            export_expired(PacketClock::now_as_timeval().tv_sec);
+    }
+}
+
+void NHTFlowCache::export_expired_body(time_t ts) noexcept
+{
+    for (uint32_t i = m_timeout_idx; i < m_timeout_idx + m_line_size; i++) {
         if (!m_flow_table[i]->is_empty()
             && ts - m_flow_table[i]->m_flow.time_last.tv_sec >= m_inactive) {
             m_statistics.m_exported_on_periodic_scan++;
@@ -604,7 +664,7 @@ void NHTFlowCache::export_expired(time_t ts)
                     : ipxp::FlowEndReason::FLOW_END_IDLE_TIMEOUT);
         }
     }
-    m_timeout_idx = (m_timeout_idx + m_insert_pos) & (m_cache_size - 1);
+    m_timeout_idx = (m_timeout_idx + m_line_size) & (m_cache_size - 1);
 }
 
 /**

@@ -64,6 +64,8 @@
 #include "fragmentationCache/fragmentationCache.hpp"
 #include <sys/time.h>
 #include "fstream"
+#include <atomic>
+#include "condition_variable"
 
 namespace ipxp {
 
@@ -84,10 +86,11 @@ public:
     CacheStatistics& get_total_statistics() noexcept;
     CacheStatistics& get_last_statistics() noexcept;
 
+    uint32_t m_rss_key[10];
+
 protected:
     uint32_t m_cache_size; ///< Maximal count of records in cache
     uint32_t m_line_size; ///< Maximal count of records in one row
-    uint32_t m_line_count; ///< Maximal count of records in one row
     uint32_t m_line_mask; ///< Line mask xored with flow index returns start of the row
     uint32_t m_insert_pos; ///< Insert position of new flow, if row has no empty space
     uint32_t m_qsize; ///< Export queue size
@@ -115,6 +118,7 @@ protected:
         m_periodic_statistics_sleep_time; ///< Amount of time in which periodic statistics must
                                           ///< reset
     std::unique_ptr<std::thread> m_statistics_thread; ///< Pointer to periodic statistics thread
+    std::unique_ptr<std::thread> m_export_thread; ///< Pointer to periodic statistics thread
     FragmentationCache
         m_fragmentation_cache; ///< Fragmentation cache used for completing packets ports
     struct GraphExport{
@@ -135,12 +139,12 @@ protected:
     void flush(Packet& pkt,uint32_t flow_index,int ret,bool source_flow,FlowEndReason reason) noexcept;
     virtual uint32_t free_place_in_full_line(uint32_t line_begin) noexcept;
     bool tcp_connection_reset(Packet& pkt, uint32_t flow_index, bool source) noexcept;
-    virtual void create_new_flow(uint32_t flow_index, Packet& pkt, uint64_t hashval) noexcept;
+    void create_new_flow(uint32_t flow_index, Packet& pkt, uint64_t hashval) noexcept;
     bool update_flow(uint32_t flow_index, Packet& pkt,bool source) noexcept;
     virtual uint32_t make_place_for_record(uint32_t line_index) noexcept;
     std::tuple<bool, bool,uint32_t, uint64_t> find_flow_position(Packet& pkt) noexcept;
     virtual int insert_pkt(Packet& pkt) noexcept;
-    bool timeouts_expired(Packet& pkt, uint32_t flow_index) noexcept;
+    bool timeouts_expired(time_t tv, uint32_t flow_index) noexcept;
     bool create_hash_key(const Packet& pkt) noexcept;
     virtual void export_flow(uint32_t index);
     static uint8_t get_export_reason(Flow& flow);
@@ -151,14 +155,16 @@ protected:
     virtual void get_opts_from_parser(const CacheOptParser& parser);
     virtual std::pair<bool, uint32_t> find_existing_record(uint64_t hashval) const noexcept;
     virtual uint32_t enhance_existing_flow_record(uint32_t flow_index) noexcept;
-    virtual std::pair<bool, uint32_t> find_empty_place(uint32_t begin_line) const noexcept;
-    virtual void prepare_and_export(uint32_t flow_index, FlowEndReason reason) noexcept;
+    virtual std::pair<bool, uint32_t> find_empty_place(uint32_t begin_line) noexcept;
+    void prepare_and_export(uint32_t flow_index, FlowEndReason reason) noexcept;
     uint64_t hash(const void* ptr, uint32_t len) const noexcept;
     void set_hash_function(std::function<uint64_t(const void*,uint32_t)> function) noexcept;
+    void export_expired_body(time_t ts) noexcept;
 
     static bool has_tcp_eof_flags(const Flow& flow) noexcept;
     static void test_attributes();
     virtual bool is_being_flooded(const Packet& Pkt) noexcept;
+    void export_thread_function()noexcept;
 
 
     struct FloodMeasurement{
@@ -176,6 +182,13 @@ protected:
         const uint32_t m_threshold = 5;
         const double m_min = 7000;
     } m_flood_measurement;
+
+    uint32_t m_export_sleep_time = 100'000;
+    struct AtomicLockedLine{uint32_t m_export_line = -1;uint32_t m_process_line = -1;};
+    std::atomic<AtomicLockedLine> m_locked_lines;// = std::atomic<uint32_t>(0);
+    //std::atomic<bool> m_line_is_locked;
+    // = std::atomic<bool>(false);
+    //std::condition_variable_any m_cond;
 };
 
 } // namespace ipxp
