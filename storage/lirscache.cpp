@@ -19,7 +19,7 @@ std::string LIRSCache::get_name() const noexcept
 
 void LIRSCache::init(OptionsParser& parser){
     NHTFlowCache::init(parser);
-    m_delimiter = m_insert_pos/16;
+    m_delimiter = m_line_size/16;
     m_line_count = m_cache_size/m_line_size;
     auto list_nodes = new ListNode[m_line_count * m_nodes_in_list];
     m_lists = new ListNode*[m_line_count];
@@ -51,37 +51,45 @@ uint32_t LIRSCache::enhance_existing_flow_record(uint32_t flow_index) noexcept
             cyclic_rotate_records(line_index + m_delimiter,index);
             m_flow_table[index]->m_reference_type = ReferenceType::LIR;
             //Release place in list
-            m_flow_table[line_index] = m_flow_table[m_cache_size + m_qidx];
+            /*m_flow_table[line_index] = m_flow_table[m_cache_size + m_qidx];
             m_flow_table[line_index]->erase();
-            m_qidx = (m_qidx + 1) % m_qsize;
+            m_qidx = (m_qidx + 1) % m_qsize;*/
             //Move last LIR in stack to the list
             auto last_lir_index = find_last_lir_index(line_index);
             m_flow_table[last_lir_index]->m_reference_type = ReferenceType::HIR;
-            std::swap(m_flow_table[last_lir_index],m_flow_table[line_index]);
+            //std::swap(m_flow_table[last_lir_index],m_flow_table[line_index]);
+            m_flow_table[line_index] = m_flow_table[last_lir_index];
             prune_stack(line_index);
-        }else{
+        }/*else{
             //HIR is not in main memory
-            auto [found_empty_place, index] = find_empty_place_in_main_buffer(line_index);
+            auto [found_empty_place, index_empty_place] = find_empty_place_in_main_buffer(line_index);
             if (found_empty_place){
-                cyclic_rotate_records(line_index + m_delimiter, index);
+                cyclic_rotate_records(line_index + m_delimiter, index_empty_place);
             }else{
                 prepare_and_export(line_index + m_line_size - 1, FlowEndReason::FLOW_END_LACK_OF_RECOURSES);
                 cyclic_rotate_records(line_index + m_delimiter, line_index + m_line_size - 1);
             }
             m_flow_table[line_index + m_delimiter] = m_flow_table[line_index];
-        }
+        }*/
         return line_index + m_delimiter;
     }else{
         //Non-resident HIR got hit
         m_flow_table[flow_index]->m_reference_type = ReferenceType::LIR;
         cyclic_rotate_records(line_index + m_delimiter,flow_index);
-        if (!m_flow_table[line_index + m_delimiter - 1]->is_empty())
-            prepare_and_export(line_index + m_delimiter - 1,FlowEndReason::FLOW_END_LACK_OF_RECOURSES);
-        cyclic_rotate_records(line_index,line_index + m_delimiter - 1);
+        auto shift_target = 0;
+        if (auto [found, empty_place_index] = find_empty_place(line_index); !found || empty_place_index >= line_index + m_delimiter){
+            prepare_and_export(
+                line_index + m_delimiter - 1,
+                FlowEndReason::FLOW_END_LACK_OF_RECOURSES);
+            shift_target = line_index + m_delimiter - 1;
+        }else
+            shift_target = empty_place_index;
+        cyclic_rotate_records(line_index,shift_target);
 
         auto last_lir_index = find_last_lir_index(line_index);
         m_flow_table[last_lir_index]->m_reference_type = ReferenceType::HIR;
-        std::swap(m_flow_table[last_lir_index],m_flow_table[line_index]);
+        //std::swap(m_flow_table[last_lir_index],m_flow_table[line_index]);
+        m_flow_table[line_index] = m_flow_table[last_lir_index];
         prune_stack(line_index);
         return line_index;
     }
@@ -136,13 +144,20 @@ uint32_t LIRSCache::make_place_for_record(uint32_t line_index) noexcept
 
 void LIRSCache::prune_stack(uint32_t line_index) noexcept
 {
-    for(uint32_t flow_index = line_index + m_delimiter; flow_index < line_index + m_line_size; flow_index--)
-        if (m_flow_table[flow_index]->is_empty())
+//    for(uint32_t flow_index = line_index + m_delimiter; flow_index < line_index + m_line_size; flow_index--)
+//        if (m_flow_table[flow_index]->is_empty())
+//            continue ;
+//        else if(m_flow_table[flow_index]->m_reference_type == ReferenceType::LIR)
+//            break ;
+//        else
+//            prepare_and_export(flow_index, FlowEndReason::FLOW_END_LACK_OF_RECOURSES);
+    for(uint32_t flow_index = line_index + m_line_size; flow_index > line_index + m_delimiter; flow_index--)
+        if (m_flow_table[flow_index - 1]->is_empty())
             continue ;
-        else if(m_flow_table[flow_index]->m_reference_type == ReferenceType::LIR)
+        else if(m_flow_table[flow_index - 1]->m_reference_type == ReferenceType::LIR)
             break ;
         else
-            prepare_and_export(flow_index, FlowEndReason::FLOW_END_LACK_OF_RECOURSES);
+            prepare_and_export(flow_index - 1, FlowEndReason::FLOW_END_LACK_OF_RECOURSES);
 }
 
 /*std::tuple<bool,uint32_t> LIRSCache::find_and_rotate_in_list(uint64_t hashval) noexcept
