@@ -117,7 +117,8 @@ NHTFlowCache::~NHTFlowCache()
     if (m_periodic_statistics_sleep_time != 0s)
         m_statistics_thread->join();
     PacketClock::stop();
-    m_export_thread->join();
+    if (m_export_thread.get())
+        m_export_thread->join();
 }
 
 void NHTFlowCache::test_attributes()
