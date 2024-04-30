@@ -124,8 +124,10 @@ void GAElaborationCache::cache_worker(uint32_t worker_id) noexcept{
         for(auto& pkt : m_packets_buffer)
             m_caches[worker_id]->put_pkt(pkt);
         //last_id = m_pkt_id;
+        ul.lock();
         m_done[worker_id] = true;
         m_new_pkt_cond.notify_one();
+        ul.unlock();
         //segfault pokud by se nastala desynchronizace
         /*if (m_pkt_id != last_id + 1 && !m_exit)
             *((uint16_t*)0) = 666;*/
