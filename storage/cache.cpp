@@ -618,7 +618,8 @@ void NHTFlowCache::export_expired(time_t ts)
 void NHTFlowCache::export_thread_function()noexcept{
     while(!m_exit){
         auto now = PacketClock::now();
-        std::this_thread::sleep_until(now + std::chrono::nanoseconds(m_export_sleep_time));
+        if (!PacketClock::has_stopped())
+            std::this_thread::sleep_until(now + std::chrono::nanoseconds(m_export_sleep_time));
         auto time_slept = PacketClock::now() - now;
 	for(auto i = 0u; !PacketClock::has_stopped() && i < time_slept.count()/m_export_sleep_time; i++ ) {
             export_expired(PacketClock::now_as_timeval().tv_sec);
