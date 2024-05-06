@@ -467,6 +467,9 @@ bool NHTFlowCache::is_being_flooded(const Packet& pkt) noexcept{
     m_flood_statistics = m_statistics;
     m_flood_measurement.m_measurement_count++;
 
+    auto threshold = m_flood_measurement.m_last_mean + std::max(m_flood_measurement.m_threshold * m_flood_measurement.m_deviation,m_flood_measurement.m_min);
+    m_flood_measurement.m_cusum = std::max(m_flood_measurement.m_cusum + interval_statistics.m_not_empty + interval_statistics.m_empty - threshold,0.0);
+    auto cusum_threshold = m_flood_measurement.m_threshold * m_flood_measurement.m_deviation;
     m_flood_measurement.m_last_mean = m_flood_measurement.m_coef * (interval_statistics.m_not_empty + interval_statistics.m_empty)
         + (1 - m_flood_measurement.m_coef) * m_flood_measurement.m_last_mean;
     int32_t forecasting_error = (interval_statistics.m_not_empty + interval_statistics.m_empty) - m_flood_measurement.m_last_mean;
@@ -474,10 +477,8 @@ bool NHTFlowCache::is_being_flooded(const Packet& pkt) noexcept{
     m_flood_measurement.m_error_summ2 += (forecasting_error * forecasting_error);
     auto error_mean = m_flood_measurement.m_error_summ / m_flood_measurement.m_measurement_count;
     m_flood_measurement.m_deviation = std::sqrt((m_flood_measurement.m_error_summ2 - 2 * error_mean * m_flood_measurement.m_error_summ + error_mean * error_mean)/
-        m_flood_measurement.m_measurement_count);
-    auto threshold = m_flood_measurement.m_last_mean + std::max(m_flood_measurement.m_threshold * m_flood_measurement.m_deviation,m_flood_measurement.m_min);
-    m_flood_measurement.m_cusum = std::max(m_flood_measurement.m_cusum + interval_statistics.m_not_empty + interval_statistics.m_empty - threshold,0.0);
-    auto cusum_threshold = m_flood_measurement.m_threshold * m_flood_measurement.m_deviation;
+                                                m_flood_measurement.m_measurement_count);
+
     m_graph_export.m_graph_cusum_threshold_datastream << pkt.ts.tv_sec << " " << cusum_threshold << std::endl;
     m_graph_export.m_graph_cusum_datastream << pkt.ts.tv_sec << " " << m_flood_measurement.m_cusum << std::endl;
     return m_flood_measurement.m_cusum > cusum_threshold;
@@ -511,14 +512,14 @@ int NHTFlowCache::insert_pkt(Packet& pkt) noexcept
     // Saves key fields of flow to FlowKey structures
     if (!create_hash_key(pkt))
         return 0;
-    /*export_graph_data(pkt);
+    export_graph_data(pkt);
     if (is_being_flooded(pkt)){
         auto raw_time = pkt.ts.tv_sec;
         tm* time_info = localtime(&raw_time);
         char buffer[80];
         strftime(buffer, sizeof(buffer), "%Y-%m-%d %H:%M:%S", time_info);
         std::cout<<"Flood detected at " << buffer << "\n";
-    }*/
+    }
     // Tries to find index of flow to which packet belongs
     auto [record_found, source, flow_index, hashval] = find_flow_position(pkt);
 

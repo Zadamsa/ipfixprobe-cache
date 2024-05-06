@@ -177,13 +177,13 @@ protected:
         uint64_t m_cusum = 0;
         const uint32_t m_interval_length = 5;
         const uint32_t m_span = 1000;
-        const float m_coef = 2/(m_span/m_interval_length + 1);
+        const float m_coef = 0.3;
         double m_deviation = 0;
         const uint32_t m_threshold = 5;
         const double m_min = 7000;
     } m_flood_measurement;
 
-    uint32_t m_export_sleep_time = 100'000;
+    uint32_t m_export_sleep_time = 1'500'000;
     struct AtomicLockedLine{uint32_t m_export_line = -1;uint32_t m_process_line = -1;};
     std::atomic<AtomicLockedLine> m_locked_lines;// = std::atomic<uint32_t>(0);
     //std::atomic<bool> m_line_is_locked;
