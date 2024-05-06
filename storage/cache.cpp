@@ -247,6 +247,7 @@ void NHTFlowCache::close()
       delete [] m_flow_table;
       m_flow_table = nullptr;
    }
+   print_report();
 }
 
 void NHTFlowCache::set_queue(ipx_ring_t *queue)
