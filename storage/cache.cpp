@@ -51,7 +51,6 @@
 #include <thread>
 #include "fragmentationCache/timevalUtils.hpp"
 #include <cmath>
-#include "packetclock.hpp"
 namespace ipxp {
 
 __attribute__((constructor)) static void register_this_plugin() noexcept
@@ -86,10 +85,6 @@ NHTFlowCache::NHTFlowCache()
     , m_fragmentation_cache(0, 0)
 {
     set_hash_function([](const void* ptr,uint32_t len){ return XXH3_64bits(ptr, len);});
-    //m_graph_export.m_graph_datastream = std::ofstream("graph.data");
-    //m_graph_export.m_graph_new_flows_datastream = std::ofstream("graph_new_flows.data");
-    //m_graph_export.m_graph_cusum_datastream = std::ofstream("graph_cusum.data");
-    //m_graph_export.m_graph_cusum_threshold_datastream = std::ofstream("graph_cusum_threshold.data");
     test_attributes();
 }
 
@@ -111,8 +106,6 @@ NHTFlowCache::~NHTFlowCache()
     m_exit = true;
     if (m_periodic_statistics_sleep_time != 0s)
         m_statistics_thread->join();
-    PacketClock::stop();
-    m_export_thread->join();
 }
 
 void NHTFlowCache::test_attributes()
@@ -163,7 +156,6 @@ void NHTFlowCache::init(OptionsParser& in_parser){
     allocate_tables();
     if (m_periodic_statistics_sleep_time != 0s)
         m_statistics_thread = std::make_unique<std::thread>(&NHTFlowCache::export_periodic_statistics,this,std::ref(std::cout));
-    m_export_thread = std::make_unique<std::thread>(&NHTFlowCache::export_thread_function,this);
     if (m_enable_fragmentation_cache) {
         try {
             m_fragmentation_cache
@@ -323,7 +315,7 @@ std::pair<bool, uint32_t> NHTFlowCache::find_empty_place(uint32_t begin_line) no
 {
     uint32_t end_line = begin_line + m_line_size;
     for (uint32_t flow_index = begin_line; flow_index < end_line; flow_index++) {
-        if (m_flow_table[flow_index]->is_empty() || timeouts_expired(PacketClock::now_as_timeval().tv_sec,flow_index))
+        if (m_flow_table[flow_index]->is_empty())
             return {true, flow_index};
     }
     // No empty place was found.
@@ -447,43 +439,6 @@ void NHTFlowCache::try_to_fill_ports_to_fragmented_packet(Packet& packet)
     m_fragmentation_cache.process_packet(packet);
 }
 
-bool NHTFlowCache::is_being_flooded() noexcept{
-    if (PacketClock::now_as_timeval() - m_flood_measurement.m_last_measurement < timeval{m_flood_measurement.m_interval_length,0})
-        return false;
-
-    m_flood_measurement.m_last_measurement = PacketClock::now_as_timeval();
-    auto interval_statistics = m_statistics - m_flood_statistics;
-    m_flood_statistics = m_statistics;
-    m_flood_measurement.m_measurement_count++;
-
-    m_flood_measurement.m_last_mean = m_flood_measurement.m_coef * (interval_statistics.m_not_empty + interval_statistics.m_empty)
-        + (1 - m_flood_measurement.m_coef) * m_flood_measurement.m_last_mean;
-    int32_t forecasting_error = (interval_statistics.m_not_empty + interval_statistics.m_empty) - m_flood_measurement.m_last_mean;
-    m_flood_measurement.m_error_summ += forecasting_error;
-    m_flood_measurement.m_error_summ2 += (forecasting_error * forecasting_error);
-    auto error_mean = m_flood_measurement.m_error_summ / m_flood_measurement.m_measurement_count;
-    m_flood_measurement.m_deviation = std::sqrt((m_flood_measurement.m_error_summ2 - 2 * error_mean * m_flood_measurement.m_error_summ + error_mean * error_mean)/
-        m_flood_measurement.m_measurement_count);
-    auto threshold = m_flood_measurement.m_last_mean + std::max(m_flood_measurement.m_threshold * m_flood_measurement.m_deviation,m_flood_measurement.m_min);
-    m_flood_measurement.m_cusum = std::max(m_flood_measurement.m_cusum + interval_statistics.m_not_empty + interval_statistics.m_empty - threshold,0.0);
-    auto cusum_threshold = m_flood_measurement.m_threshold * m_flood_measurement.m_deviation;
-    //m_graph_export.m_graph_cusum_threshold_datastream << pkt.ts.tv_sec << " " << cusum_threshold << std::endl;
-    //m_graph_export.m_graph_cusum_datastream << pkt.ts.tv_sec << " " << m_flood_measurement.m_cusum << std::endl;
-    return m_flood_measurement.m_cusum > cusum_threshold;
-}
-
-void NHTFlowCache::export_graph_data(const Packet& pkt){
-    /*if (pkt.ts - m_graph_export.m_last_measurement < timeval{1,0})
-        return ;
-    auto interval_stats = m_statistics - m_graph_export.m_last_statistics;
-    m_graph_export.m_last_measurement = pkt.ts;
-    m_graph_export.m_last_statistics = m_statistics;
-    m_graph_export.m_graph_datastream << pkt.ts.tv_sec << " " << interval_stats.m_expired << std::endl;
-    m_graph_export.m_graph_new_flows_datastream << pkt.ts.tv_sec << " " << interval_stats.m_not_empty + interval_stats.m_empty << std::endl;
-    if (!m_graph_export.m_graph_datastream || !m_graph_export.m_graph_new_flows_datastream)
-        throw PluginError("Cant save graph to file");*/
-}
-
 /**
  * @brief Main packet insertion function.
  * @param pkt Incoming packet.
@@ -491,7 +446,6 @@ void NHTFlowCache::export_graph_data(const Packet& pkt){
  */
 int NHTFlowCache::insert_pkt(Packet& pkt) noexcept
 {
-    PacketClock::set_time(pkt.ts);
     // Calls PRE_CREATE event for new packet
     plugins_pre_create(pkt);
     // Tries to fill up ports if packet is fragmented
@@ -502,14 +456,6 @@ int NHTFlowCache::insert_pkt(Packet& pkt) noexcept
         return 0;
     // Tries to find index of flow to which packet belongs
     auto [record_found, source, flow_index, hashval] = find_flow_position(pkt);
-
-    bool updated;
-    do{
-        auto current_value = m_locked_lines.load();
-        if (current_value.m_export_line == ( (uint32_t)( hashval & m_line_mask )))
-            std::this_thread::yield();
-        updated = m_locked_lines.compare_exchange_weak(current_value,{ current_value.m_export_line, (uint32_t)(hashval & m_line_mask)});
-    }while(!updated);
 
     flow_index = record_found ? enhance_existing_flow_record(flow_index)
                               : make_place_for_record(hashval & m_line_mask);
@@ -528,6 +474,7 @@ int NHTFlowCache::insert_pkt(Packet& pkt) noexcept
         if (update_flow(flow_index, pkt,source))
             return 0;
     }
+    export_expired(pkt.ts.tv_sec);
     return 0;
 }
 
@@ -565,11 +512,6 @@ int NHTFlowCache::put_pkt(Packet& pkt)
 {
     //auto start = std::chrono::high_resolution_clock::now();
     auto res = insert_pkt(pkt);
-    while(true){
-        auto current_value = m_locked_lines.load();
-        if(m_locked_lines.compare_exchange_weak(current_value,{ current_value.m_export_line, (uint32_t)-1}))
-            break;
-    }
    /* m_statistics.m_put_time += std::chrono::duration_cast<std::chrono::nanoseconds>(
                       std::chrono::high_resolution_clock::now() - start)
                       .count();*/
@@ -590,47 +532,7 @@ bool NHTFlowCache::has_tcp_eof_flags(const Flow& flow) noexcept
  */
 void NHTFlowCache::export_expired(time_t ts)
 {
-    bool updated;
-    do{
-        AtomicLockedLine expected_value{(uint32_t)-1, (uint32_t)-1};
-        updated = m_locked_lines.compare_exchange_weak(expected_value,{ m_timeout_idx & m_line_mask, (uint32_t)-1});
-        if (!updated){
-            if (expected_value.m_export_line != (uint32_t)-1){
-                std::this_thread::yield();
-            }else{
-                if (expected_value.m_process_line != ( m_timeout_idx & m_line_mask ))
-                    updated = m_locked_lines.compare_exchange_weak(expected_value,{ m_timeout_idx & m_line_mask, expected_value.m_process_line});
-                else{
-                    updated = m_locked_lines.compare_exchange_weak(expected_value,{ (m_timeout_idx + m_line_size) & m_line_mask, expected_value.m_process_line});
-                    if (updated)
-                        m_timeout_idx = (m_timeout_idx + m_line_size) & m_line_mask;
-                }
-            }
-        }
-    }while(!updated);
-    export_expired_body(ts);
-    while(true){
-        if (AtomicLockedLine expected_value = m_locked_lines.load();m_locked_lines.compare_exchange_weak(expected_value,{ (uint32_t)-1 , expected_value.m_process_line}))
-            break;
-    }
-}
-
-void NHTFlowCache::export_thread_function()noexcept{
-    while(!m_exit){
-        auto now = PacketClock::now();
-        if (!PacketClock::has_stopped())
-            std::this_thread::sleep_until(now + std::chrono::nanoseconds(m_export_sleep_time));
-        auto time_slept = PacketClock::now() - now;
-	for(auto i = 0u; !PacketClock::has_stopped() && i < time_slept.count()/m_export_sleep_time; i++ ) {
-            export_expired(PacketClock::now_as_timeval().tv_sec);
-            m_sleep_time++;
-        }
-    }
-}
-
-void NHTFlowCache::export_expired_body(time_t ts) noexcept
-{
-    for (uint32_t i = m_timeout_idx; i < m_timeout_idx + m_line_size; i++) {
+    for (uint32_t i = m_timeout_idx; i < m_timeout_idx + m_insert_pos; i++) {
         if (!m_flow_table[i]->is_empty()
             && ts - m_flow_table[i]->m_flow.time_last.tv_sec >= m_inactive) {
             m_statistics.m_exported_on_periodic_scan++;
@@ -641,7 +543,7 @@ void NHTFlowCache::export_expired_body(time_t ts) noexcept
                     : ipxp::FlowEndReason::FLOW_END_IDLE_TIMEOUT);
         }
     }
-    m_timeout_idx = (m_timeout_idx + m_line_size) & (m_cache_size - 1);
+    m_timeout_idx = (m_timeout_idx + m_insert_pos) & (m_cache_size - 1);
 }
 
 /**
@@ -673,7 +575,6 @@ void NHTFlowCache::print_report() const noexcept
     if (m_statistics.m_hits) {
         std::cout << "==================================================================\nTOTAL\n";
         std::cout << m_statistics;
-        std::cout << "Exported in thread " << m_sleep_time << " times\n";
     }
 }
 /**

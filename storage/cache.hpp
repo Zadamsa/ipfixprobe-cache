@@ -118,18 +118,8 @@ protected:
     std::unique_ptr<std::thread> m_export_thread; ///< Pointer to periodic statistics thread
     FragmentationCache
         m_fragmentation_cache; ///< Fragmentation cache used for completing packets ports
-    struct GraphExport{
-        std::ofstream m_graph_datastream;
-        std::ofstream m_graph_new_flows_datastream;
-        std::ofstream m_graph_cusum_datastream;
-        std::ofstream m_graph_cusum_threshold_datastream;
-        timeval m_last_measurement{0,0};
-        uint32_t m_interval = 1;
-        CacheStatistics m_last_statistics;
-    } m_graph_export;
     std::function<uint64_t(const void*,uint32_t)> m_hash_function;
 
-    virtual void export_graph_data(const Packet& pkt);
     void try_to_fill_ports_to_fragmented_packet(Packet& packet);
     void allocate_tables();
     void export_periodic_statistics(std::ostream& stream) noexcept;
@@ -156,36 +146,9 @@ protected:
     void prepare_and_export(uint32_t flow_index, FlowEndReason reason) noexcept;
     uint64_t hash(const void* ptr, uint32_t len) const noexcept;
     void set_hash_function(std::function<uint64_t(const void*,uint32_t)> function) noexcept;
-    void export_expired_body(time_t ts) noexcept;
 
     static bool has_tcp_eof_flags(const Flow& flow) noexcept;
     static void test_attributes();
-    virtual bool is_being_flooded() noexcept;
-    void export_thread_function()noexcept;
-
-    struct FloodMeasurement{
-        timeval m_last_measurement;
-        uint64_t m_measurement_count = 0;
-        uint64_t m_flows_created = 0;
-        uint32_t m_last_mean = 0;
-        uint64_t m_error_summ = 0;
-        uint64_t m_error_summ2 = 0;
-        uint64_t m_cusum = 0;
-        static constexpr const uint32_t m_interval_length = 5;
-        static constexpr const uint32_t m_span = 100;
-        const float m_coef = 0.3;
-        double m_deviation = 0;
-        const uint32_t m_threshold = 5;
-        const double m_min = 7000;
-    } m_flood_measurement;
-
-    uint64_t m_export_sleep_time = 1'500'000;
-    struct AtomicLockedLine{uint32_t m_export_line = -1;uint32_t m_process_line = -1;};
-    std::atomic<AtomicLockedLine> m_locked_lines;// = std::atomic<uint32_t>(0);
-    uint64_t m_sleep_time = 0;
-    //std::atomic<bool> m_line_is_locked;
-    // = std::atomic<bool>(false);
-    //std::condition_variable_any m_cond;
 };
 
 } // namespace ipxp
