@@ -353,12 +353,14 @@ uint16_t skip_ipv6_ext_hdrs(const u_char *data_ptr, uint16_t data_len, Packet *p
    struct ip6_ext *ext = (struct ip6_ext *) data_ptr;
    uint8_t next_hdr = pkt->ip_proto;
    uint16_t hdrs_len = 0;
+   uint16_t previous_hdrs_len = 0;
 
    /* Skip/parse extension headers... */
    while (1) {
-      if ((int)sizeof(struct ip6_ext) > data_len - hdrs_len) {
+      if ((int)sizeof(struct ip6_ext) > data_len - hdrs_len || previous_hdrs_len > hdrs_len) {
          throw "Parser detected malformed packet";
       }
+      previous_hdrs_len = hdrs_len;
       if (next_hdr == IPPROTO_HOPOPTS ||
           next_hdr == IPPROTO_DSTOPTS) {
          hdrs_len += (ext->ip6e_len << 3) + 8;
