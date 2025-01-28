@@ -119,10 +119,10 @@ private:
    FlowRecordStats m_flow_record_stats = {};
    FlowCacheStats m_cache_stats = {};
 #ifdef WITH_CTT
-   void set_ctt_config(const std::string& device_name, unsigned channel_id) override;
-   std::string m_ctt_device;
-   unsigned m_ctt_comp_index;
-   CttController m_ctt_controller;
+   void set_ctt_config(const std::shared_ptr<CttController>& ctt_controller) override;
+   //std::string m_ctt_device;
+   //unsigned m_ctt_comp_index;
+   std::shared_ptr<CttController> m_ctt_controller;
    //std::unordered_map<size_t, int> m_hashes_in_ctt;
    //size_t m_ctt_hash_collision{0};
 #endif /* WITH_CTT */

@@ -649,10 +649,11 @@ void NHTFlowCache::prefetch_export_expired() const
    }
 }
 #ifdef WITH_CTT
-void NHTFlowCache::set_ctt_config(const std::string& device_name, unsigned channel_id)
+void NHTFlowCache::set_ctt_config(const std::shared_ptr<CttController>& ctt_controller)
 {
-   m_ctt_device = device_name;
-   m_ctt_comp_index = channel_id/16;
+   m_ctt_controller = ctt_controller;
+   //m_ctt_device = device_name;
+   //m_ctt_comp_index = channel_id/16;
 }
 #endif /* WITH_CTT */
 
