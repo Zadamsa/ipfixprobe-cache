@@ -128,12 +128,6 @@ void NHTFlowCache::init(const char *params)
          throw PluginError("not enough memory for fragment cache allocation");
       }
    }
-#ifdef WITH_CTT
-   if (m_ctt_device.empty()) {
-      throw PluginError("CTT device must be set before init");
-   }
-   m_ctt_controller.init(m_ctt_device, m_ctt_comp_index);
-#endif /* WITH_CTT */
 }
 
 void NHTFlowCache::close()
@@ -652,8 +646,6 @@ void NHTFlowCache::prefetch_export_expired() const
 void NHTFlowCache::set_ctt_config(const std::shared_ptr<CttController>& ctt_controller)
 {
    m_ctt_controller = ctt_controller;
-   //m_ctt_device = device_name;
-   //m_ctt_comp_index = channel_id/16;
 }
 #endif /* WITH_CTT */
 
