@@ -57,7 +57,7 @@ public:
      * @param nfb_dev          The NFB device file (e.g., "/dev/nfb0").
      * @param ctt_comp_index   The index of the CTT component.
      */
-    void init(const std::string& nfb_dev, unsigned ctt_comp_index);
+    CttController(const std::string& nfb_dev, unsigned ctt_comp_index);
 
     /**
      * @brief Command: mark a flow for offload.
