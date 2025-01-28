@@ -99,7 +99,7 @@ public:
    }
 
 #ifdef WITH_CTT
-    virtual void set_ctt_config(const std::string& device_name, unsigned comp_index) = 0;
+    virtual void set_ctt_config(const std::shared_ptr<CttController>& ctt_controller) = 0;
 #endif /* WITH_CTT */
 
    /**
