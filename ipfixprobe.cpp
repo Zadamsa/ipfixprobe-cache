@@ -334,6 +334,10 @@ bool process_plugin_args(ipxp_conf_t &conf, IpfixprobeOptParser &parser)
       auto input_plugin_dir = input_dir->addDir(input_name);
       auto pipeline_queue_dir = pipeline_dir->addDir("queues")->addDir(std::to_string(pipeline_idx));
 
+#ifdef WITH_CTT
+      std::unordered_map<std::string, std::shared_ptr<CttController>> ctt_controllers;
+#endif /* WITH_CTT */
+
       try {
          input_plugin = dynamic_cast<InputPlugin *>(conf.mgr.get(input_name));
          if (input_plugin == nullptr) {
@@ -359,8 +363,9 @@ bool process_plugin_args(ipxp_conf_t &conf, IpfixprobeOptParser &parser)
             throw IPXPError("invalid storage plugin " + storage_name);
          }
 #ifdef WITH_CTT
-         const auto& [device, comp_idx] = input_plugin->get_ctt_config();
-         storage_plugin->set_ctt_config(device, comp_idx);
+         const auto& [device, channel_id] = input_plugin->get_ctt_config();
+         auto [it, _] = ctt_controllers.try_emplace(device + channel_id/16, std::make_shared<CttController>(device, channel_id/16));
+         storage_plugin->set_ctt_config(it->second);
 #endif /* WITH_CTT */
          storage_plugin->set_queue(output_queue);
          storage_plugin->init(storage_params.c_str());
