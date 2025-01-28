@@ -363,7 +363,10 @@ bool process_plugin_args(ipxp_conf_t &conf, IpfixprobeOptParser &parser)
          }
 #ifdef WITH_CTT
          const auto& [device, channel_id] = input_plugin->get_ctt_config();
-         auto [it, _] = ctt_controllers.try_emplace(device + std::to_string(channel_id/16), std::make_shared<CttController>(device, channel_id/16));
+         auto [it, _] = ctt_controllers.try_emplace(device + std::to_string(channel_id/16),
+            [&]() -> std::shared_ptr<CttController> {
+               return std::make_shared<CttController>(device, channel_id / 16);
+            }();
          storage_plugin->set_ctt_config(it->second);
 #endif /* WITH_CTT */
          storage_plugin->set_queue(output_queue);
