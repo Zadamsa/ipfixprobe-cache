@@ -323,6 +323,9 @@ bool process_plugin_args(ipxp_conf_t &conf, IpfixprobeOptParser &parser)
    auto pipeline_dir = conf.telemetry_root_node->addDir("pipeline");
    auto flowcache_dir = conf.telemetry_root_node->addDir("flowcache");
    size_t pipeline_idx = 0;
+#ifdef WITH_CTT
+   std::unordered_map<std::string, std::shared_ptr<CttController>> ctt_controllers;
+#endif /* WITH_CTT */
    for (auto &it : parser.m_input) {
       InputPlugin *input_plugin = nullptr;
       StoragePlugin *storage_plugin = nullptr;
@@ -333,10 +336,6 @@ bool process_plugin_args(ipxp_conf_t &conf, IpfixprobeOptParser &parser)
 
       auto input_plugin_dir = input_dir->addDir(input_name);
       auto pipeline_queue_dir = pipeline_dir->addDir("queues")->addDir(std::to_string(pipeline_idx));
-
-#ifdef WITH_CTT
-      std::unordered_map<std::string, std::shared_ptr<CttController>> ctt_controllers;
-#endif /* WITH_CTT */
 
       try {
          input_plugin = dynamic_cast<InputPlugin *>(conf.mgr.get(input_name));
