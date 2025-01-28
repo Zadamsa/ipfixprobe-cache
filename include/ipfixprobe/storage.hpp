@@ -39,6 +39,9 @@
 #include <string>
 #include <memory>
 #include <telemetry.hpp>
+#ifdef WITH_CTT
+#include "../../storage/cttController.hpp"
+#endif /* WITH_CTT */
 
 namespace ipxp {
 
