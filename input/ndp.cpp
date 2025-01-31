@@ -183,17 +183,13 @@ InputPlugin::Result NdpPacketReader::get(PacketBlock &packets)
 #ifdef WITH_CTT
       if (m_ctt_metadata) {
          Metadata_CTT ctt;
-         auto x = ((ndp_header*)ndp_packet->header)->data_type;
-         auto y = ((ndp_header*)ndp_packet->header)->frame_size;
-         auto z = ((ndp_header*)ndp_packet->header)->dma_channel;
-         auto z2 = ((ndp_header*)ndp_packet->header)->timestamp;
-         auto test = *((uint64_t*)ndp_packet->header)
+         auto flags = ndp_packet->flags;
          int ret = parse_ctt_metadata(ndp_packet, ctt);
          if (ret == -1) {
             m_stats.bad_metadata++;
-            std::vector data(ndp_packet->data, ndp_packet->data + ndp_packet->data_length);
             parse_packet(&opt, m_parser_stats, timestamp, ndp_packet->data, ndp_packet->data_length, ndp_packet->data_length);
          } else {
+            std::vector data(ndp_packet->data, ndp_packet->data + ndp_packet->data_length);
             if (parse_packet_ctt_metadata(&opt, m_parser_stats, ctt, ndp_packet->data, ndp_packet->data_length, ndp_packet->data_length) == -1) {
                m_stats.bad_metadata++;
                parse_packet(&opt, m_parser_stats, timestamp, ndp_packet->data, ndp_packet->data_length, ndp_packet->data_length);
