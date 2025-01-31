@@ -184,6 +184,10 @@ InputPlugin::Result NdpPacketReader::get(PacketBlock &packets)
       if (m_ctt_metadata) {
          Metadata_CTT ctt;
          auto x = ((ndp_header*)ndp_packet->header)->data_type;
+         auto y = ((ndp_header*)ndp_packet->header)->frame_size;
+         auto z = ((ndp_header*)ndp_packet->header)->dma_channel;
+         auto z2 = ((ndp_header*)ndp_packet->header)->timestamp;
+
          int ret = parse_ctt_metadata(ndp_packet, ctt);
          if (ret == -1) {
             m_stats.bad_metadata++;
