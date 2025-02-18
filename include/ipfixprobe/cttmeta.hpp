@@ -177,6 +177,33 @@ struct timeval32 {
 };
 
 struct CttState {
+    constexpr static size_t SIZE = 71;
+    uint8_t dma_channel;  ///< DMA channel
+    timeval32 time_first; ///< Time of the first packet in the flow
+    timeval32 time_last; ///< Time of the last packet in the flow
+    uint64_t src_ip[2]; ///< Source IP address
+    uint64_t dst_ip[2]; ///< Destination IP address
+    uint8_t ip_version : 1; ///< IP version
+    uint8_t ip_proto : 8; ///< IP protocol from the first packet
+    uint16_t src_port : 16; ///< Source port from the first packet
+    uint16_t dst_port : 16; ///< Destination port from the first packet
+    uint8_t tcp_flags : 6; ///< TCP flags cumulative from source to destination
+    uint8_t tcp_flags_rev : 6; ///< TCP flags cumulative from destination to source
+    uint16_t packets : 16; ///< Number of packets in the flow source to destination
+    uint16_t packets_rev : 16; ///< Number of packets in the flow destination to source
+    uint32_t bytes : 32;  ///< Number of bytes in the flow source to destination
+    uint32_t bytes_rev : 32; ///< Number of bytes in the flow destination to source
+    uint16_t limit_size : 16; /** All packets are trimmed to this size if limit_size > 0 or to l4 header if 0
+                                                    when offload_mode == TRIMMED_PACKET_WITH_METADATA_AND_EXPORT set*/
+    OffloadMode offload_mode : 2; ///< Offload mode
+    MetadataType meta_type : 2; ///< Metadata type
+    bool was_exported : 1; ///< Was exported
+    uint8_t byte_fill : 6;
+}__attribute((packed));
+
+/*
+
+struct CttState {
     constexpr static size_t SIZE = 91;
     
     timeval32 time_first; ///< Time of the first packet in the flow
@@ -199,12 +226,13 @@ struct CttState {
     uint16_t packets_rev; ///< Number of packets in the flow destination to source
     uint32_t bytes;  ///< Number of bytes in the flow source to destination
     uint32_t bytes_rev; ///< Number of bytes in the flow destination to source
-    uint16_t limit_size; /** All packets are trimmed to this size if limit_size > 0 or to l4 header if 0
-                                                    when offload_mode == TRIMMED_PACKET_WITH_METADATA_AND_EXPORT set*/
-    OffloadMode offload_mode : 2; ///< Offload mode
-    uint8_t reserved2 : 6; ///< Reserved
-    MetadataType meta_type : 2; ///< Metadata type
-}__attribute((packed));
+    uint16_t limit_size; /// All packets are trimmed to this size if limit_size > 0 or to l4 header if 0
+                                                    when offload_mode == TRIMMED_PACKET_WITH_METADATA_AND_EXPORT set
+                                                    OffloadMode offload_mode : 2; ///< Offload mode
+                                                    uint8_t reserved2 : 6; ///< Reserved
+                                                    MetadataType meta_type : 2; ///< Metadata type
+                                                }__attribute((packed));
+ */
 
 static_assert(sizeof(CttState) == CttState::SIZE, "CttState size mismatch");
 

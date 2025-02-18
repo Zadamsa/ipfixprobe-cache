@@ -580,7 +580,7 @@ int NHTFlowCache::put_pkt(Packet& packet)
    size_t flow_index = *flow_search.flow_index;
 
 #ifdef WITH_CTT
-   const bool flow_is_waiting_for_export = !try_to_export_delayed_flow(packet, flow_index) && m_flow_table[flow_index]->is_waiting_for_export;
+   const bool flow_is_waiting_for_export = !try_to_export_delayed_flow(packet, flow_index) && m_flow_table[flow_index]->is_waiting_ctt_response;
 #else
    constexpr bool flow_is_waiting_for_export = false;
 #endif /* WITH_CTT */
