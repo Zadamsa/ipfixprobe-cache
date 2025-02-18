@@ -49,4 +49,14 @@ inline bool operator>(const struct timeval& a, const struct timeval& b) noexcept
     return a.tv_sec > b.tv_sec;
 }
 
+inline bool operator==(const struct timeval& a, const struct timeval& b) noexcept
+{
+    return a.tv_sec == b.tv_sec && a.tv_usec == b.tv_usec;
+}
+
+inline bool operator>=(const struct timeval& a, const struct timeval& b) noexcept
+{
+    return a > b || a == b;
+}
+
 } // namespace ipxp

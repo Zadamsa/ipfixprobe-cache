@@ -42,7 +42,7 @@ static const uint32_t DEFAULT_FLOW_LINE_SIZE = IPXP_FLOW_LINE_SIZE;
 static const uint32_t DEFAULT_FLOW_LINE_SIZE = 4; // 16 records per line
 #endif /* IPXP_FLOW_LINE_SIZE */
 
-static const uint32_t DEFAULT_INACTIVE_TIMEOUT = 30;
+static const uint32_t DEFAULT_INACTIVE_TIMEOUT = 5;
 static const uint32_t DEFAULT_ACTIVE_TIMEOUT = 300;
 
 static_assert(std::is_unsigned<decltype(DEFAULT_FLOW_CACHE_SIZE)>(), "Static checks of default cache sizes won't properly work without unsigned type.");

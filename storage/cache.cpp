@@ -170,7 +170,7 @@ void NHTFlowCache::finish()
    std::for_each(m_flow_table.begin(), m_flow_table.begin() + m_cache_size, [this](FlowRecord*& flow_record) {
       if (!flow_record->is_empty()) {
 #ifdef WITH_CTT
-         if (flow_record->is_in_ctt && !flow_record->is_waiting_ctt_response) {
+         if (flow_record->is_in_ctt) {
             m_ctt_controller->remove_record_without_notification(flow_record->m_flow.flow_hash_ctt);
          }
 #endif /* WITH_CTT */
@@ -256,7 +256,7 @@ bool NHTFlowCache::try_to_export_on_inactive_timeout(size_t flow_index, const ti
          return false;
       }
       if (m_flow_table[flow_index]->offload_mode == OffloadMode::ONLY_EXPORT 
-            && m_flow_table[flow_index]->m_flow.time_last > m_flow_table[flow_index]->last_state_request) {
+            && m_flow_table[flow_index]->m_flow.time_last >= m_flow_table[flow_index]->last_state_request) {
          m_ctt_controller->get_state(m_flow_table[flow_index]->m_flow.flow_hash_ctt);
          m_flow_table[flow_index]->last_state_request = now;
          m_flow_table[flow_index]->is_waiting_ctt_response = true;
@@ -274,6 +274,9 @@ std::optional<OffloadMode> NHTFlowCache::get_offload_mode(size_t flow_index) con
 {
    //return std::nullopt;
    return OffloadMode::ONLY_EXPORT;
+   if (!m_flow_table[flow_index]->can_be_offloaded) {
+      return std::nullopt;
+   }
    if ( only_metadata_required(m_flow_table[flow_index]->m_flow) && m_flow_table[flow_index]->m_flow.src_packets + m_flow_table[flow_index]->m_flow.dst_packets > 30) {
       return OffloadMode::ONLY_EXPORT;
    }
@@ -472,12 +475,20 @@ static bool is_counter_overflow(CttExportReason ctt_reason, ManagementUnitExport
    return ctt_reason == CttExportReason::MANAGEMENT_UNIT && (mu_reason & ManagementUnitExportReason::COUNTER_OVERFLOW);
 }
 
-void update_packet_counters_from_external_export(Flow& flow, const CttState& state) noexcept
+static void update_packet_counters_from_external_export(Flow& flow, const CttState& state) noexcept
 {
    flow.src_packets = state.packets;
    flow.dst_packets = state.packets_rev;
    flow.src_bytes = state.bytes;
    flow.dst_bytes = state.bytes_rev;
+   flow.time_last = {state.time_last.tv_sec, state.time_last.tv_usec};
+   flow.src_tcp_flags = state.tcp_flags;
+   flow.dst_tcp_flags = state.tcp_flags_rev;
+}
+
+static bool is_hash_collision(CttExportReason ctt_reason, ManagementUnitExportReason mu_reason) noexcept
+{
+   return ctt_reason == 0 && mu_reason == 0;
 }
 
 void NHTFlowCache::export_external(const Packet& pkt) noexcept
@@ -511,6 +522,7 @@ void NHTFlowCache::export_external(const Packet& pkt) noexcept
 
    if (m_flow_table[flow_index.value()]->offload_mode == OffloadMode::ONLY_EXPORT) {
       update_packet_counters_from_external_export(m_flow_table[flow_index.value()]->m_flow, export_data->state);
+      m_flow_table[flow_index.value()]->is_waiting_ctt_response = false;
       std::cout << "Update of 3L offloaded flow" << std::endl;  
    }
 
@@ -518,18 +530,24 @@ void NHTFlowCache::export_external(const Packet& pkt) noexcept
          && m_flow_table[flow_index.value()]->is_waiting_ctt_response 
          && export_data->state.offload_mode == OffloadMode::TRIMMED_PACKET_WITH_METADATA_AND_EXPORT) {
       std::cout << "Real export of ctt site flow from the ipfixprobe" << std::endl;
+      m_flow_table[flow_index.value()]->is_waiting_ctt_response = false;
       export_flow(flow_index.value(), convert_ctt_export_reason_to_ipfxiprobe(export_data->reason, export_data->mu_reason));
       m_ctt_stats.flows_removed++;
    }
 
    if (!export_data->write_back) {
       m_flow_table[flow_index.value()]->is_in_ctt = false;
-      m_flow_table[flow_index.value()]->is_waiting_ctt_response = false;
       m_flow_table[flow_index.value()]->offload_mode = std::nullopt;
    }
 
    if (is_counter_overflow(export_data->reason, export_data->mu_reason)) {
       std::cout << "Ignore export packet vecause it is counter overflow" << std::endl;
+      return;
+   }
+
+   if (is_hash_collision(export_data->reason, export_data->mu_reason)) {
+      m_flow_table[flow_index.value()]->can_be_offloaded = false;
+      std::cout << "Found hash collision, disabling flow offload" << std::endl;
       return;
    }
 
