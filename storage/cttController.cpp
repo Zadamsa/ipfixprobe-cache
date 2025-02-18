@@ -25,12 +25,13 @@
 #include "cttController.hpp"
 #include <cstring>
 #include <endian.h>
+#include <iostream>
 #ifdef WITH_CTT
 
 namespace ipxp {
 
 CttController::CttController(const std::string& nfb_dev, unsigned ctt_comp_index) {
-    m_commander = std::make_unique<ctt::AsyncCommander>(ctt::NfbParams{nfb_dev, ctt_comp_index});
+    m_commander = std::make_unique<ctt::AsyncCommander>(ctt::NfbDebugParams{"/tmp/ctt.out", nfb_dev, ctt_comp_index});
     try {
         // Get UserInfo to determine key, state, and state_mask sizes
         ctt::UserInfo user_info = m_commander->get_user_info();
@@ -59,6 +60,7 @@ void CttController::create_record(const Flow& flow, uint8_t dma_channel, Offload
               MetadataType::FULL_METADATA,
               flow, dma_channel);
         m_commander->write_record(std::move(key), std::move(state));
+        std::cout << "Create record with key" << std::hex << flow.flow_hash_ctt << std::endl;
     }
     catch (const std::exception& e) {
         throw;
@@ -81,6 +83,7 @@ void CttController::remove_record_without_notification(uint64_t flow_hash_ctt)
     try {
         std::vector<std::byte> key = assemble_key(flow_hash_ctt);
         m_commander->delete_record(std::move(key));
+        std::cout << "Deliting without export key" << std::hex << flow_hash_ctt << std::endl;
     }
     catch (const std::exception& e) {
         throw;
@@ -92,6 +95,8 @@ void CttController::export_record(uint64_t flow_hash_ctt)
     try {
         std::vector<std::byte> key = assemble_key(flow_hash_ctt);
         m_commander->export_and_delete_record(std::move(key));
+        std::cout << "Exporting and deliting key" << std::hex << flow_hash_ctt << std::endl;
+
     }
     catch (const std::exception& e) {
         throw;

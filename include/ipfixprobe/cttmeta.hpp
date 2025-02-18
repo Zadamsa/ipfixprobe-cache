@@ -177,28 +177,33 @@ struct timeval32 {
 };
 
 struct CttState {
-    constexpr static size_t SIZE = 71;
-    uint8_t dma_channel;  ///< DMA channel
+    constexpr static size_t SIZE = 91;
+    
     timeval32 time_first; ///< Time of the first packet in the flow
     timeval32 time_last; ///< Time of the last packet in the flow
     uint64_t src_ip[2]; ///< Source IP address
     uint64_t dst_ip[2]; ///< Destination IP address
-    uint8_t ip_version : 1; ///< IP version
-    uint8_t ip_proto : 8; ///< IP protocol from the first packet
-    uint16_t src_port : 16; ///< Source port from the first packet
-    uint16_t dst_port : 16; ///< Destination port from the first packet
+    uint8_t dma_channel;  ///< DMA channel
+    uint8_t ip_proto; ///< IP protocol from the first packet
+    uint16_t src_port; ///< Source port from the first packet
+    uint16_t dst_port; ///< Destination port from the first packet
     uint8_t tcp_flags : 6; ///< TCP flags cumulative from source to destination
+    uint8_t tcp_flags_padding : 2; ///< padding
     uint8_t tcp_flags_rev : 6; ///< TCP flags cumulative from destination to source
-    uint16_t packets : 16; ///< Number of packets in the flow source to destination
-    uint16_t packets_rev : 16; ///< Number of packets in the flow destination to source
-    uint32_t bytes : 32;  ///< Number of bytes in the flow source to destination
-    uint32_t bytes_rev : 32; ///< Number of bytes in the flow destination to source
-    uint16_t limit_size : 16; /** All packets are trimmed to this size if limit_size > 0 or to l4 header if 0
+    uint8_t tcp_flags_rev_padding : 2; ///< padding
+    uint16_t vlan_id; ///< VLAN ID
+    uint8_t ip_version : 1; ///< IP version
+    bool vlan_valid : 1; ///< VLAN valid flag
+    uint8_t reserved1 : 6; ///< Reserved
+    uint16_t packets; ///< Number of packets in the flow source to destination
+    uint16_t packets_rev; ///< Number of packets in the flow destination to source
+    uint32_t bytes;  ///< Number of bytes in the flow source to destination
+    uint32_t bytes_rev; ///< Number of bytes in the flow destination to source
+    uint16_t limit_size; /** All packets are trimmed to this size if limit_size > 0 or to l4 header if 0
                                                     when offload_mode == TRIMMED_PACKET_WITH_METADATA_AND_EXPORT set*/
     OffloadMode offload_mode : 2; ///< Offload mode
+    uint8_t reserved2 : 6; ///< Reserved
     MetadataType meta_type : 2; ///< Metadata type
-    bool was_exported : 1; ///< Was exported
-    uint8_t byte_fill : 6;
 }__attribute((packed));
 
 static_assert(sizeof(CttState) == CttState::SIZE, "CttState size mismatch");
@@ -214,7 +219,7 @@ struct CttExport {
         }
 
         export_data.original_record = extract(data, 0, 1);
-        export_data.updated_record = extract(data, 1, 1);
+        export_data.write_back = extract(data, 1, 1);
         export_data.exported_after_modify = extract(data, 2, 1);
         export_data.reason = static_cast<CttExportReason>(extract(data, 3, 2));
         export_data.mu_reason = static_cast<ManagementUnitExportReason>(extract(data, 5, 3));
@@ -247,7 +252,7 @@ struct CttExport {
     }
 
     bool original_record : 1; ///< PV flag
-    bool updated_record : 1;  ///< WB flag
+    bool write_back : 1;  ///< Record is still in ctt if 1, erased otherwise
     bool exported_after_modify : 1; ///< Exported after modification if 1 or before if 0
     CttExportReason reason : 2; ///< Reason for export
     ManagementUnitExportReason mu_reason : 3; ///< Management unit export reason

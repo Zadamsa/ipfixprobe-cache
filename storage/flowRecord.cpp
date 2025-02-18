@@ -59,8 +59,9 @@ void FlowRecord::erase()
    m_flow.src_tcp_flags = 0;
    m_flow.dst_tcp_flags = 0;
 #ifdef WITH_CTT
-   is_waiting_for_export = false;
+   is_waiting_ctt_response = false;
    is_in_ctt = false;
+   last_state_request = {};
    offload_mode = std::nullopt;
 #endif /* WITH_CTT */
 }
@@ -75,8 +76,9 @@ void FlowRecord::reuse()
    m_flow.src_tcp_flags = 0;
    m_flow.dst_tcp_flags = 0;
 #ifdef WITH_CTT
-   is_waiting_for_export = false;
+   is_waiting_ctt_response = false;
    is_in_ctt = false;
+   last_state_request = {0, 0};
    offload_mode = std::nullopt;
 #endif /* WITH_CTT */
 }
@@ -122,8 +124,9 @@ void FlowRecord::create(const Packet &pkt, uint64_t hash)
       m_flow.dst_port = pkt.dst_port;
    }
 #ifdef WITH_CTT
-   is_waiting_for_export = false;
+   is_waiting_ctt_response = false;
    is_in_ctt = false;
+   last_state_request = pkt.ts;
 #endif /* WITH_CTT */
 }
 
@@ -145,6 +148,9 @@ void FlowRecord::update(const Packet &pkt)
          m_flow.dst_tcp_flags |= pkt.tcp_flags;
       }
    }
+#ifdef WITH_CTT
+   last_state_request = pkt.ts;
+#endif /* WITH_CTT */
 }
 
 } // ipxp

@@ -86,7 +86,7 @@ size_t CacheRowSpan::find_victim(const timeval& now) const noexcept
       if (!flow->is_in_ctt) {
          victim = &flow;
       }
-      return flow->is_waiting_for_export && now > flow->export_time;
+      return flow->is_waiting_ctt_response && now > flow->limit_export_time;
    });
    if (it == m_begin + m_count) {
       return victim - m_begin;

@@ -170,7 +170,7 @@ void NHTFlowCache::finish()
    std::for_each(m_flow_table.begin(), m_flow_table.begin() + m_cache_size, [this](FlowRecord*& flow_record) {
       if (!flow_record->is_empty()) {
 #ifdef WITH_CTT
-         if (flow_record->is_in_ctt && !flow_record->is_waiting_for_export) {
+         if (flow_record->is_in_ctt && !flow_record->is_waiting_ctt_response) {
             m_ctt_controller->remove_record_without_notification(flow_record->m_flow.flow_hash_ctt);
          }
 #endif /* WITH_CTT */
@@ -251,18 +251,37 @@ static bool is_tcp_connection_restart(const Packet& packet, const Flow& flow) no
 bool NHTFlowCache::try_to_export_on_inactive_timeout(size_t flow_index, const timeval& now) noexcept
 {
    if (!m_flow_table[flow_index]->is_empty() && now.tv_sec - m_flow_table[flow_index]->m_flow.time_last.tv_sec >= m_inactive) {
+#ifdef WITH_CTT
+      if (m_flow_table[flow_index]->is_waiting_ctt_response) {
+         return false;
+      }
+      if (m_flow_table[flow_index]->offload_mode == OffloadMode::ONLY_EXPORT 
+            && m_flow_table[flow_index]->m_flow.time_last > m_flow_table[flow_index]->last_state_request) {
+         m_ctt_controller->get_state(m_flow_table[flow_index]->m_flow.flow_hash_ctt);
+         m_flow_table[flow_index]->last_state_request = now;
+         m_flow_table[flow_index]->is_waiting_ctt_response = true;
+         return false;
+         
+      }
+#endif /* WITH_CTT */   
       return try_to_export(flow_index, false, now);
    }
    return false;
 }
 
-bool NHTFlowCache::needs_to_be_offloaded(size_t flow_index) const noexcept
+#ifdef WITH_CTT
+std::optional<OffloadMode> NHTFlowCache::get_offload_mode(size_t flow_index) const noexcept
 {
-   return false;
-   return true;
-   return only_metadata_required(m_flow_table[flow_index]->m_flow) && m_flow_table[flow_index]->m_flow.src_packets + m_flow_table[flow_index]->m_flow.dst_packets > 30;
+   //return std::nullopt;
+   return OffloadMode::ONLY_EXPORT;
+   if ( only_metadata_required(m_flow_table[flow_index]->m_flow) && m_flow_table[flow_index]->m_flow.src_packets + m_flow_table[flow_index]->m_flow.dst_packets > 30) {
+      return OffloadMode::ONLY_EXPORT;
+   }
+   if ( only_metadata_required(m_flow_table[flow_index]->m_flow) && m_flow_table[flow_index]->m_flow.src_packets + m_flow_table[flow_index]->m_flow.dst_packets > 30) {
+      return OffloadMode::TRIMMED_PACKET_WITH_METADATA_AND_EXPORT;
+   }
 }
-
+#endif /*WITH_CTT*/
 
 void NHTFlowCache::create_record(const Packet& packet, size_t flow_index, size_t hash_value) noexcept
 {
@@ -280,26 +299,28 @@ void NHTFlowCache::create_record(const Packet& packet, size_t flow_index, size_t
       return;
    }
    m_flow_table[flow_index]->m_flow.flow_hash_ctt = packet.cttmeta.flow_hash;
-   if (needs_to_be_offloaded(flow_index)) {
-      m_ctt_controller->create_record(m_flow_table[flow_index]->m_flow, m_dma_channel, OffloadMode::TRIMMED_PACKET_WITH_METADATA_AND_EXPORT);
-      m_ctt_stats.flows_offloaded++;
-      m_flow_table[flow_index]->is_in_ctt = true;
-      m_flow_table[flow_index]->offload_mode = OffloadMode::TRIMMED_PACKET_WITH_METADATA_AND_EXPORT;
+   if (const std::optional<OffloadMode> offload_mode = get_offload_mode(flow_index); offload_mode.has_value()) {
+      offload_flow_to_ctt(flow_index, *offload_mode);
    }
 #endif /* WITH_CTT */
 }
 
 #ifdef WITH_CTT
+void NHTFlowCache::offload_flow_to_ctt(size_t flow_index, OffloadMode offload_mode) noexcept 
+{
+   m_ctt_controller->create_record(m_flow_table[flow_index]->m_flow, m_dma_channel, offload_mode);
+   m_ctt_stats.flows_offloaded++;
+   m_flow_table[flow_index]->is_in_ctt = true;
+   m_flow_table[flow_index]->offload_mode = offload_mode;
+}
+
 void NHTFlowCache::try_to_add_flow_to_ctt(size_t flow_index) noexcept
 {
    if (m_flow_table[flow_index]->is_in_ctt || m_flow_table[flow_index]->m_flow.flow_hash_ctt == 0) {
       return;
    }
-   if (needs_to_be_offloaded(flow_index)) {
-      m_ctt_controller->create_record(m_flow_table[flow_index]->m_flow, m_dma_channel, OffloadMode::TRIMMED_PACKET_WITH_METADATA_AND_EXPORT);
-      m_ctt_stats.flows_offloaded++;
-      m_flow_table[flow_index]->is_in_ctt = true;
-      m_flow_table[flow_index]->offload_mode = OffloadMode::TRIMMED_PACKET_WITH_METADATA_AND_EXPORT;
+   if (const std::optional<OffloadMode> offload_mode = get_offload_mode(flow_index); offload_mode.has_value()) {
+      offload_flow_to_ctt(flow_index, *offload_mode);
    }
 }
 #endif /* WITH_CTT */
@@ -351,8 +372,8 @@ bool NHTFlowCache::try_to_export_delayed_flow(const Packet& packet, size_t flow_
    if (!m_flow_table[flow_index]->is_in_ctt) {
       return false;
    }
-   if (m_flow_table[flow_index]->is_waiting_for_export &&
-      ((packet.cttmeta_valid && !packet.cttmeta.ctt_rec_matched) || packet.ts > m_flow_table[flow_index]->export_time)) {
+   if (m_flow_table[flow_index]->is_waiting_ctt_response &&
+      ((packet.cttmeta_valid && !packet.cttmeta.ctt_rec_matched) || packet.ts > m_flow_table[flow_index]->limit_export_time)) {
       plugins_pre_export(m_flow_table[flow_index]->m_flow);
       export_flow(flow_index);
       return true;
@@ -377,16 +398,16 @@ bool NHTFlowCache::try_to_export(size_t flow_index, bool call_pre_export, const 
 {
 #ifdef WITH_CTT
    if (m_flow_table[flow_index]->is_in_ctt) {
-      if (!m_flow_table[flow_index]->is_waiting_for_export) {
-         m_flow_table[flow_index]->is_waiting_for_export = true;
+      if (!m_flow_table[flow_index]->is_waiting_ctt_response) {
+         m_flow_table[flow_index]->is_waiting_ctt_response = true;
          m_ctt_controller->export_record(m_flow_table[flow_index]->m_flow.flow_hash_ctt);
-         m_flow_table[flow_index]->export_time = {now.tv_sec + 1, now.tv_usec};
+         m_flow_table[flow_index]->limit_export_time = {now.tv_sec + 1, now.tv_usec};
          return false;
       }
-      if (m_flow_table[flow_index]->export_time > now) {
+      if (m_flow_table[flow_index]->limit_export_time > now) {
          return false;
       }
-      m_flow_table[flow_index]->is_waiting_for_export = false;
+      m_flow_table[flow_index]->is_waiting_ctt_response = false;
    }
 #endif /* WITH_CTT */
    if (call_pre_export) {
@@ -451,15 +472,24 @@ static bool is_counter_overflow(CttExportReason ctt_reason, ManagementUnitExport
    return ctt_reason == CttExportReason::MANAGEMENT_UNIT && (mu_reason & ManagementUnitExportReason::COUNTER_OVERFLOW);
 }
 
+void update_packet_counters_from_external_export(Flow& flow, const CttState& state) noexcept
+{
+   flow.src_packets = state.packets;
+   flow.dst_packets = state.packets_rev;
+   flow.src_bytes = state.bytes;
+   flow.dst_bytes = state.bytes_rev;
+}
+
 void NHTFlowCache::export_external(const Packet& pkt) noexcept
 {
    m_ctt_stats.export_packets++;
    const std::optional<CttExport> export_data = CttExport::parse(pkt.packet, pkt.packet_len);
    if (!export_data.has_value()) {
       m_ctt_stats.export_packets_parsing_failed++;
+      std::cout << "Parsing external export failed" << std::endl;
       return;
    }
-
+   std::cout << "External export of " << std::hex << export_data->flow_hash_ctt << std::endl;
    const IP ip_version = export_data->state.ip_version == 0 ? IP::v4 : IP::v6;
    std::variant<FlowKeyv4, FlowKeyv6> key = *FlowKeyFactory::create_direct_key(&export_data->state.src_ip, &export_data->state.dst_ip,
       export_data->state.src_port, export_data->state.dst_port, export_data->state.ip_proto, ip_version);
@@ -473,24 +503,41 @@ void NHTFlowCache::export_external(const Packet& pkt) noexcept
          || !m_flow_table[flow_index.value()]->is_in_ctt
          || !m_flow_table[flow_index.value()]->offload_mode.has_value()) {
       m_ctt_stats.export_packets_for_missing_flow++;
+      std::cout << "Export of missing flow" << std::endl;
       return;
    }
 
    update_ctt_export_stats(export_data->reason, export_data->mu_reason);
 
-   if (is_counter_overflow(export_data->reason, export_data->mu_reason)) {
-      if (m_flow_table[flow_index.value()]->offload_mode == OffloadMode::TRIMMED_PACKET_WITH_METADATA_AND_EXPORT) {
-         return;
-      }
+   if (m_flow_table[flow_index.value()]->offload_mode == OffloadMode::ONLY_EXPORT) {
+      update_packet_counters_from_external_export(m_flow_table[flow_index.value()]->m_flow, export_data->state);
+      std::cout << "Update of 3L offloaded flow" << std::endl;  
    }
-   if (export_data->reason == CttExportReason::CTT_FULL) {
+
+   if (!export_data->write_back 
+         && m_flow_table[flow_index.value()]->is_waiting_ctt_response 
+         && export_data->state.offload_mode == OffloadMode::TRIMMED_PACKET_WITH_METADATA_AND_EXPORT) {
+      std::cout << "Real export of ctt site flow from the ipfixprobe" << std::endl;
+      export_flow(flow_index.value(), convert_ctt_export_reason_to_ipfxiprobe(export_data->reason, export_data->mu_reason));
+      m_ctt_stats.flows_removed++;
+   }
+
+   if (!export_data->write_back) {
       m_flow_table[flow_index.value()]->is_in_ctt = false;
-      m_flow_table[flow_index.value()]->is_waiting_for_export = false;
+      m_flow_table[flow_index.value()]->is_waiting_ctt_response = false;
       m_flow_table[flow_index.value()]->offload_mode = std::nullopt;
    }
 
-   export_flow(flow_index.value(), convert_ctt_export_reason_to_ipfxiprobe(export_data->reason, export_data->mu_reason));
-   m_ctt_stats.flows_removed++;
+   if (is_counter_overflow(export_data->reason, export_data->mu_reason)) {
+      std::cout << "Ignore export packet vecause it is counter overflow" << std::endl;
+      return;
+   }
+
+   if (export_data->reason == CttExportReason::CTT_FULL) {
+      std::cout << "CTT is full" << std::endl;
+   }
+
+
 }
 #endif /* WITH_CTT */
 
@@ -501,6 +548,7 @@ static bool check_ip_version(const Packet& pkt) noexcept
 
 int NHTFlowCache::put_pkt(Packet& packet)
 {
+   std::vector<char> data(packet.packet, packet.packet + packet.packet_len);
    plugins_pre_create(packet);
 
    if (m_enable_fragmentation_cache) {
@@ -570,10 +618,10 @@ size_t NHTFlowCache::get_empty_place(CacheRowSpan& row, const timeval& now) noex
 #endif /* WITH_CTT */
    row.advance_flow_to(victim_index, m_new_flow_insert_index);
 #ifdef WITH_CTT
-   if (row[m_new_flow_insert_index]->is_in_ctt && !row[m_new_flow_insert_index]->is_waiting_for_export) {
-      row[m_new_flow_insert_index]->is_waiting_for_export = true;
+   if (row[m_new_flow_insert_index]->is_in_ctt && !row[m_new_flow_insert_index]->is_waiting_ctt_response) {
+      row[m_new_flow_insert_index]->is_waiting_ctt_response = true;
       m_ctt_controller->remove_record_without_notification(row[m_new_flow_insert_index]->m_flow.flow_hash_ctt);
-      row[m_new_flow_insert_index]->export_time = {now.tv_sec + 1, now.tv_usec};
+      row[m_new_flow_insert_index]->limit_export_time = {now.tv_sec + 1, now.tv_usec};
    }
 #endif /* WITH_CTT */
    plugins_pre_export(row[m_new_flow_insert_index]->m_flow);

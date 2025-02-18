@@ -39,10 +39,11 @@ public:
     Flow m_flow;
 #ifdef WITH_CTT
     bool is_in_ctt;                 /**< Flow is offloaded by CTT if set. */
-    bool is_waiting_for_export;        /**< Export request of flow was sent to ctt,
+    bool is_waiting_ctt_response;        /**< Export request of flow was sent to ctt,
                                                 but still has not been processed in ctt. */
-    timeval export_time;            /**< Time point when we sure that the export request has already been processed by ctt,
+    timeval limit_export_time;            /**< Time point when we sure that the export request has already been processed by ctt,
                                                 and flow is not in ctt anymore. */
+    timeval last_state_request;            /**< Time point when the last state request was sent to CTT. */
     std::optional<OffloadMode> offload_mode;        /**< Offload mode of the flow. */
 #endif /* WITH_CTT */
 

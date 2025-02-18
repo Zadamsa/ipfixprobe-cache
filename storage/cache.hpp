@@ -141,7 +141,10 @@ private:
    void send_export_request_to_ctt(size_t ctt_flow_hash) noexcept;
    void export_expired(const timeval& now);
    void try_to_add_flow_to_ctt(size_t flow_index) noexcept;
-   bool needs_to_be_offloaded(size_t flow_index) const noexcept;
+#ifdef WITH_CTT
+   std::optional<OffloadMode> get_offload_mode(size_t flow_index) const noexcept;
+   void offload_flow_to_ctt(size_t flow_index, OffloadMode offload_mode) noexcept; 
+#endif /* WITH_CTT */   
    size_t get_empty_place(CacheRowSpan& row, const timeval& now) noexcept;
 };
 }

@@ -678,6 +678,9 @@ void parse_packet(parser_opt_t *opt, ParserStats& stats, struct timeval ts, cons
    pkt->tcp_options = 0;
    pkt->tcp_mss = 0;
    pkt->mplsTop = 0;
+#ifdef WITH_CTT
+   pkt->external_export = false;
+#endif /* WITH_CTT */
 
    stats.seen_packets++;
 
