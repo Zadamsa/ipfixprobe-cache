@@ -42,9 +42,8 @@ public:
     bool is_waiting_ctt_response;        /**< Export request of flow was sent to ctt,
                                                 but still has not been processed in ctt. */
     bool can_be_offloaded;            /**< No flow collision in CTT */
-    timeval limit_export_time;            /**< Time point when we sure that the export request has already been processed by ctt,
-                                                and flow is not in ctt anymore. */
-    timeval last_state_request;            /**< Time point when the last state request was sent to CTT. */
+    //timeval limit_export_time;            /**< Time point when we sure that the export request has already been processed by ctt, and flow is not in ctt anymore. */
+    timeval last_request_time;            /**< Time point when the last state request was sent to CTT. */
     std::optional<OffloadMode> offload_mode;        /**< Offload mode of the flow. */
 #endif /* WITH_CTT */
 

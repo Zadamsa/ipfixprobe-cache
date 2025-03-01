@@ -61,7 +61,7 @@ void FlowRecord::erase()
 #ifdef WITH_CTT
    is_waiting_ctt_response = false;
    is_in_ctt = false;
-   last_state_request = {0, 0};
+   last_request_time = {0, 0};
    can_be_offloaded = false;
    offload_mode = std::nullopt;
 #endif /* WITH_CTT */
@@ -79,7 +79,7 @@ void FlowRecord::reuse()
 #ifdef WITH_CTT
    is_waiting_ctt_response = false;
    is_in_ctt = false;
-   last_state_request = {0, 0};
+   last_request_time = {0, 0};
    can_be_offloaded = false;
    offload_mode = std::nullopt;
 #endif /* WITH_CTT */
@@ -129,7 +129,7 @@ void FlowRecord::create(const Packet &pkt, uint64_t hash)
    is_waiting_ctt_response = false;
    is_in_ctt = false;
    can_be_offloaded = true;
-   last_state_request = {pkt.ts.tv_sec - 1, pkt.ts.tv_usec};
+   last_request_time = {pkt.ts.tv_sec - 1, pkt.ts.tv_usec};
 #endif /* WITH_CTT */
 }
 
@@ -152,7 +152,7 @@ void FlowRecord::update(const Packet &pkt)
       }
    }
 #ifdef WITH_CTT
-   last_state_request = pkt.ts;
+
 #endif /* WITH_CTT */
 }
 

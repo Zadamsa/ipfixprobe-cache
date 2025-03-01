@@ -25,7 +25,7 @@
 #include "cacheRowSpan.hpp"
 
 #include <algorithm>
-
+#include <iostream>
 #include "fragmentationCache/timevalUtils.hpp"
 
 namespace ipxp {
@@ -86,7 +86,13 @@ size_t CacheRowSpan::find_victim(const timeval& now) const noexcept
       if (!flow->is_in_ctt) {
          victim = &flow;
       }
-      return flow->is_waiting_ctt_response && now > flow->limit_export_time;
+      if (flow->is_in_ctt && !flow->offload_mode.has_value()) {
+         std::cout << "Flow is in CTT but offload mode is not set(CRS)" << std::endl;
+      }
+      return flow->is_waiting_ctt_response 
+         && now > flow->last_request_time + CTT_REQUEST_TIMEOUT 
+         && flow->offload_mode.has_value() 
+         && flow->offload_mode != OffloadMode::ONLY_EXPORT;
    });
    if (it == m_begin + m_count) {
       return victim - m_begin;

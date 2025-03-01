@@ -101,6 +101,7 @@ private:
 
    void set_ctt_config(const std::shared_ptr<CttController>& ctt_controller, uint8_t dma_channel) override;
    void update_ctt_export_stats(CttExportReason ctt_reason, ManagementUnitExportReason mu_reason) noexcept;
+   constexpr static timeval CTT_REQUEST_TIMEOUT = {1, 0};
 #endif /* WITH_CTT */
 
    void try_to_fill_ports_to_fragmented_packet(Packet& packet);

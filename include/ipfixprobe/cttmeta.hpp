@@ -89,7 +89,7 @@ struct CttMetadata {
             return std::nullopt;
         }
 
-        metadata.ts.tv_usec      = extract(data, 0,   32);
+        metadata.ts.tv_usec      = 1000* extract(data, 0,   32); ///< CTT uses seconds/nanoseconds ts
         metadata.ts.tv_sec       = extract(data, 32,  32);
         metadata.vlan_tci        = extract(data, 64,  16);
         metadata.vlan_vld        = extract(data, 80,  1);
@@ -236,6 +236,8 @@ struct CttState {
 
 static_assert(sizeof(CttState) == CttState::SIZE, "CttState size mismatch");
 
+constexpr static timeval CTT_REQUEST_TIMEOUT = {1, 0}; ///< Timeout for CTT request
+
 struct CttExport {
     constexpr static size_t SIZE = 80;
 
@@ -253,9 +255,9 @@ struct CttExport {
         export_data.mu_reason = static_cast<ManagementUnitExportReason>(extract(data, 5, 3));
         export_data.flow_hash_ctt = extract(data, 8, 64);
         export_data.state.dma_channel = extract(data, 72, 8);
-        export_data.state.time_first.tv_usec = extract(data, 80, 32);
+        export_data.state.time_first.tv_usec = 1000 * extract(data, 80, 32);
         export_data.state.time_first.tv_sec = extract(data, 112, 32);
-        export_data.state.time_last.tv_usec = extract(data, 144, 32);
+        export_data.state.time_last.tv_usec = 1000* extract(data, 144, 32);
         export_data.state.time_last.tv_sec = extract(data, 176, 32);
         *reinterpret_cast<uint64_t*>(&export_data.state.src_ip) = extract(data, 208, 64);
         *(reinterpret_cast<uint64_t*>(&export_data.state.src_ip) + 1) = extract(data, 272, 64);
