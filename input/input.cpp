@@ -52,6 +52,17 @@ static telemetry::Content get_parser_stats_content(const ParserStats& parserStat
    dict["seen_packets"] = parserStats.seen_packets;
    dict["unknown_packets"] = parserStats.unknown_packets;
 
+   dict["thrown_exceptions"] = parserStats.thrown_exceptions;
+   dict["ctt_parsing_failed"] = parserStats.ctt_parsing_failed;
+
+   dict["l4_offset_0"] = parserStats.l4_offset_0;
+   dict["l3_offset_0"] = parserStats.l3_offset_0;
+   dict["ip_payload_len_0"] = parserStats.ip_payload_len_0;
+   dict["data_offset_less_than_l4_hdr_offset"] = parserStats.data_offset_less_than_l4_hdr_offset;
+   dict["total_tcp_set"] = parserStats.total_tcp_set;
+   dict["total_ip4_set"] = parserStats.total_ip4_set;
+   
+
    return dict;
 }
 

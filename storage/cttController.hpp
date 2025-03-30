@@ -24,6 +24,13 @@
 
 #pragma once
 
+#define DISABLE_CODE 1
+#if DISABLE_CODE
+    #define MAYBE_DISABLED_CODE(...)
+#else
+    #define MAYBE_DISABLED_CODE(...) do { __VA_ARGS__; } while (0);
+#endif
+
 #include <config.h>
 #ifdef WITH_CTT
 #include <ipfixprobe/cttmeta.hpp>
@@ -36,6 +43,8 @@
 #include <ctt.hpp>
 #include <queue>
 #include <tuple>
+#include <cstddef>
+#include <vector>
 
 namespace ipxp {
 
@@ -54,7 +63,7 @@ public:
    *
    * @param flow_hash_ctt    The flow hash to be offloaded.
    */
-   void create_record(const Flow& flow, uint8_t dma_channel, OffloadMode offload_mode = OffloadMode::TRIMMED_PACKET_WITH_METADATA_AND_EXPORT);
+   void create_record(const Flow& flow, uint8_t dma_channel, feta::OffloadMode offload_mode);
 
    /**
    * @brief Command: export a flow from the CTT.
@@ -83,7 +92,7 @@ private:
    * @return A byte vector representing the assembled state vector.
    */
    std::vector<std::byte>
-   assemble_state(OffloadMode offload_mode, MetadataType meta_type, const Flow& flow, uint8_t dma_channel);
+   assemble_state(feta::OffloadMode offload_mode, feta::MetaType meta_type, const Flow& flow, uint8_t dma_channel);
 
    /**
    * @brief Assembles the key vector from the given flow hash.

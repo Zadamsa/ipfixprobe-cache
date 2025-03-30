@@ -39,6 +39,7 @@ struct FlowKey {
    uint8_t ip_version;
    std::array<uint8_t, AddressSize> src_ip;
    std::array<uint8_t, AddressSize> dst_ip;
+   uint16_t vlan_id;
 } __attribute__((packed));
 
 using FlowKeyv4 = FlowKey<IP::v4>;

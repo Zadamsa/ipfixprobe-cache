@@ -35,18 +35,12 @@ CacheRowSpan::CacheRowSpan(FlowRecord** begin, size_t count) noexcept
 {
 }
 
-std::optional<size_t> CacheRowSpan::find_by_hash(uint64_t hash, const std::optional<uint16_t>& vlan_id) const noexcept
+std::optional<size_t> CacheRowSpan::find_by_hash(uint64_t hash) const noexcept
 {
    FlowRecord** it = nullptr;
-   if (!vlan_id.has_value()) {
-      it = std::find_if(m_begin, m_begin + m_count, [&](const FlowRecord* flow) {
-         return flow->belongs(hash);
-      });
-   } else {
-      it = std::find_if(m_begin, m_begin + m_count, [&](const FlowRecord* flow) {
-         return flow->belongs(hash, *vlan_id);
-      });
-   }
+   it = std::find_if(m_begin, m_begin + m_count, [&](const FlowRecord* flow) {
+      return flow->belongs(hash);
+   });
    if (it == m_begin + m_count) {
       return std::nullopt;
    }
@@ -82,8 +76,16 @@ std::optional<size_t> CacheRowSpan::find_empty() const noexcept
 size_t CacheRowSpan::find_victim(const timeval& now) const noexcept
 {
    FlowRecord* const* victim = m_begin + m_count - 1;
-   auto it = std::find_if(m_begin, m_begin + m_count, [&](FlowRecord* const& flow) {
-      if (!flow->is_in_ctt) {
+   auto it = std::find_if(std::reverse_iterator(m_begin + m_count), 
+                              std::reverse_iterator(m_begin), [&](FlowRecord* const& flow) {
+      
+      return !flow->is_in_ctt || 
+      (flow->offload_mode.has_value() 
+         && flow->offload_mode.value() == feta::OffloadMode::TRIM_PACKET_META);
+      if (!flow->is_in_ctt || 
+         (flow->offload_mode.has_value() 
+            && flow->offload_mode.value() == feta::OffloadMode::TRIM_PACKET_META)) {
+         return true;
          victim = &flow;
       }
       if (flow->is_in_ctt && !flow->offload_mode.has_value()) {
@@ -91,13 +93,12 @@ size_t CacheRowSpan::find_victim(const timeval& now) const noexcept
       }
       return flow->is_waiting_ctt_response 
          && now > flow->last_request_time + CTT_REQUEST_TIMEOUT 
-         && flow->offload_mode.has_value() 
-         && flow->offload_mode != OffloadMode::ONLY_EXPORT;
+         && flow->offload_mode.has_value();
    });
-   if (it == m_begin + m_count) {
-      return victim - m_begin;
+   if (it == std::reverse_iterator(m_begin)) {
+      return m_count - 1;
    }
-   return it - m_begin;
+   return it.base() - m_begin - 1;
 }
 #endif /* WITH_CTT */
 

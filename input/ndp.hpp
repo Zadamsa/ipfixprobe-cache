@@ -82,6 +82,7 @@ private:
         uint64_t receivedPackets;
         uint64_t receivedBytes;
         uint64_t bad_metadata;
+        uint64_t ctt_unknown_packet_type{0};
    };
 
    telemetry::Content get_queue_telemetry();

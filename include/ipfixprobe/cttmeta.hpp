@@ -5,7 +5,9 @@
 #include <config.h>
 #include <bits/types/struct_timeval.h>
 
+
 #ifdef WITH_CTT
+#include <feta.hpp>
 
 namespace ipxp {
 
@@ -89,7 +91,7 @@ struct CttMetadata {
             return std::nullopt;
         }
 
-        metadata.ts.tv_usec      = 1000* extract(data, 0,   32); ///< CTT uses seconds/nanoseconds ts
+        metadata.ts.tv_usec      = extract(data, 0,   32) / 1000; ///< CTT uses seconds/nanoseconds ts
         metadata.ts.tv_sec       = extract(data, 32,  32);
         metadata.vlan_tci        = extract(data, 64,  16);
         metadata.vlan_vld        = extract(data, 80,  1);
@@ -110,7 +112,10 @@ struct CttMetadata {
         metadata.l2_ptype        = static_cast<L2PType>(extract(data, 216, 4));
         metadata.l3_ptype        = static_cast<L3PType>(extract(data, 220, 4));
         metadata.l4_ptype        = static_cast<L4PType>(extract(data, 224, 4));
-
+        
+        if (metadata.parser_status != ParserStatus::PA_OK) {
+            return std::nullopt;
+        }
         return metadata;
     }
     struct timeval ts;             ///< Timestamp; invalid if all bits are 1
@@ -135,29 +140,29 @@ struct CttMetadata {
     L4PType l4_ptype : 4;          ///< Type of the L4 layer
 };
 
-enum CttExportReason : uint8_t {
+/*enum CttExportReason : uint8_t {
     MANAGEMENT_UNIT = 0, ///< Exported by CTT MU
     SOFTWARE = 1, ///< Exported by software
     CTT_FULL = 2, ///< CTT is full, state was replaced
     RESERVED = 3 ///< Reserved
-};
+};*/
 
 /**
  * \brief CTT export metadata
  * Valid only if CttExportReason is MANAGEMENT_UNIT
  */
-enum ManagementUnitExportReason : uint8_t {
+/*enum ManagementUnitExportReason : uint8_t {
     COUNTER_OVERFLOW = 0b1, ///< Counter overflow
     TCP_EOF = 0b10, ///< TCP connection ended
     ACTIVE_TIMEOUT = 0b100, ///< Active timeout
-};
+};*/
 
-enum IpVersion : uint8_t {
+/*enum IpVersion : uint8_t {
     IPv4 = 0, ///< IPv4
     IPv6 = 1  ///< IPv6
-};
+};*/
 
-enum OffloadMode : uint8_t {
+/*enum OffloadMode : uint8_t {
     FULL_PACKET_WITH_METADATA_AND_EXPORT = 0,    ///< Packet with metadata and export
     TRIMMED_PACKET_WITH_METADATA_AND_EXPORT = 1, ///< Trimmed packet with metadata and export
     ONLY_FULL_METADATA_AND_EXPORT = 2,           ///< Only full metadata and export
@@ -174,9 +179,9 @@ enum MetadataType : uint8_t {
 struct timeval32 {
     uint32_t tv_usec;
     uint32_t tv_sec;
-};
+};*/
 
-struct CttState {
+/*struct CttState {
     constexpr static size_t SIZE = 71;
     uint8_t dma_channel;  ///< DMA channel
     timeval32 time_first; ///< Time of the first packet in the flow
@@ -193,14 +198,14 @@ struct CttState {
     uint16_t packets_rev : 16; ///< Number of packets in the flow destination to source
     uint32_t bytes : 32;  ///< Number of bytes in the flow source to destination
     uint32_t bytes_rev : 32; ///< Number of bytes in the flow destination to source
-    uint16_t limit_size : 16; /** All packets are trimmed to this size if limit_size > 0 or to l4 header if 0
-                                                    when offload_mode == TRIMMED_PACKET_WITH_METADATA_AND_EXPORT set*/
+    uint16_t limit_size : 16; / All packets are trimmed to this size if limit_size > 0 or to l4 header if 0
+                                                    when offload_mode == TRIMMED_PACKET_WITH_METADATA_AND_EXPORT set
     OffloadMode offload_mode : 2; ///< Offload mode
     MetadataType meta_type : 2; ///< Metadata type
     bool was_exported : 1; ///< Was exported
     uint8_t byte_fill : 6;
 }__attribute((packed));
-
+*/
 /*
 
 struct CttState {
@@ -234,11 +239,11 @@ struct CttState {
                                                 }__attribute((packed));
  */
 
-static_assert(sizeof(CttState) == CttState::SIZE, "CttState size mismatch");
+//static_assert(sizeof(CttState) == CttState::SIZE, "CttState size mismatch");
 
 constexpr static timeval CTT_REQUEST_TIMEOUT = {1, 0}; ///< Timeout for CTT request
 
-struct CttExport {
+/*struct CttExport {
     constexpr static size_t SIZE = 80;
 
     static std::optional<CttExport> parse(const uint8_t* data, size_t length) noexcept
@@ -291,10 +296,7 @@ struct CttExport {
 } __attribute((packed));
 
 static_assert(sizeof(CttExport) == CttExport::SIZE, "CttExport size mismatch");
-
-#if defined(__GNUC__) && (__GNUC__ < 4 || (__GNUC__ == 4 && __GNUC_MINOR__ < 4))
-#error "This code requires GCC version 4.4 or higher to ensure consistent bit-field ordering."
-#endif
+*/
 
 }
 

@@ -70,6 +70,7 @@ public:
 
 #ifdef WITH_CTT
    virtual std::pair<std::string, unsigned> get_ctt_config() const {
+      return std::make_pair("/dev/nfb0", 0);
       throw PluginError("CTT is not supported by this input plugin");
    }
 #endif /* WITH_CTT */

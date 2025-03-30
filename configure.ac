@@ -240,6 +240,7 @@ AC_ARG_WITH([ctt],
 if test x${withctt} = xyes; then
    AC_LANG_PUSH([C++])
    CXXFLAGS="$CXXFLAGS -std=c++17 -Wno-packed-bitfield-compat"
+   AC_CHECK_HEADERS([feta.hpp], [libfeta=yes], AC_MSG_ERROR([feta.hpp not found. Try installing libfeta]))
    AC_CHECK_HEADERS([ctt.hpp], [libctt=yes], AC_MSG_ERROR([ctt.hpp not found. Try installing libctt-devel]))
    AC_LANG_POP([C++])
 fi
@@ -247,7 +248,7 @@ fi
 AM_CONDITIONAL(WITH_CTT, test x${libctt} = xyes && test x${withctt} = xyes)
 if [[ -z "$WITH_CTT_TRUE" ]]; then
    AC_DEFINE([WITH_CTT], [1], [Define to 1 if the ctt is available])
-   LIBS="-lctt $LIBS"
+   LIBS="-lctt -lfeta $LIBS"
    RPM_REQUIRES+=" libctt"
    RPM_BUILDREQ+=" libctt-devel"
 fi

@@ -23,6 +23,9 @@ struct FlowRecordStats {
 };
 
 struct FlowCacheStats{
+   uint64_t total{0};
+   uint64_t bad{0};
+   uint64_t empty_places[16];
    uint64_t empty{0};
    uint64_t not_empty{0};
    uint64_t hits{0};
@@ -37,7 +40,12 @@ struct FlowCacheStats{
 #ifdef WITH_CTT
 
 struct CttStats {
+   uint64_t total_requests_count{0};
+   uint64_t lost_requests_count{0};
+   uint64_t real_processed_packets{0};
    uint64_t flows_offloaded{0};
+   uint64_t trim_packet_offloaded{0};
+   uint64_t drop_packet_offloaded{0};
    uint64_t flows_removed{0};
    uint64_t export_packets{0};
    uint64_t export_packets_for_missing_flow{0};

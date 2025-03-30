@@ -48,6 +48,7 @@
 #include "cttController.hpp"
 #include "cacheStats.hpp"
 
+
 namespace ipxp {
 
 
@@ -100,8 +101,7 @@ private:
    std::shared_ptr<CttController> m_ctt_controller;
 
    void set_ctt_config(const std::shared_ptr<CttController>& ctt_controller, uint8_t dma_channel) override;
-   void update_ctt_export_stats(CttExportReason ctt_reason, ManagementUnitExportReason mu_reason) noexcept;
-   constexpr static timeval CTT_REQUEST_TIMEOUT = {1, 0};
+   void update_ctt_export_stats(feta::ExportReason ctt_reason, feta::MuExportReason mu_reason) noexcept;
 #endif /* WITH_CTT */
 
    void try_to_fill_ports_to_fragmented_packet(Packet& packet);
@@ -125,10 +125,10 @@ private:
 
    std::pair<FlowSearch, bool>
    find_flow_index(const std::variant<FlowKeyv4, FlowKeyv6>& key,
-                   const std::variant<FlowKeyv4, FlowKeyv6>& key_reversed, const std::optional<uint16_t>& vlan_id = std::nullopt) noexcept;
+                   const std::variant<FlowKeyv4, FlowKeyv6>& key_reversed) noexcept;
 
    FlowSearch
-   find_row(const std::variant<FlowKeyv4, FlowKeyv6>& key, const std::optional<uint16_t>& vlan_id = std::nullopt) noexcept;
+   find_row(const std::variant<FlowKeyv4, FlowKeyv6>& key) noexcept;
    bool try_to_export_on_inactive_timeout(size_t flow_index, const timeval& now) noexcept;
    bool try_to_export_on_active_timeout(size_t flow_index, const timeval& now) noexcept;
    void export_flow(size_t flow_index, int reason);
@@ -143,9 +143,10 @@ private:
    void export_expired(const timeval& now);
    void try_to_add_flow_to_ctt(size_t flow_index) noexcept;
 #ifdef WITH_CTT
-   std::optional<OffloadMode> get_offload_mode(size_t flow_index) const noexcept;
-   void offload_flow_to_ctt(size_t flow_index, OffloadMode offload_mode) noexcept; 
+   std::optional<feta::OffloadMode> get_offload_mode(size_t flow_index) noexcept;
+   void offload_flow_to_ctt(size_t flow_index, feta::OffloadMode offload_mode) noexcept; 
 #endif /* WITH_CTT */   
+   void export_and_reuse_flow(size_t flow_index) noexcept;
    size_t get_empty_place(CacheRowSpan& row, const timeval& now) noexcept;
 };
 }

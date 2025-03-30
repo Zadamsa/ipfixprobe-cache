@@ -44,7 +44,7 @@ public:
     bool can_be_offloaded;            /**< No flow collision in CTT */
     //timeval limit_export_time;            /**< Time point when we sure that the export request has already been processed by ctt, and flow is not in ctt anymore. */
     timeval last_request_time;            /**< Time point when the last state request was sent to CTT. */
-    std::optional<OffloadMode> offload_mode;        /**< Offload mode of the flow. */
+    std::optional<feta::OffloadMode> offload_mode;        /**< Offload mode of the flow. */
 #endif /* WITH_CTT */
 
     FlowRecord();
@@ -61,11 +61,6 @@ public:
     __attribute__((always_inline)) bool belongs(uint64_t hash) const noexcept
     {
         return hash == m_hash;
-    }
-
-    __attribute__((always_inline)) bool belongs(uint64_t hash, uint16_t vlan_id) const noexcept
-    {
-        return hash == m_hash && m_flow.vlan_id == vlan_id;
     }
 
     void create(const Packet &pkt, uint64_t pkt_hash);

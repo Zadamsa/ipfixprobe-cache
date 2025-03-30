@@ -77,11 +77,6 @@ void FlowRecord::reuse()
    m_flow.src_tcp_flags = 0;
    m_flow.dst_tcp_flags = 0;
 #ifdef WITH_CTT
-   is_waiting_ctt_response = false;
-   is_in_ctt = false;
-   last_request_time = {0, 0};
-   can_be_offloaded = false;
-   offload_mode = std::nullopt;
 #endif /* WITH_CTT */
 }
 
@@ -129,7 +124,7 @@ void FlowRecord::create(const Packet &pkt, uint64_t hash)
    is_waiting_ctt_response = false;
    is_in_ctt = false;
    can_be_offloaded = true;
-   last_request_time = {pkt.ts.tv_sec - 1, pkt.ts.tv_usec};
+   last_request_time = {pkt.ts.tv_sec, pkt.ts.tv_usec - 1};
 #endif /* WITH_CTT */
 }
 

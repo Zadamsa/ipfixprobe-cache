@@ -51,6 +51,7 @@ telemetry::Content NdpPacketReader::get_queue_telemetry()
    dict["received_packets"] = m_stats.receivedPackets;
    dict["received_bytes"] = m_stats.receivedBytes;
    dict["bad_metadata"] = m_stats.bad_metadata;
+   dict["ctt_unknown_packet_type"] = m_stats.ctt_unknown_packet_type;
    return dict;
 }
 
@@ -159,15 +160,26 @@ InputPlugin::Result NdpPacketReader::get(PacketBlock &packets)
       read_pkts++;
 #ifdef WITH_CTT
       if (m_ctt_metadata) {
-         if (std::optional<CttMetadata> metadata = CttMetadata::parse(ndp_packet->header, ndp_packet->header_length);
-            metadata.has_value() && parse_packet_ctt_metadata(&opt, m_parser_stats,
-               *metadata, ndp_packet->data, ndp_packet->data_length, ndp_packet->data_length) != -1) {
-            continue;
+         switch (ndp_packet->flags)
+         {
+         case MessageType::FLOW_EXPORT:{
+            try_to_add_external_export_packet(opt, ndp_packet->data, ndp_packet->data_length);
+            break;
          }
-         if (ndp_packet->flags == MessageType::FLOW_EXPORT && try_to_add_external_export_packet(opt, ndp_packet->data, ndp_packet->data_length)) {
-            continue;
+         case MessageType::FRAME_AND_FULL_METADATA:{
+            std::optional<CttMetadata> metadata = CttMetadata::parse(ndp_packet->header, ndp_packet->header_length);
+            if (!metadata.has_value() || parse_packet_ctt_metadata(&opt, m_parser_stats, *metadata, ndp_packet->data, ndp_packet->data_length, ndp_packet->data_length) == -1) {
+               m_stats.bad_metadata++;
+               parse_packet(&opt, m_parser_stats, timestamp, ndp_packet->data, ndp_packet->data_length, ndp_packet->data_length);
+            }
+            break;
          }
-         m_stats.bad_metadata++;
+         default:{
+            m_stats.ctt_unknown_packet_type++;
+            break;
+         }
+         }
+         continue;
       }
 #endif /* WITH_CTT */
       parse_packet(&opt, m_parser_stats, timestamp, ndp_packet->data, ndp_packet->data_length, ndp_packet->data_length);

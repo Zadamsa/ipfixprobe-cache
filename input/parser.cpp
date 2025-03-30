@@ -32,6 +32,8 @@
 #include <cstring>
 #include <sys/types.h>
 #include <limits>
+#include <iostream> 
+#include <vector>
 
 #include "parser.hpp"
 #include "headers.hpp"
@@ -710,7 +712,6 @@ void parse_packet(parser_opt_t *opt, ParserStats& stats, struct timeval ts, cons
 #else
       data_offset = parse_eth_hdr(data, caplen, pkt);
 #endif /* WITH_PCAP */
-
       if (pkt->ethertype == ETH_P_TRILL) {
          data_offset += parse_trill(data + data_offset, caplen - data_offset, pkt);
          stats.trill_packets++;
@@ -743,6 +744,7 @@ void parse_packet(parser_opt_t *opt, ParserStats& stats, struct timeval ts, cons
       }
    } catch (const char *err) {
       DEBUG_MSG("%s\n", err);
+      stats.thrown_exceptions++;
       return;
    }
 
@@ -787,8 +789,16 @@ void parse_packet(parser_opt_t *opt, ParserStats& stats, struct timeval ts, cons
 #ifdef WITH_CTT
 int parse_packet_ctt_metadata(parser_opt_t *opt, ParserStats& stats, const CttMetadata& metadata, const uint8_t *data, uint16_t len, uint16_t caplen)
 {
+
+   //std::vector<uint8_t> pkt_data(data, data + len);
    if (opt->pblock->cnt >= opt->pblock->size) {
       return 0;
+   }
+   if (metadata.l4_ptype == L4_TCP) {
+      stats.total_tcp_set++;
+   }
+   if (metadata.l3_ptype == L3_IPV4 || metadata.l3_ptype == L3_IPV4_EXT) {
+      stats.total_ip4_set++;
    }
    Packet *pkt = &opt->pblock->pkts[opt->pblock->cnt];
 
@@ -802,7 +812,7 @@ int parse_packet_ctt_metadata(parser_opt_t *opt, ParserStats& stats, const CttMe
    pkt->cttmeta = metadata;
 
    pkt->packet_len_wire = len;
-   pkt->ts = metadata.ts;
+   pkt->ts = {metadata.ts.tv_sec, metadata.ts.tv_usec};
    pkt->src_port = 0;
    pkt->dst_port = 0;
    pkt->ip_proto = 0;
@@ -819,52 +829,86 @@ int parse_packet_ctt_metadata(parser_opt_t *opt, ParserStats& stats, const CttMe
 
    stats.seen_packets++;
 
-   uint16_t data_offset;
+   uint16_t data_offset = 0;
    uint32_t l3_hdr_offset = metadata.l2_len;
    uint32_t l4_hdr_offset = metadata.l2_len + metadata.l3_len;
 
    try {
-   // L2
-   data_offset = parse_eth_hdr(data, caplen, pkt);
-   if (pkt->ethertype == ETH_P_TRILL) {
-      data_offset += parse_trill(data + metadata.l2_len, metadata.l2_len, pkt);
-      stats.trill_packets++;
-      data_offset += parse_eth_hdr(data + data_offset, len - data_offset, pkt);
-   }
+      // L2
+      data_offset = parse_eth_hdr(data, caplen, pkt);
+      if (pkt->ethertype == ETH_P_TRILL) {
+         //data_offset += parse_trill(data + metadata.l2_len, metadata.l2_len, pkt); orig
+         data_offset += parse_trill(data + data_offset, caplen - data_offset, pkt);
+         stats.trill_packets++;
+         //data_offset += parse_eth_hdr(data + data_offset, len - data_offset, pkt); orig
+         data_offset += parse_eth_hdr(data + data_offset, caplen - data_offset, pkt);
+      } 
+      
+      /*if (metadata.l2_ptype == L2_ETHER_IP) {
+         
+      } else if (metadata.l2_ptype == L2_ETHER_MPLS) {
+         data_offset += process_mpls(data + data_offset, caplen - data_offset, pkt);
+         stats.mpls_packets++;
+      } else if (metadata.l2_ptype == L2_ETHER_PPPOE) {
+         data_offset += process_pppoe(data + data_offset, caplen - data_offset, pkt);
+         stats.pppoe_packets++;
+      } *//*else { // if not previous, we try delegate to original parser
+         stats.ctt_parsing_failed++;
+         parse_packet(opt, stats, metadata.ts, data, len, caplen);
+         return 0;
+      }*/
 
-   // L3
-   if (metadata.l2_ptype == L2_ETHER_IP) {
-      if (metadata.l3_ptype == L3_IPV4 || metadata.l3_ptype == L3_IPV4_EXT) {
-         data_offset += parse_ipv4_hdr(data + metadata.l2_len, metadata.l3_len, pkt);
+      // L3
+      /*if (metadata.l3_ptype == L3_IPV4 || metadata.l3_ptype == L3_IPV4_EXT) {
+         //data_offset += parse_ipv4_hdr(data + l3_hdr_offset, metadata.l3_len, pkt);
+         data_offset = l3_hdr_offset + parse_ipv4_hdr(data + l3_hdr_offset, caplen - l3_hdr_offset, pkt);
          stats.ipv4_packets++;
       } else if (metadata.l3_ptype == L3_IPV6 || metadata.l3_ptype == L3_IPV6_EXT) {
-         data_offset += parse_ipv6_hdr(data + metadata.l2_len, metadata.l3_len, pkt);
+         data_offset = l3_hdr_offset + parse_ipv6_hdr(data + l3_hdr_offset, caplen - l3_hdr_offset, pkt);
          stats.ipv6_packets++;
-      }
-   } else if (metadata.l2_ptype == L2_ETHER_MPLS) {
-      data_offset += process_mpls(data + data_offset, caplen - data_offset, pkt);
-      stats.mpls_packets++;
-   } else if (metadata.l2_ptype == L2_ETHER_PPPOE) {
-      data_offset += process_pppoe(data + data_offset, caplen - data_offset, pkt);
-      stats.pppoe_packets++;
-   } else { // if not previous, we try delegate to original parser
-      parse_packet(opt, stats, metadata.ts, data, len, caplen);
-      return 0;
-   }
+      }*/
 
-   // L4
-   if (metadata.l4_ptype == L4_TCP) {
-      data_offset += parse_tcp_hdr(data + l4_hdr_offset, metadata.l4_len, pkt);
-      stats.tcp_packets++;
-   } else if (metadata.l4_ptype == L4_UDP) {
-      data_offset += parse_udp_hdr(data + l4_hdr_offset, metadata.l4_len, pkt);
-      stats.udp_packets++;
-   } else { // if not previous, we try delegate to original parser
-      parse_packet(opt, stats, metadata.ts, data, len, caplen);
-      return 0;
-   }
+      if (metadata.l2_ptype == L2_ETHER_IP) {
+         if (metadata.l3_ptype == L3_IPV4 || metadata.l3_ptype == L3_IPV4_EXT) {
+            data_offset = l3_hdr_offset + parse_ipv4_hdr(data + l3_hdr_offset, caplen - l3_hdr_offset, pkt);
+            stats.ipv4_packets++;
+         } else if (metadata.l3_ptype == L3_IPV6 || metadata.l3_ptype == L3_IPV6_EXT) {
+            data_offset = l3_hdr_offset + parse_ipv6_hdr(data + l3_hdr_offset, caplen - l3_hdr_offset, pkt);
+            stats.ipv6_packets++;
+         }
+      } else if (metadata.l2_ptype == L2_ETHER_MPLS) {
+         data_offset += process_mpls(data + data_offset, caplen - data_offset, pkt);
+         stats.mpls_packets++;
+      } else if (metadata.l2_ptype == L2_ETHER_PPPOE) {
+         data_offset += process_pppoe(data + data_offset, caplen - data_offset, pkt);
+         stats.pppoe_packets++;
+      } else { // if not previous, we try delegate to original parser
+         //parse_packet(opt, stats, metadata.ts, data, len, caplen);
+         return -1;
+      }
+
+      // L4
+      //if (metadata.l4_ptype == L4_TCP || pkt->ip_proto == IPPROTO_TCP) {
+      l4_hdr_offset = data_offset;
+      if (pkt->ip_proto == IPPROTO_TCP) {
+         //data_offset += parse_tcp_hdr(data + l4_hdr_offset, metadata.l4_len, pkt);
+         data_offset = l4_hdr_offset + parse_tcp_hdr(data + l4_hdr_offset, caplen - l4_hdr_offset, pkt);
+         stats.tcp_packets++;
+      //} else if (metadata.l4_ptype == L4_UDP || pkt->ip_proto == IPPROTO_UDP) {
+      } else if (pkt->ip_proto == IPPROTO_UDP) {
+         data_offset = l4_hdr_offset + parse_udp_hdr(data + l4_hdr_offset, caplen - l4_hdr_offset, pkt);
+         stats.udp_packets++;
+      } /*else if (metadata.l4_ptype == L4_ICMP) {
+         data_offset += parse_udp_hdr(data + l4_hdr_offset, metadata.l4_len, pkt);
+         stats.udp_packets++;
+      } else { // if not previous, we try delegate to original parser
+         stats.ctt_parsing_failed++;
+         parse_packet(opt, stats, metadata.ts, data, len, caplen);
+         return 0;
+      }*/
    } catch (const char *err) {
       DEBUG_MSG("%s\n", err);
+      stats.thrown_exceptions++;
       return 0;
    }
 
@@ -875,6 +919,20 @@ int parse_packet_ctt_metadata(parser_opt_t *opt, ParserStats& stats, const CttMe
    uint16_t pkt_len = caplen;
    pkt->packet = data;
    pkt->packet_len = caplen;
+
+   if (l4_hdr_offset == 0) {
+      stats.l4_offset_0++;
+   }
+   if (l3_hdr_offset == 0) {
+      stats.l3_offset_0++;
+   }
+   if (pkt->ip_payload_len == 0) {
+      stats.ip_payload_len_0++;
+   }
+   if (data_offset < l4_hdr_offset) {
+      stats.data_offset_less_than_l4_hdr_offset++;
+   }
+
 
    if (l4_hdr_offset != l3_hdr_offset) {
       if (l4_hdr_offset + pkt->ip_payload_len < 64) {
