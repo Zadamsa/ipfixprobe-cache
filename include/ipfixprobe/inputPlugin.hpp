@@ -73,6 +73,10 @@ public:
 	/// Number of packets dropped.
 	uint64_t m_dropped = 0;
 
+#ifdef WITH_CTT
+   virtual std::pair<std::string, unsigned> get_ctt_config() const;
+#endif /* WITH_CTT */
+
 protected:
 	/**
 	 * @brief Configures the telemetry directories.

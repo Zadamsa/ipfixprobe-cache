@@ -395,7 +395,7 @@ int QUICPlugin::process_quic(
 
 		if (version == QUICParser::QUIC_VERSION::version_negotiation) {
 			set_cid_fields(quic_data, rec, &process_quic, toServer, new_quic_flow, pkt);
-			return FLOW_FLUSH;
+			return FLUSH;
 		}
 
 		// export if parsed CH
@@ -530,7 +530,7 @@ int QUICPlugin::add_quic(Flow& rec, const Packet& pkt)
 
 	int ret = process_quic(q_ptr, rec, pkt, new_qptr);
 	// Test if QUIC extension is not set
-	if (new_qptr && ((ret == QUIC_DETECTED) || (ret == FLOW_FLUSH))) {
+	if (new_qptr && ((ret == QUIC_DETECTED) || (ret == FLUSH))) {
 		rec.add_extension(q_ptr);
 	}
 	if (new_qptr && (ret == QUIC_NOT_DETECTED)) {

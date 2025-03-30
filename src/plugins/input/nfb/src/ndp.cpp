@@ -53,6 +53,38 @@ NdpPacketReader::~NdpPacketReader()
 	close();
 }
 
+#ifdef WITH_CTT
+std::pair<std::string, unsigned> NdpPacketReader::get_ctt_config() const
+{
+   std::string dev = m_device;
+   int channel_id = 0;
+   std::size_t delimiter_found = m_device.find_last_of(":");
+   if (delimiter_found != std::string::npos) {
+      std::string channel_str = m_device.substr(delimiter_found + 1);
+      dev = m_device.substr(0, delimiter_found);
+      channel_id = std::stoi(channel_str);
+   }
+   return std::make_pair(dev, channel_id);
+}
+
+static bool try_to_add_external_export_packet(parser_opt_t& opt, const uint8_t* packet_data, size_t length) noexcept
+{
+   if (opt.pblock->cnt >= opt.pblock->size) {
+      return false;
+   }
+   opt.pblock->pkts[opt.pblock->cnt].packet = packet_data;
+   opt.pblock->pkts[opt.pblock->cnt].payload = packet_data;
+   opt.pblock->pkts[opt.pblock->cnt].packet_len = length;
+   opt.pblock->pkts[opt.pblock->cnt].packet_len_wire = length;
+   opt.pblock->pkts[opt.pblock->cnt].payload_len = length;
+   opt.pblock->pkts[opt.pblock->cnt].external_export = true;
+   opt.packet_valid = true;
+   opt.pblock->cnt++;
+   opt.pblock->bytes += length;
+   return true;
+}
+#endif /* WITH_CTT */
+
 void NdpPacketReader::init(const char* params)
 {
 	NdpOptParser parser;
@@ -64,6 +96,9 @@ void NdpPacketReader::init(const char* params)
 
 	if (parser.m_dev.empty()) {
 		throw PluginError("specify device path");
+	}
+	if (parser.m_metadata == "ctt") {
+		m_ctt_metadata = true;
 	}
 	init_ifc(parser.m_dev);
 }
@@ -101,6 +136,40 @@ InputPlugin::Result NdpPacketReader::get(PacketBlock& packets)
 			throw PluginError(ndpReader.error_msg);
 		}
 		read_pkts++;
+		#ifdef WITH_CTT
+      if (m_ctt_metadata) {
+         switch (ndp_packet->flags)
+         {
+         case MessageType::FLOW_EXPORT:{
+            try_to_add_external_export_packet(opt, ndp_packet->data, ndp_packet->data_length);
+            break;
+         }
+         case MessageType::FRAME_AND_FULL_METADATA:{
+            std::optional<CttMetadata> metadata = CttMetadata::parse(ndp_packet->header, ndp_packet->header_length);
+            if (!metadata.has_value() || 
+				parse_packet_ctt_metadata(&opt, 
+					m_parser_stats, *metadata, 
+					ndp_packet->data, 
+					ndp_packet->data_length, 
+					ndp_packet->data_length) == -1) {
+				m_stats.bad_metadata++;
+				parse_packet(&opt, 
+					m_parser_stats,
+					timestamp, 
+					ndp_packet->data,
+					ndp_packet->data_length, 
+					ndp_packet->data_length);
+            }
+            break;
+         }
+         default:{
+            m_stats.ctt_unknown_packet_type++;
+            break;
+         }
+         }
+         continue;
+      }
+#endif /* WITH_CTT */
 		parse_packet(
 			&opt,
 			m_parser_stats,

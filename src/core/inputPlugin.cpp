@@ -45,6 +45,13 @@ void InputPlugin::create_parser_stats_telemetry(
 	register_file(queueDirectory, "parser-stats", statsOps);
 }
 
+#ifdef WITH_CTT
+std::pair<std::string, unsigned> InputPlugin::get_ctt_config() const {
+	return std::make_pair("/dev/nfb0", 0);
+	throw PluginError("CTT is not supported by this input plugin");
+}
+#endif /* WITH_CTT */
+
 void InputPlugin::set_telemetry_dirs(
 	std::shared_ptr<telemetry::Directory> plugin_dir,
 	std::shared_ptr<telemetry::Directory> queues_dir)

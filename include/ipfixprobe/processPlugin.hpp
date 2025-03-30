@@ -16,8 +16,12 @@
 #include "flowifc.hpp"
 #include "packet.hpp"
 #include "plugin.hpp"
+#ifdef WITH_CTT
+#include "../../src/plugins/storage/cache/src/ctt/cttController.hpp"
+#endif /* WITH_CTT */
 
 #include <atomic>
+#include <memory>
 
 namespace ipxp {
 
@@ -26,7 +30,7 @@ namespace ipxp {
  * Behavior when called from post_create, pre_update and post_update: flush current Flow and erase
  * FlowRecord.
  */
-#define FLOW_FLUSH 0x1
+//#define FLOW_FLUSH 0x1
 
 /**
  * \brief Tell storage plugin to flush (immediately export) current flow.
@@ -34,13 +38,44 @@ namespace ipxp {
  * Behavior when called from pre_update and post_update: flush current Flow, erase FlowRecord and
  * call post_create on packet.
  */
-#define FLOW_FLUSH_WITH_REINSERT 0x3
+//#define FLOW_FLUSH_WITH_REINSERT 0x3
 
 /**
  * \brief Class template for flow cache plugins.
  */
 class IPXP_API ProcessPlugin : public Plugin {
 public:
+	enum FlowAction : int {
+		/**
+		 * \brief Tell storage plugin that process plugin requires all incoming data for given flow.
+		 */
+		GET_ALL_DATA = 0,
+		/**
+		 * \brief Tell storage plugin that process plugin requires only metadata.
+		 * Used to offload the cache when all process plugin return GET_METADATA.
+		 */
+		GET_METADATA = 0x2,
+		/**
+		 * \brief Tell storage plugin that process plugin has ended up its work and doesn't require
+		 * any new data. Used to offload the cache when all process plugin return NO_PROCESS.
+		 */
+		NO_PROCESS = 0x4,
+		/**
+		 * \brief Tell storage plugin to flush (immediately export) current flow.
+		 * Behavior when called from post_create, pre_update and post_update: flush current Flow and
+		 * erase FlowRecord.
+		 */
+		FLUSH = 0x1,
+
+		/**
+		 * \brief Tell storage plugin to flush (immediately export) current flow.
+		 * Behavior when called from post_create: flush current Flow and erase FlowRecord.
+		 * Behavior when called from pre_update and post_update: flush current Flow, erase
+		 * FlowRecord and call post_create on packet.
+		 */
+		FLUSH_WITH_REINSERT = 0x7
+	};
+
 	ProcessPlugin(int pluginID)
 		: m_pluginID(pluginID)
 	{
@@ -50,6 +85,11 @@ public:
 	virtual ProcessPlugin* copy() = 0;
 
 	virtual RecordExt* get_ext() const { return nullptr; }
+
+#ifdef WITH_CTT
+    virtual void set_ctt_config(const std::shared_ptr<CttController>& ctt_controller, uint8_t dma_channel) = 0;
+    virtual void export_external(const Packet& pkt) noexcept = 0;
+#endif /* WITH_CTT */
 
 	/**
 	 * \brief Called before a new flow record is created.

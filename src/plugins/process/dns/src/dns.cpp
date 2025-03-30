@@ -120,7 +120,7 @@ int DNSPlugin::post_update(Flow& rec, const Packet& pkt)
 				pkt.ip_proto == IPPROTO_TCP,
 				static_cast<RecordExtDNS*>(ext));
 		}
-		return FLOW_FLUSH;
+		return FLUSH;
 	}
 
 	return 0;
@@ -675,7 +675,7 @@ int DNSPlugin::add_ext_dns(const char* data, unsigned int payload_len, bool tcp,
 	} else {
 		rec.add_extension(ext);
 	}
-	return FLOW_FLUSH;
+	return FLUSH;
 }
 
 static const PluginRegistrar<DNSPlugin, ProcessPluginFactory> dnsRegistrar(dnsPluginManifest);

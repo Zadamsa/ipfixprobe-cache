@@ -797,4 +797,178 @@ void parse_packet(
 	opt->pblock->bytes += len;
 }
 
+#ifdef WITH_CTT
+int parse_packet_ctt_metadata(parser_opt_t *opt, ParserStats& stats, const CttMetadata& metadata, const uint8_t *data, uint16_t len, uint16_t caplen)
+{
+
+   //std::vector<uint8_t> pkt_data(data, data + len);
+   if (opt->pblock->cnt >= opt->pblock->size) {
+      return 0;
+   }
+   if (metadata.l4_ptype == L4_TCP) {
+      stats.total_tcp_set++;
+   }
+   if (metadata.l3_ptype == L3_IPV4 || metadata.l3_ptype == L3_IPV4_EXT) {
+      stats.total_ip4_set++;
+   }
+   Packet *pkt = &opt->pblock->pkts[opt->pblock->cnt];
+
+   // check metadata validity
+   if (metadata.parser_status == PA_OK) {
+      pkt->cttmeta_valid = true;
+   } else {
+      pkt->cttmeta_valid = false;
+      return -1;
+   }
+   pkt->cttmeta = metadata;
+
+   pkt->packet_len_wire = len;
+   pkt->ts = {metadata.ts.tv_sec, metadata.ts.tv_usec};
+   pkt->src_port = 0;
+   pkt->dst_port = 0;
+   pkt->ip_proto = 0;
+   pkt->ip_ttl = 0;
+   pkt->ip_flags = 0;
+   pkt->ip_version = 0;
+   pkt->ip_payload_len = 0;
+   pkt->tcp_flags = 0;
+   pkt->tcp_window = 0;
+   pkt->tcp_options = 0;
+   pkt->tcp_mss = 0;
+   pkt->mplsTop = 0;
+   pkt->external_export = false;
+
+   stats.seen_packets++;
+
+   uint16_t data_offset = 0;
+   uint32_t l3_hdr_offset = metadata.l2_len;
+   uint32_t l4_hdr_offset = metadata.l2_len + metadata.l3_len;
+
+   try {
+      // L2
+      data_offset = parse_eth_hdr(data, caplen, pkt);
+      if (pkt->ethertype == ETH_P_TRILL) {
+         //data_offset += parse_trill(data + metadata.l2_len, metadata.l2_len, pkt); orig
+         data_offset += parse_trill(data + data_offset, caplen - data_offset, pkt);
+         stats.trill_packets++;
+         //data_offset += parse_eth_hdr(data + data_offset, len - data_offset, pkt); orig
+         data_offset += parse_eth_hdr(data + data_offset, caplen - data_offset, pkt);
+      } 
+      
+      /*if (metadata.l2_ptype == L2_ETHER_IP) {
+         
+      } else if (metadata.l2_ptype == L2_ETHER_MPLS) {
+         data_offset += process_mpls(data + data_offset, caplen - data_offset, pkt);
+         stats.mpls_packets++;
+      } else if (metadata.l2_ptype == L2_ETHER_PPPOE) {
+         data_offset += process_pppoe(data + data_offset, caplen - data_offset, pkt);
+         stats.pppoe_packets++;
+      } *//*else { // if not previous, we try delegate to original parser
+         stats.ctt_parsing_failed++;
+         parse_packet(opt, stats, metadata.ts, data, len, caplen);
+         return 0;
+      }*/
+
+      // L3
+      /*if (metadata.l3_ptype == L3_IPV4 || metadata.l3_ptype == L3_IPV4_EXT) {
+         //data_offset += parse_ipv4_hdr(data + l3_hdr_offset, metadata.l3_len, pkt);
+         data_offset = l3_hdr_offset + parse_ipv4_hdr(data + l3_hdr_offset, caplen - l3_hdr_offset, pkt);
+         stats.ipv4_packets++;
+      } else if (metadata.l3_ptype == L3_IPV6 || metadata.l3_ptype == L3_IPV6_EXT) {
+         data_offset = l3_hdr_offset + parse_ipv6_hdr(data + l3_hdr_offset, caplen - l3_hdr_offset, pkt);
+         stats.ipv6_packets++;
+      }*/
+
+      if (metadata.l2_ptype == L2_ETHER_IP) {
+         if (metadata.l3_ptype == L3_IPV4 || metadata.l3_ptype == L3_IPV4_EXT) {
+            data_offset = l3_hdr_offset + parse_ipv4_hdr(data + l3_hdr_offset, caplen - l3_hdr_offset, pkt);
+            stats.ipv4_packets++;
+         } else if (metadata.l3_ptype == L3_IPV6 || metadata.l3_ptype == L3_IPV6_EXT) {
+            data_offset = l3_hdr_offset + parse_ipv6_hdr(data + l3_hdr_offset, caplen - l3_hdr_offset, pkt);
+            stats.ipv6_packets++;
+         }
+      } else if (metadata.l2_ptype == L2_ETHER_MPLS) {
+         data_offset += process_mpls(data + data_offset, caplen - data_offset, pkt);
+         stats.mpls_packets++;
+      } else if (metadata.l2_ptype == L2_ETHER_PPPOE) {
+         data_offset += process_pppoe(data + data_offset, caplen - data_offset, pkt);
+         stats.pppoe_packets++;
+      } else { // if not previous, we try delegate to original parser
+         //parse_packet(opt, stats, metadata.ts, data, len, caplen);
+         return -1;
+      }
+
+      // L4
+      //if (metadata.l4_ptype == L4_TCP || pkt->ip_proto == IPPROTO_TCP) {
+      l4_hdr_offset = data_offset;
+      if (pkt->ip_proto == IPPROTO_TCP) {
+         //data_offset += parse_tcp_hdr(data + l4_hdr_offset, metadata.l4_len, pkt);
+         data_offset = l4_hdr_offset + parse_tcp_hdr(data + l4_hdr_offset, caplen - l4_hdr_offset, pkt);
+         stats.tcp_packets++;
+      //} else if (metadata.l4_ptype == L4_UDP || pkt->ip_proto == IPPROTO_UDP) {
+      } else if (pkt->ip_proto == IPPROTO_UDP) {
+         data_offset = l4_hdr_offset + parse_udp_hdr(data + l4_hdr_offset, caplen - l4_hdr_offset, pkt);
+         stats.udp_packets++;
+      } /*else if (metadata.l4_ptype == L4_ICMP) {
+         data_offset += parse_udp_hdr(data + l4_hdr_offset, metadata.l4_len, pkt);
+         stats.udp_packets++;
+      } else { // if not previous, we try delegate to original parser
+         stats.ctt_parsing_failed++;
+         parse_packet(opt, stats, metadata.ts, data, len, caplen);
+         return 0;
+      }*/
+   } catch (const char *err) {
+      DEBUG_MSG("%s\n", err);
+      stats.thrown_exceptions++;
+      return 0;
+   }
+
+   if (pkt->vlan_id) {
+      stats.vlan_packets++;
+   }
+
+   uint16_t pkt_len = caplen;
+   pkt->packet = data;
+   pkt->packet_len = caplen;
+
+   if (l4_hdr_offset == 0) {
+      stats.l4_offset_0++;
+   }
+   if (l3_hdr_offset == 0) {
+      stats.l3_offset_0++;
+   }
+   if (pkt->ip_payload_len == 0) {
+      stats.ip_payload_len_0++;
+   }
+   if (data_offset < l4_hdr_offset) {
+      stats.data_offset_less_than_l4_hdr_offset++;
+   }
+
+
+   if (l4_hdr_offset != l3_hdr_offset) {
+      if (l4_hdr_offset + pkt->ip_payload_len < 64) {
+         // Packet contains 0x00 padding bytes, do not include them in payload
+         pkt_len = l4_hdr_offset + pkt->ip_payload_len;
+      }
+      pkt->payload_len_wire = pkt->ip_payload_len - (data_offset - l4_hdr_offset);
+   } else {
+      pkt->payload_len_wire = pkt_len - data_offset;
+   }
+
+   pkt->payload_len = pkt->payload_len_wire;
+   if (pkt->payload_len + data_offset > pkt_len) {
+      // Set correct size when payload length is bigger than captured payload length
+      pkt->payload_len = pkt_len - data_offset;
+   }
+   pkt->payload = pkt->packet + data_offset;
+
+   DEBUG_MSG("Payload length:\t%u\n", pkt->payload_len);
+   DEBUG_MSG("Packet parser exits: packet parsed\n");
+   opt->packet_valid = true;
+   opt->pblock->cnt++;
+   opt->pblock->bytes += len;
+   return 0;
+}
+#endif /* WITH_CTT */
+
 } // namespace ipxp

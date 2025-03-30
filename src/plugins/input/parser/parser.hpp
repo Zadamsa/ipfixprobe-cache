@@ -91,6 +91,15 @@ void parse_packet(
 	const uint8_t* data,
 	uint16_t len,
 	uint16_t caplen);
+	
+#ifdef WITH_CTT
+int parse_packet_ctt_metadata(parser_opt_t *opt,
+	ParserStats& stats, 
+	const CttMetadata& metadata, 
+	const uint8_t *data, 
+	uint16_t len, 
+	uint16_t caplen);
+#endif /* WITH_CTT */
 
 } // namespace ipxp
 #endif /* IPXP_INPUT_PARSER_HPP */

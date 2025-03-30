@@ -87,7 +87,7 @@ int WGPlugin::pre_update(Flow& rec, Packet& pkt)
 		// In case of new flow, flush
 		if (flow_flush) {
 			flow_flush = false;
-			return FLOW_FLUSH_WITH_REINSERT;
+			return FLUSH_WITH_REINSERT;
 		}
 		// In other cases, when WG was not detected
 		if (!res) {

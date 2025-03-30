@@ -510,7 +510,7 @@ int PassiveDNSPlugin::add_ext_dns(const char* data, unsigned int payload_len, bo
 		rec.add_extension(tmp);
 	}
 
-	return FLOW_FLUSH;
+	return FLUSH;
 }
 
 static const PluginRegistrar<PassiveDNSPlugin, ProcessPluginFactory>

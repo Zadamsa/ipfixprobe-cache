@@ -15,6 +15,9 @@ add_library(ipfixprobe-core STATIC
 	pluginManager.hpp
 )
 
+if (ENABLE_CTT)
+	add_definitions(-DWITH_CTT=1)
+endif()
 
 target_include_directories(ipfixprobe-core PUBLIC
 	${CMAKE_SOURCE_DIR}/include

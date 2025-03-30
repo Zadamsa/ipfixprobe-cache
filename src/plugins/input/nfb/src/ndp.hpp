@@ -25,6 +25,7 @@ class NdpOptParser : public OptionsParser {
 public:
 	std::string m_dev;
 	uint64_t m_id;
+	std::string m_metadata;
 
 	NdpOptParser()
 		: OptionsParser("ndp", "Input plugin for reading packets from a ndp device")
@@ -55,6 +56,16 @@ public:
 				return true;
 			},
 			OptionFlags::RequiredArgument);
+		register_option("M", 
+			"meta",
+			"Metadata type", 
+			"Choose metadata type if any",
+			[this](const char *arg){
+				m_metadata = arg; 
+				return true;
+			},
+			OptionFlags::RequiredArgument);
+
 	}
 };
 
@@ -73,16 +84,23 @@ public:
 		std::shared_ptr<telemetry::Directory> plugin_dir,
 		std::shared_ptr<telemetry::Directory> queues_dir) override;
 
+#ifdef WITH_CTT
+		virtual std::pair<std::string, unsigned> get_ctt_config() const override;
+#endif /* WITH_CTT */
 private:
 	struct RxStats {
 		uint64_t receivedPackets;
 		uint64_t receivedBytes;
+		uint64_t bad_metadata;
+        uint64_t ctt_unknown_packet_type{0};
 	};
 
 	telemetry::Content get_queue_telemetry();
 
 	NdpReader ndpReader;
 	RxStats m_stats = {};
+	bool m_ctt_metadata = false;
+	std::string m_device;
 
 	void init_ifc(const std::string& dev);
 };

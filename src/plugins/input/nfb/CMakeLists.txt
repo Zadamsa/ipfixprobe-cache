@@ -10,6 +10,10 @@ add_library(ipfixprobe-input-nfb MODULE
 	../parser/parser.hpp
 )
 
+if (ENABLE_CTT)
+	add_definitions(-DWITH_CTT=1)
+endif()
+
 set_target_properties(ipfixprobe-input-nfb PROPERTIES
 	CXX_VISIBILITY_PRESET hidden
 	VISIBILITY_INLINES_HIDDEN YES

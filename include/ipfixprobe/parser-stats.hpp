@@ -37,15 +37,25 @@ struct ParserStats {
 	uint64_t vlan_packets;
 	uint64_t pppoe_packets;
 	uint64_t trill_packets;
-
+ 
 	uint64_t ipv4_packets;
 	uint64_t ipv6_packets;
-
+ 
 	uint64_t tcp_packets;
 	uint64_t udp_packets;
-
+ 
 	uint64_t seen_packets;
 	uint64_t unknown_packets;
+ 
+	uint64_t thrown_exceptions{0};
+	uint64_t ctt_parsing_failed{0};
+ 
+	uint64_t l4_offset_0{0};
+	uint64_t l3_offset_0{0};
+	uint64_t ip_payload_len_0{0};
+	uint64_t data_offset_less_than_l4_hdr_offset{0};
+	uint64_t total_tcp_set{0};
+	uint64_t total_ip4_set{0};
 };
 
 } // namespace ipxp

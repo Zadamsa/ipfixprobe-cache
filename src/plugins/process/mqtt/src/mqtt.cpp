@@ -186,7 +186,7 @@ int MQTTPlugin::post_update(Flow& rec, const Packet& pkt)
 
 	if (flow_flush) {
 		flow_flush = false;
-		return FLOW_FLUSH;
+		return FLUSH;
 	}
 	return 0;
 }

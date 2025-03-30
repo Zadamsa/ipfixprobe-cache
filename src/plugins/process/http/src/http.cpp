@@ -116,7 +116,7 @@ int HTTPPlugin::pre_update(Flow& rec, Packet& pkt)
 		parse_http_request(payload, pkt.payload_len, static_cast<RecordExtHTTP*>(ext));
 		if (flow_flush) {
 			flow_flush = false;
-			return FLOW_FLUSH_WITH_REINSERT;
+			return FLUSH_WITH_REINSERT;
 		}
 	} else if (is_response(payload, pkt.payload_len)) {
 		ext = rec.get_extension(m_pluginID);
@@ -128,7 +128,7 @@ int HTTPPlugin::pre_update(Flow& rec, Packet& pkt)
 		parse_http_response(payload, pkt.payload_len, static_cast<RecordExtHTTP*>(ext));
 		if (flow_flush) {
 			flow_flush = false;
-			return FLOW_FLUSH_WITH_REINSERT;
+			return FLUSH_WITH_REINSERT;
 		}
 	}
 

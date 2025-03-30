@@ -5,6 +5,15 @@ set(CMAKE_MODULE_PATH ${CMAKE_CURRENT_SOURCE_DIR}/cmake/)
 add_library(ipfixprobe-storage-cache MODULE
 	src/cache.hpp
 	src/cache.cpp
+	src/cacheOptParser.cpp
+	src/cacheOptParser.hpp
+	src/cacheRowSpan.hpp
+	src/cacheRowSpan.cpp
+	src/flowRecord.hpp
+	src/flowRecord.cpp
+	src/flowKeyFactory.hpp
+	src/flowKey.tpp
+	src/cacheStats.hpp
 	src/fragmentationCache/fragmentationCache.cpp
 	src/fragmentationCache/fragmentationCache.hpp
 	src/fragmentationCache/fragmentationKeyData.hpp
@@ -15,6 +24,14 @@ add_library(ipfixprobe-storage-cache MODULE
 	src/xxhash.c
 	src/xxhash.h
 )
+
+if (ENABLE_CTT)
+	add_definitions(-DWITH_CTT=1)
+	target_sources(ipfixprobe-storage-cache PRIVATE 
+		src/ctt/cttController.cpp
+		src/ctt/cttController.hpp
+	)
+endif()
 
 set_target_properties(ipfixprobe-storage-cache PROPERTIES
 	CXX_VISIBILITY_PRESET hidden
