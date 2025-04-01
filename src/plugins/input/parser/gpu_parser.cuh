@@ -1,8 +1,13 @@
 #pragma once 
 
 #include "parser.cuh"
-#include "../nfb/src/ndp.hpp"
 #include <ipfixprobe/parser-stats.hpp>
+#include <vector>
+#include <cstdint>
+#include <algorithm>
+#include <cstddef>
+#include <ipfixprobe/packet.hpp>
+#include <ipfixprobe/storagePlugin.hpp>
 
 namespace ipxp {
 
@@ -12,6 +17,10 @@ struct PacketData{
     struct timeval ts;
 };
 
-void parse_burst_gpu(const std::vector<PacketData>& packets);
+void parse_burst_gpu(PacketBlock& parsed_result, const std::vector<PacketData>& packets);
+
+void close_gpu_parser();
+
+void init_gpu_parser();
 
 }

@@ -14,7 +14,7 @@ set(CMAKE_MODULE_PATH ${CMAKE_SOURCE_DIR}/cmake/modules)
 
 option(ENABLE_INPUT_PCAP            "Enable build of input PCAP plugin"                       OFF)
 option(ENABLE_INPUT_DPDK            "Enable build of input DPDK plugin"                       OFF)
-option(ENABLE_INPUT_NFB             "Enable build of input NFB plugin"                        ON)
+option(ENABLE_INPUT_NFB             "Enable build of input NFB plugin"                        OFF)
 option(ENABLE_OUTPUT_UNIREC         "Enable build of output UNIREC plugin"                    OFF)
 option(ENABLE_PROCESS_EXPERIMENTAL  "Enable build of experimental process plugins"            OFF)
 option(ENABLE_MILISECONDS_TIMESTAMP "Compile ipfixprobe with miliseconds timestamp precesion" OFF)
@@ -46,6 +46,8 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wall -Wextra")
 set(CMAKE_C_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE} -O3")
 set(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} -g -ggdb3")
+
+set(CMAKE_CUDA_FLAGS_DEBUG "-G -g -lineinfo")
 
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -Wextra")
 set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -O3")

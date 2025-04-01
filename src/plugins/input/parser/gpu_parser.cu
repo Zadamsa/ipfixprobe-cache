@@ -25,7 +25,7 @@ __global__ void parse(Packet* parsed_packets, PacketData* packets_data, timeval*
 	parse_packet(&parsed_packets[idx], stats, timestamps[idx], packets_data[idx].data, packets_data[idx].length, packets_data[idx].length);
 }
 
- void parse_burst_gpu(const std::vector<PacketData>& packets)
+void parse_burst_gpu(PacketBlock& parsed_result, const std::vector<PacketData>& packets)
 {
 	int blockSize = 4;
 	int numBlocks = (packets.size() + blockSize - 1) / blockSize;
@@ -37,6 +37,8 @@ __global__ void parse(Packet* parsed_packets, PacketData* packets_data, timeval*
 		index++;
 	});
 	parse<<<numBlocks, blockSize>>>(parsed_packets, packets_data, timestamps, packets.size());
+	cudaMemcpy(&parsed_result, parsed_packets, packets.size() * sizeof(Packet), cudaMemcpyDeviceToHost);
+	parsed_result.cnt = packets.size();
 }
 
 void init_gpu_parser() {

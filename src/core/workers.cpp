@@ -56,7 +56,7 @@ void input_storage_worker(
 	InputPlugin::Result ret;
 	InputStats stats = {0, 0, 0, 0, 0};
 	WorkerResult res = {false, ""};
-
+	gpu_haher_init();
 	PacketBlock block(queue_size);
 
 #ifdef __linux__
@@ -133,6 +133,7 @@ void input_storage_worker(
 		}
 	}
 
+	gpu_haher_close();
 	stats.packets = inputPlugin->m_seen;
 	stats.parsed = inputPlugin->m_parsed;
 	stats.dropped = inputPlugin->m_dropped;

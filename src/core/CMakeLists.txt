@@ -25,9 +25,13 @@ target_compile_options(ipfixprobe-core PRIVATE -fPIC)
 
 set(CORE_LIB -Wl,--whole-archive ipfixprobe-core -Wl,--no-whole-archive)
 
-
 add_library(hasher STATIC hasher.cu)
+target_compile_options(hasher PRIVATE --default-device)
 set_target_properties(hasher PROPERTIES CUDA_SEPARABLE_COMPILATION ON)
+target_include_directories(hasher PUBLIC
+		${CMAKE_SOURCE_DIR}/include
+		${CMAKE_BINARY_DIR}/src
+)
 
 target_link_libraries(ipfixprobe-core
 	pthread

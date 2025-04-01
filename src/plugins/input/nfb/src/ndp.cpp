@@ -116,7 +116,7 @@ InputPlugin::Result NdpPacketReader::get(PacketBlock& packets)
 			ndp_packet->data_length,
 			ndp_packet->data_length);*/
 	}
-	parse_burst_gpu(buffer);
+	parse_burst_gpu(packets, buffer);
 	m_seen += read_pkts;
 	m_parsed += opt.pblock->cnt;
 

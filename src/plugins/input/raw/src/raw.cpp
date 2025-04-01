@@ -71,17 +71,20 @@ RawReader::RawReader(const std::string& params)
 	, m_pkts_left(0)
 {
 	init(params.c_str());
+
 }
 
 RawReader::~RawReader()
 {
 	close();
+	close_gpu_parser();
 }
 
 void RawReader::init(const char* params)
 {
 	RawOptParser parser;
 	m_packet_buffer.reserve(200);
+	init_gpu_parser();
 	try {
 		parser.parse(params);
 	} catch (ParserError& e) {
@@ -330,7 +333,7 @@ int RawReader::process_packets(struct tpacket_block_desc* pbd, PacketBlock& pack
 		ppd = (struct tpacket3_hdr*) ((uint8_t*) ppd + ppd->tp_next_offset);
 	}
 	m_last_ppd = ppd;
-	parse_burst_gpu(m_packet_buffer);
+	parse_burst_gpu(packets, m_packet_buffer);
 
 	return to_read;
 }
