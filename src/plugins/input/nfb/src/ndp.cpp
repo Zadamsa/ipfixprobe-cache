@@ -21,6 +21,12 @@
 #include <ipfixprobe/pluginFactory/pluginManifest.hpp>
 #include <ipfixprobe/pluginFactory/pluginRegistrar.hpp>
 
+extern "C" void parse_burst_gpu(
+	parser_opt_t* opt,
+	ParserStats& stats,
+	struct ndp_packet* buffer,
+	size_t buffer_size);
+
 namespace ipxp {
 
 telemetry::Content NdpPacketReader::get_queue_telemetry()
@@ -83,6 +89,7 @@ void NdpPacketReader::init_ifc(const std::string& dev)
 InputPlugin::Result NdpPacketReader::get(PacketBlock& packets)
 {
 	parser_opt_t opt = {&packets, false, false, 0};
+	struct ndp_packet buffer[200];
 	struct ndp_packet* ndp_packet;
 	struct timeval timestamp;
 	size_t read_pkts = 0;
@@ -101,15 +108,16 @@ InputPlugin::Result NdpPacketReader::get(PacketBlock& packets)
 			throw PluginError(ndpReader.error_msg);
 		}
 		read_pkts++;
-		parse_packet(
+		opt->pblock->pkts[opt->pblock->cnt]->ts = timestamp;
+		/*parse_packet(
 			&opt,
 			m_parser_stats,
 			timestamp,
 			ndp_packet->data,
 			ndp_packet->data_length,
-			ndp_packet->data_length);
+			ndp_packet->data_length);*/
 	}
-
+	parse_burst_gpu(opt, m_parser_stats, buffer, 0);
 	m_seen += read_pkts;
 	m_parsed += opt.pblock->cnt;
 
