@@ -5,7 +5,7 @@ set(VERSION_MINOR 0)
 set(VERSION_PATCH 0)
 set(VERSION ${VERSION_MAJOR}.${VERSION_MINOR}.${VERSION_PATCH})
 
-project(ipfixprobe VERSION ${VERSION} LANGUAGES CXX C)
+project(ipfixprobe VERSION ${VERSION} LANGUAGES CXX C CUDA)
 
 include(cmake/build_type.cmake)
 include(cmake/installation.cmake)
@@ -14,7 +14,7 @@ set(CMAKE_MODULE_PATH ${CMAKE_SOURCE_DIR}/cmake/modules)
 
 option(ENABLE_INPUT_PCAP            "Enable build of input PCAP plugin"                       OFF)
 option(ENABLE_INPUT_DPDK            "Enable build of input DPDK plugin"                       OFF)
-option(ENABLE_INPUT_NFB             "Enable build of input NFB plugin"                        OFF)
+option(ENABLE_INPUT_NFB             "Enable build of input NFB plugin"                        ON)
 option(ENABLE_OUTPUT_UNIREC         "Enable build of output UNIREC plugin"                    OFF)
 option(ENABLE_PROCESS_EXPERIMENTAL  "Enable build of experimental process plugins"            OFF)
 option(ENABLE_MILISECONDS_TIMESTAMP "Compile ipfixprobe with miliseconds timestamp precesion" OFF)
@@ -39,7 +39,7 @@ set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS ON)
 
-set(CMAKE_CUDA_STANDARD 17)
+set(CMAKE_CUDA_STANDARD 20)
 
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 

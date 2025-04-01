@@ -104,6 +104,9 @@ struct Packet : public Record {
 	/**
 	 * \brief Constructor.
 	 */
+#ifdef __CUDACC__
+	__host__ __device__
+#endif
 	Packet()
 		: ts({0, 0})
 		, dst_mac()
@@ -152,7 +155,10 @@ struct PacketBlock {
 	size_t bytes;
 	size_t size;
 
-	PacketBlock(size_t pkts_size)
+#ifdef __CUDACC__
+	__host__ __device__
+#endif
+ 	PacketBlock(size_t pkts_size)
 		: cnt(0)
 		, bytes(0)
 		, size(pkts_size)
@@ -160,6 +166,9 @@ struct PacketBlock {
 		pkts = new Packet[pkts_size];
 	}
 
+#ifdef __CUDACC__
+	__host__ __device__
+#endif
 	~PacketBlock() { delete[] pkts; }
 };
 

@@ -33,6 +33,8 @@
 #include <sys/time.h>
 #include <unistd.h>
 
+#include "hasher.cuh"
+
 namespace ipxp {
 
 #define MICRO_SEC 1000000L
@@ -100,6 +102,9 @@ void input_storage_worker(
 			stats.dropped = inputPlugin->m_dropped;
 			stats.bytes += block.bytes;
 			clock_gettime(clk_id, &start_cache);
+			static FlowHash hashes[100];
+			hash_burst_gpu(block.pkts, block.cnt, hashes);
+
 			try {
 				for (unsigned i = 0; i < block.cnt; i++) {
 					storagePlugin->put_pkt(block.pkts[i]);

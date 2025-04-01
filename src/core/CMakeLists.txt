@@ -25,6 +25,10 @@ target_compile_options(ipfixprobe-core PRIVATE -fPIC)
 
 set(CORE_LIB -Wl,--whole-archive ipfixprobe-core -Wl,--no-whole-archive)
 
+
+add_library(hasher STATIC hasher.cu)
+set_target_properties(hasher PROPERTIES CUDA_SEPARABLE_COMPILATION ON)
+
 target_link_libraries(ipfixprobe-core
 	pthread
 	telemetry::telemetry
@@ -32,6 +36,7 @@ target_link_libraries(ipfixprobe-core
 	atomic::atomic
 	unwind::unwind
 	${CMAKE_DL_LIBS}
+	hasher
 )
 
 add_executable(ipfixprobe main.cpp)

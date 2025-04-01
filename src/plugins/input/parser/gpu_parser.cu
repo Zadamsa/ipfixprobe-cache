@@ -1,19 +1,28 @@
-#include "parser.hpp"
+#include "gpu_parser.cuh"
+#include "parser.cuh"
 
-#include <ipfixprobe/parser-stats.hpp>
+namespace ipxp{
+
+__device__ void parse_packet(
+	parser_opt_t* opt,
+	ParserStats& stats,
+	struct timeval ts,
+	const uint8_t* data,
+	uint16_t len,
+	uint16_t caplen);
 
 __global__ void parse(struct ndp_packet* data, int size) {
 	int idx = blockIdx.x * blockDim.x + threadIdx.x;
 	parser_opt_t opt = {nullptr, false, false, 0};
 	ParserStats stats;
 	if (idx < size) {
-		parse_packet(&opt, stats, data[idx]->ts, data[idx]->data, data[idx]->data_length, data[idx]->data_length);
+		parse_packet(&opt, stats, opt.pblock->pkts[idx].ts, data[idx].data, data[idx].data_length, data[idx].data_length);
 	}
 }
 
-extern "C" void parse_burst_gpu(
+ void parse_burst_gpu(
 	parser_opt_t* opt,
-	ParserStats& stats,
+	ParserStats* stats,
 	struct ndp_packet* buffer,
 	size_t buffer_size)
 {
@@ -31,3 +40,5 @@ extern "C" void init_gpu_parser() {
 extern "C" void close_gpu_parser() {
 
 }
+
+} // namespace ipxp

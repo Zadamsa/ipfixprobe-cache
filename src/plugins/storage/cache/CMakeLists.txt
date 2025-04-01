@@ -33,5 +33,3 @@ install(TARGETS ipfixprobe-storage-cache
 	LIBRARY DESTINATION "${INSTALL_DIR_LIB}/ipfixprobe/storage/"
 )
 
-add_library(hasher STATIC hasher.cu)
-set_target_properties(hasher PROPERTIES CUDA_SEPARABLE_COMPILATION ON)
