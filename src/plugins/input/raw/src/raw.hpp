@@ -22,6 +22,7 @@
 #include <ipfixprobe/utils.hpp>
 #include <linux/if_packet.h>
 #include <poll.h>
+#include "../parser/gpu_parser.cuh"
 
 namespace ipxp {
 
@@ -132,6 +133,7 @@ private:
 
 	uint8_t* m_buffer;
 	uint32_t m_buffer_size;
+	std::vector<PacketData> m_packet_buffer;
 
 	uint32_t m_block_idx;
 	uint32_t m_blocksize;

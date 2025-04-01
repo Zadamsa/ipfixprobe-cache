@@ -14,7 +14,8 @@
 
 #include "raw.hpp"
 
-#include "parser.hpp"
+#include "parser.cuh"
+#include "../parser/gpu_parser.cuh"
 
 #include <cstdlib>
 #include <cstring>
@@ -80,6 +81,7 @@ RawReader::~RawReader()
 void RawReader::init(const char* params)
 {
 	RawOptParser parser;
+	m_packet_buffer.reserve(200);
 	try {
 		parser.parse(params);
 	} catch (ParserError& e) {
@@ -305,6 +307,7 @@ int RawReader::process_packets(struct tpacket_block_desc* pbd, PacketBlock& pack
 	uint32_t capacity = RAW_PACKET_BLOCK_SIZE - packets.cnt;
 	uint32_t to_read = 0;
 	struct tpacket3_hdr* ppd;
+	m_packet_buffer.clear();
 
 	if (m_pkts_left) {
 		ppd = m_last_ppd;
@@ -322,10 +325,12 @@ int RawReader::process_packets(struct tpacket_block_desc* pbd, PacketBlock& pack
 		size_t snaplen = ppd->tp_snaplen;
 		struct timeval ts = {ppd->tp_sec, ppd->tp_nsec / 1000};
 
-		parse_packet(&opt, m_parser_stats, ts, data, len, snaplen);
+		m_packet_buffer.push_back(PacketData{data, snaplen, ts});
+		//parse_packet(&opt, m_parser_stats, ts, data, len, snaplen);
 		ppd = (struct tpacket3_hdr*) ((uint8_t*) ppd + ppd->tp_next_offset);
 	}
 	m_last_ppd = ppd;
+	parse_burst_gpu(m_packet_buffer);
 
 	return to_read;
 }

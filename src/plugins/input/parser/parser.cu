@@ -760,17 +760,17 @@ __device__ inline Optional<uint16_t> process_pppoe(const u_char* data_ptr, uint1
 }
 
 __device__ void parse_packet(
-	parser_opt_t* opt,
+	Packet* pkt,
 	ParserStats& stats,
 	struct timeval ts,
 	const uint8_t* data,
 	uint16_t len,
 	uint16_t caplen)
 {
-	if (opt->pblock->cnt >= opt->pblock->size) {
+	/*if (opt->pblock->cnt >= opt->pblock->size) {
 		return;
 	}
-	Packet* pkt = &opt->pblock->pkts[opt->pblock->cnt];
+	Packet* pkt = &opt->pblock->pkts[opt->pblock->cnt];*/
 	uint16_t data_offset = 0;
 
 	DEBUG_MSG("---------- packet parser  #%u -------------\n", ++s_total_pkts);
@@ -859,10 +859,6 @@ __device__ void parse_packet(
 		}
 		data_offset += *pppoe_len;
 		stats.pppoe_packets++;
-	} else if (!opt->parse_all) {
-		stats.unknown_packets++;
-		DEBUG_MSG("Unknown ethertype %x\n", pkt->ethertype);
-		return;
 	}
 
 	l4_hdr_offset = data_offset;
@@ -921,9 +917,6 @@ __device__ void parse_packet(
 
 	DEBUG_MSG("Payload length:\t%u\n", pkt->payload_len);
 	DEBUG_MSG("Packet parser exits: packet parsed\n");
-	opt->packet_valid = true;
-	opt->pblock->cnt++;
-	opt->pblock->bytes += len;
 }
 
 } // namespace ipxp

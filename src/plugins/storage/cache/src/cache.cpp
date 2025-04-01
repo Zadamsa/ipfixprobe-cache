@@ -321,6 +321,12 @@ void NHTFlowCache::flush(Packet& pkt, size_t flow_index, int ret, bool source_fl
 
 int NHTFlowCache::put_pkt(Packet& pkt)
 {
+	return put_pkt(pkt, m_current_record);
+}
+
+int NHTFlowCache::put_pkt(Packet& pkt, const FlowHash& hashes)
+{
+	m_current_record = hashes;	
 	int ret = plugins_pre_create(pkt);
 
 	if (m_enable_fragmentation_cache) {

@@ -3,42 +3,62 @@
 
 namespace ipxp{
 
+Packet* parsed_packets = nullptr;
+__device__ ParserStats stats;
+
+PacketData* packets_data;
+timeval* timestamps;
+
 __device__ void parse_packet(
-	parser_opt_t* opt,
+	Packet* opt,
 	ParserStats& stats,
 	struct timeval ts,
 	const uint8_t* data,
 	uint16_t len,
 	uint16_t caplen);
 
-__global__ void parse(struct ndp_packet* data, int size) {
+__global__ void parse(Packet* parsed_packets, PacketData* packets_data, timeval* timestamps, size_t size) {
 	int idx = blockIdx.x * blockDim.x + threadIdx.x;
-	parser_opt_t opt = {nullptr, false, false, 0};
-	ParserStats stats;
-	if (idx < size) {
-		parse_packet(&opt, stats, opt.pblock->pkts[idx].ts, data[idx].data, data[idx].data_length, data[idx].data_length);
+	if (idx >= size) {
+		return;
 	}
+	parse_packet(&parsed_packets[idx], stats, timestamps[idx], packets_data[idx].data, packets_data[idx].length, packets_data[idx].length);
 }
 
- void parse_burst_gpu(
-	parser_opt_t* opt,
-	ParserStats* stats,
-	struct ndp_packet* buffer,
-	size_t buffer_size)
+ void parse_burst_gpu(const std::vector<PacketData>& packets)
 {
 	int blockSize = 4;
-	int numBlocks = (buffer_size + blockSize - 1) / blockSize;
-	// allocate memory on the GPU
-	parse<<<numBlocks, blockSize>>>(buffer, buffer_size);
-
+	int numBlocks = (packets.size() + blockSize - 1) / blockSize;
+	//cudaMemcpy(raw_packets, packets.data(), packets.size() * sizeof(packets[0]), cudaMemcpyHostToDevice);
+	std::for_each(packets.begin(), packets.end(), [index = 0](const PacketData& packet) mutable{
+		packets_data[index].length = std::min<size_t>(packet.length, 256);
+		cudaMemcpy((void*)(packets_data[index].data), packet.data, packets_data[index].length, cudaMemcpyHostToDevice);
+		packets_data[index].ts = packet.ts;
+		index++;
+	});
+	parse<<<numBlocks, blockSize>>>(parsed_packets, packets_data, timestamps, packets.size());
 }
 
-extern "C" void init_gpu_parser() {
-
+void init_gpu_parser() {
+	cudaMalloc((void **)&parsed_packets, sizeof(Packet) * 100);
+	cudaMalloc((void **)&packets_data, sizeof(PacketData) * 100);
+	std::for_each(packets_data, packets_data + 100, [](PacketData& data){
+		cudaMalloc(&data.data, 256);
+	});
 }
 
-extern "C" void close_gpu_parser() {
+void close_gpu_parser() {
+	cudaFree(parsed_packets);
+	std::for_each(packets_data, packets_data + 100, [](PacketData& data){
+		cudaFree((void*)(data.data));
+	});
+	cudaFree(packets_data);
+}
 
+ParserStats get_stats() {
+	ParserStats result;
+	cudaMemcpy(&result, &stats, sizeof(ParserStats), cudaMemcpyDeviceToHost);
+	return result;
 }
 
 } // namespace ipxp

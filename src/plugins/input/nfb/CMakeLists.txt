@@ -31,6 +31,7 @@ install(TARGETS ipfixprobe-input-nfb
 
 add_library(gpu_parser STATIC ../parser/gpu_parser.cu ../parser/parser.cu)
 set_target_properties(gpu_parser PROPERTIES CUDA_SEPARABLE_COMPILATION ON)
+set_target_properties(gpu_parser PROPERTIES POSITION_INDEPENDENT_CODE ON)
 
 target_include_directories(gpu_parser PRIVATE
 	${CMAKE_SOURCE_DIR}/include/

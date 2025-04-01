@@ -6,11 +6,12 @@
 
 namespace ipxp {
 
+struct PacketData{
+    const uint8_t* data;
+    size_t length;
+    struct timeval ts;
+};
 
-void parse_burst_gpu(
-    parser_opt_t* opt,
-    ParserStats* stats,
-    struct ndp_packet* buffer,
-    size_t buffer_size);
+void parse_burst_gpu(const std::vector<PacketData>& packets);
 
 }

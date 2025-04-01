@@ -222,7 +222,10 @@ struct Record {
 	/**
 	 * \brief Constructor.
 	 */
-	Record()
+#ifdef __CUDACC__
+	__host__ __device__
+#endif
+	 Record()
 		: m_exts(nullptr)
 	{
 	}
@@ -230,6 +233,9 @@ struct Record {
 	/**
 	 * \brief Destructor.
 	 */
+#ifdef __CUDACC__
+	__host__ __device__
+#endif
 	virtual ~Record() { remove_extensions(); }
 };
 

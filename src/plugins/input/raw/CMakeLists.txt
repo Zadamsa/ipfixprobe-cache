@@ -3,8 +3,7 @@ project(ipfixprobe-input-raw VERSION 1.0.0 DESCRIPTION "ipfixprobe-input-raw plu
 add_library(ipfixprobe-input-raw MODULE
 	src/raw.cpp
 	src/raw.hpp
-	../parser/parser.cpp
-	../parser/parser.hpp
+	../parser/parser.cuh
 )
 
 set_target_properties(ipfixprobe-input-raw PROPERTIES
@@ -19,6 +18,7 @@ target_include_directories(ipfixprobe-input-raw PRIVATE
 
 target_link_libraries(ipfixprobe-input-raw PRIVATE
 	telemetry::telemetry
+	gpu_parser
 )
 
 install(TARGETS ipfixprobe-input-raw

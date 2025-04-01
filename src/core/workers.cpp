@@ -104,10 +104,9 @@ void input_storage_worker(
 			clock_gettime(clk_id, &start_cache);
 			static FlowHash hashes[100];
 			hash_burst_gpu(block.pkts, block.cnt, hashes);
-
 			try {
 				for (unsigned i = 0; i < block.cnt; i++) {
-					storagePlugin->put_pkt(block.pkts[i]);
+					storagePlugin->put_pkt(block.pkts[i], hashes[i]);
 				}
 				ts = block.pkts[block.cnt - 1].ts;
 			} catch (PluginError& e) {

@@ -85,11 +85,13 @@ void NdpPacketReader::init_ifc(const std::string& dev)
 InputPlugin::Result NdpPacketReader::get(PacketBlock& packets)
 {
 	parser_opt_t opt = {&packets, false, false, 0};
-	struct ndp_packet buffer[200];
+	//struct ndp_packet buffer[200];
 	struct ndp_packet* ndp_packet;
 	struct timeval timestamp;
 	size_t read_pkts = 0;
 	int ret = -1;
+	std::vector<PacketData> buffer;
+	buffer.reserve(200);
 
 	packets.cnt = 0;
 	for (unsigned i = 0; i < packets.size; i++) {
@@ -104,7 +106,8 @@ InputPlugin::Result NdpPacketReader::get(PacketBlock& packets)
 			throw PluginError(ndpReader.error_msg);
 		}
 		read_pkts++;
-		opt.pblock->pkts[opt.pblock->cnt].ts = timestamp;
+		buffer.push_back(PacketData{ndp_packet->data, ndp_packet->data_length, timestamp});
+		//opt.pblock->pkts[opt.pblock->cnt].ts = timestamp;
 		/*parse_packet(
 			&opt,
 			m_parser_stats,
@@ -113,7 +116,7 @@ InputPlugin::Result NdpPacketReader::get(PacketBlock& packets)
 			ndp_packet->data_length,
 			ndp_packet->data_length);*/
 	}
-	parse_burst_gpu(&opt, &m_parser_stats, buffer, 0);
+	parse_burst_gpu(buffer);
 	m_seen += read_pkts;
 	m_parsed += opt.pblock->cnt;
 
