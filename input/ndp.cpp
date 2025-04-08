@@ -152,6 +152,7 @@ InputPlugin::Result NdpPacketReader::get(PacketBlock &packets)
          if (opt.pblock->cnt) {
             break;
          }
+         m_parser_stats.timeouted++;
          return Result::TIMEOUT;
       } else if (ret < 0) {
          // Error occured.
@@ -190,7 +191,7 @@ InputPlugin::Result NdpPacketReader::get(PacketBlock &packets)
 
    m_stats.receivedPackets += read_pkts;
    m_stats.receivedBytes += packets.bytes;
-
+   opt.pblock->cnt ? m_parser_stats.parsed++ : m_parser_stats.not_parsed++;
    return opt.pblock->cnt ? Result::PARSED : Result::NOT_PARSED;
 }
 

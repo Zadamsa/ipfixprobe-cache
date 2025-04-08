@@ -43,7 +43,7 @@
 #include "fragmentationCache/fragmentationCache.hpp"
 #include "cacheOptParser.hpp"
 #include "cacheRowSpan.hpp"
-#include "flowKey.tpp"
+#include "flowKey.hpp"
 #include "flowRecord.hpp"
 #include "cttController.hpp"
 #include "cacheStats.hpp"
@@ -68,6 +68,7 @@ public:
 
 #ifdef WITH_CTT
    void export_external(const Packet& pkt) noexcept override;
+   void prefinish_signal() noexcept override;
 #endif /* WITH_CTT */
 
    /**
@@ -124,11 +125,9 @@ private:
    };
 
    std::pair<FlowSearch, bool>
-   find_flow_index(const std::variant<FlowKeyv4, FlowKeyv6>& key,
-                   const std::variant<FlowKeyv4, FlowKeyv6>& key_reversed) noexcept;
+   find_flow_index(const FlowKey& key, const FlowKey& key_reversed) noexcept;
 
-   FlowSearch
-   find_row(const std::variant<FlowKeyv4, FlowKeyv6>& key) noexcept;
+   FlowSearch find_row(const FlowKey& key) noexcept;
    bool try_to_export_on_inactive_timeout(size_t flow_index, const timeval& now) noexcept;
    bool try_to_export_on_active_timeout(size_t flow_index, const timeval& now) noexcept;
    void export_flow(size_t flow_index, int reason);

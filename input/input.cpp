@@ -61,6 +61,10 @@ static telemetry::Content get_parser_stats_content(const ParserStats& parserStat
    dict["data_offset_less_than_l4_hdr_offset"] = parserStats.data_offset_less_than_l4_hdr_offset;
    dict["total_tcp_set"] = parserStats.total_tcp_set;
    dict["total_ip4_set"] = parserStats.total_ip4_set;
+
+   dict["timeouted"] = parserStats.timeouted;
+   dict["parsed"] = parserStats.parsed;
+   dict["not_parsed"] = parserStats.not_parsed;
    
 
    return dict;

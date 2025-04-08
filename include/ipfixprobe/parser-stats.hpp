@@ -57,7 +57,9 @@ struct ParserStats {
    uint64_t total_tcp_set{0};
    uint64_t total_ip4_set{0};
 
-
+   uint64_t timeouted{0};
+   uint64_t parsed{0};
+   uint64_t not_parsed{0};
 };
 
 } // namespace ipxp

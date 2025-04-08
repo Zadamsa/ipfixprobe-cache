@@ -186,6 +186,19 @@ void NHTFlowCache::finish()
    });
 }
 
+#ifdef WITH_CTT
+void NHTFlowCache::prefinish_signal() noexcept
+{
+   return;
+   std::for_each(m_flow_table.begin(), m_flow_table.begin() + m_cache_size, [&, index = 0](FlowRecord*& flow_record) mutable{
+      if (!flow_record->is_empty() && flow_record->is_in_ctt && flow_record->offload_mode == feta::OffloadMode::DROP_PACKET_DROP_META) {
+         m_ctt_stats.total_requests_count++;
+         m_ctt_controller->get_state(flow_record->m_flow.flow_hash_ctt);
+      }  
+   });
+}
+#endif /* WITH_CTT */
+
 void NHTFlowCache::export_and_reuse_flow(size_t flow_index) noexcept
 {
    push_to_export_queue(flow_index);
@@ -218,12 +231,9 @@ void NHTFlowCache::flush(Packet &pkt, size_t flow_index, int return_flags)
 }
 
 NHTFlowCache::FlowSearch
-NHTFlowCache::find_row(const std::variant<FlowKeyv4, FlowKeyv6>& key) noexcept
+NHTFlowCache::find_row(const FlowKey& key) noexcept
 {
-   const auto [data, length] = std::visit([](const auto& key) {
-      return std::make_pair(reinterpret_cast<const uint8_t*>(&key), sizeof(key));
-   }, key);
-   const size_t hash_value = XXH64(data, length, 0);
+   const size_t hash_value = XXH3_64bits(&key, sizeof(key));
    const size_t first_flow_in_row = hash_value & m_line_mask;
    const CacheRowSpan row(&m_flow_table[first_flow_in_row], m_line_size);
    if (const std::optional<size_t> flow_index = row.find_by_hash(hash_value); flow_index.has_value()) {
@@ -233,8 +243,7 @@ NHTFlowCache::find_row(const std::variant<FlowKeyv4, FlowKeyv6>& key) noexcept
 }
 
 std::pair<NHTFlowCache::FlowSearch, bool>
-NHTFlowCache::find_flow_index(const std::variant<FlowKeyv4, FlowKeyv6>& key,
-const std::variant<FlowKeyv4, FlowKeyv6>& key_reversed) noexcept
+NHTFlowCache::find_flow_index(const FlowKey& key, const FlowKey& key_reversed) noexcept
 {
    const FlowSearch direct_search = find_row(key);
    if (direct_search.flow_index.has_value() || m_split_biflow) {
@@ -294,7 +303,7 @@ bool NHTFlowCache::try_to_export_on_inactive_timeout(size_t flow_index, const ti
 std::optional<feta::OffloadMode> NHTFlowCache::get_offload_mode(size_t flow_index) noexcept
 {
    //return feta::OffloadMode::TRIM_PACKET_META;
-   //return std::nullopt;
+   return std::nullopt;
    /*static int count = 0;
    if (count++ % 100 != 0) {
       m_ctt_stats.drop_packet_offloaded++;
@@ -309,12 +318,11 @@ std::optional<feta::OffloadMode> NHTFlowCache::get_offload_mode(size_t flow_inde
    if (!m_flow_table[flow_index]->can_be_offloaded) {
       return std::nullopt;
    }
-   if (only_metadata_required(m_flow_table[flow_index]->m_flow) && m_flow_table[flow_index]->m_flow.src_packets + m_flow_table[flow_index]->m_flow.dst_packets > 100000) {
+   if (only_metadata_required(m_flow_table[flow_index]->m_flow) && m_flow_table[flow_index]->m_flow.src_packets + m_flow_table[flow_index]->m_flow.dst_packets > 10000) {
       m_ctt_stats.drop_packet_offloaded++;
       return feta::OffloadMode::DROP_PACKET_DROP_META ;
    }
-   /*
-   if (only_metadata_required(m_flow_table[flow_index]->m_flow) && m_flow_table[flow_index]->m_flow.src_packets + m_flow_table[flow_index]->m_flow.dst_packets > 100) {
+   /*if (only_metadata_required(m_flow_table[flow_index]->m_flow) && m_flow_table[flow_index]->m_flow.src_packets + m_flow_table[flow_index]->m_flow.dst_packets > 10000) {
       m_ctt_stats.trim_packet_offloaded++;
       return feta::OffloadMode::TRIM_PACKET_META;
    }*/
@@ -563,7 +571,7 @@ void NHTFlowCache::export_external(const Packet& pkt) noexcept
    }*/
 
    const uint16_t vlan_id = export_data.record.vlan_vld ? export_data.record.vlan_tci & 0x0FFF : 0; 
-   std::variant<FlowKeyv4, FlowKeyv6> key = *FlowKeyFactory::create_direct_key(export_data.record.ip_src.data(), export_data.record.ip_dst.data(),
+   FlowKey key = FlowKeyFactory::create_direct_key(export_data.record.ip_src.data(), export_data.record.ip_dst.data(),
       export_data.record.port_src, export_data.record.port_dst, export_data.record.l4_proto, ip_version, vlan_id);
    /*std::visit([](auto& key) {
       std::reverse(key.src_ip.data(), key.src_ip.data() + sizeof(key.src_ip));
@@ -646,26 +654,6 @@ static bool check_ip_version(const Packet& pkt) noexcept
    return pkt.ip_version == IP::v4 || pkt.ip_version == IP::v6;
 }
 
-template <IP Version>
-static void printFlowKey(const FlowKey<Version>& key) {
-    std::cout << "Source Port: " << key.src_port << "\n";
-    std::cout << "Destination Port: " << key.dst_port << "\n";
-    std::cout << "Protocol: " << static_cast<int>(key.proto) << "\n";
-    std::cout << "IP Version: " << static_cast<int>(key.ip_version) << "\n";
-    std::cout << "Source IP: ";
-    for (size_t i = 0; i < key.AddressSize; ++i) {
-        std::cout << (i ? "." : "") << static_cast<int>(key.src_ip[i]);
-    }
-    std::cout << "\n";
-    std::cout << "Destination IP: ";
-    for (size_t i = 0; i < key.AddressSize; ++i) {
-        std::cout << (i ? "." : "") << static_cast<int>(key.dst_ip[i]);
-    }
-    std::cout << "\n";
-    std::cout << "VLAN ID: " << key.vlan_id << "\n";
-    std::cout << std::endl;
-}
-
 int NHTFlowCache::put_pkt(Packet& packet)
 {
    MAYBE_DISABLED_CODE(std::vector<char> data(packet.packet, packet.packet + packet.packet_len);)
@@ -679,10 +667,10 @@ int NHTFlowCache::put_pkt(Packet& packet)
       return 0;
    }
    m_cache_stats.total++;
-   const std::variant<FlowKeyv4, FlowKeyv6> direct_key = *FlowKeyFactory::create_direct_key(&packet.src_ip, &packet.dst_ip,
+   const FlowKey direct_key = FlowKeyFactory::create_direct_key(&packet.src_ip, &packet.dst_ip,
       packet.src_port, packet.dst_port, packet.ip_proto, static_cast<IP>(packet.ip_version), packet.vlan_id);
    //std::visit([](const auto& key) { printFlowKey(key); }, direct_key);
-   const std::variant<FlowKeyv4, FlowKeyv6> reversed_key = *FlowKeyFactory::create_reversed_key(&packet.src_ip, &packet.dst_ip,
+   const FlowKey reversed_key = FlowKeyFactory::create_reversed_key(&packet.src_ip, &packet.dst_ip,
       packet.src_port, packet.dst_port, packet.ip_proto, static_cast<IP>(packet.ip_version), packet.vlan_id);
 
    prefetch_export_expired();

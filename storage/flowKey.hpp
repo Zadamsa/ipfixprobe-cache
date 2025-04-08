@@ -30,19 +30,15 @@
 
 namespace ipxp {
 
-template<IP Version>
 struct FlowKey {
-   static constexpr size_t AddressSize = Version == IP::v4 ? 4 : 16;
+   std::array<uint8_t, 16> src_ip;
+   std::array<uint8_t, 16> dst_ip;
    uint16_t src_port;
    uint16_t dst_port;
+   uint16_t vlan_id;
    uint8_t proto;
    uint8_t ip_version;
-   std::array<uint8_t, AddressSize> src_ip;
-   std::array<uint8_t, AddressSize> dst_ip;
-   uint16_t vlan_id;
 } __attribute__((packed));
 
-using FlowKeyv4 = FlowKey<IP::v4>;
-using FlowKeyv6 = FlowKey<IP::v6>;
 
 } // namespace ipxp

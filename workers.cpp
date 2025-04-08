@@ -56,8 +56,22 @@ void input_storage_worker(InputPlugin *plugin, StoragePlugin *cache, size_t queu
 #else
    const clockid_t clk_id = CLOCK_MONOTONIC;
 #endif
-
-   while (!terminate_input) {
+   int repeat_count = 0;
+   int timeout_count = 0;
+   int parsed_count = 0;
+   bool ctt_exports_processed = false;
+   while (!terminate_input || !ctt_exports_processed) {
+      if (terminate_input ) {
+         if (repeat_count == 0) {
+#ifdef WITH_CTT
+            cache->prefinish_signal();
+            sleep(1);
+            repeat_count++;
+#endif /* WITH_CTT */
+         }
+         repeat_count++;
+         ctt_exports_processed = repeat_count == 500;
+      }
       block.cnt = 0;
       block.bytes = 0;
 
@@ -101,6 +115,9 @@ void input_storage_worker(InputPlugin *plugin, StoragePlugin *cache, size_t queu
                   cache->export_external(block.pkts[i]);
                   continue;
                }
+               if (terminate_input) {
+                  continue;
+               }
 #endif /* WITH_CTT */
                cache->put_pkt(block.pkts[i]);
             }
@@ -133,6 +150,7 @@ void input_storage_worker(InputPlugin *plugin, StoragePlugin *cache, size_t queu
    stats.parsed = plugin->m_parsed;
    stats.dropped = plugin->m_dropped;
    out_stats->store(stats);
+
    cache->finish();
    auto outq = cache->get_queue();
    while (ipx_ring_cnt(outq)) {
