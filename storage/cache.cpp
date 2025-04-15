@@ -258,6 +258,16 @@ NHTFlowCache::find_flow_index(const FlowKey& key, const FlowKey& key_reversed) n
    return {direct_search, true};
 }
 
+std::pair<NHTFlowCache::FlowSearch, bool>
+NHTFlowCache::find_flow_index(const FlowKey& sorted_key, const bool swapped) noexcept
+{
+   const FlowSearch search = find_row(sorted_key);
+   if (search.flow_index.has_value()) {
+      return {search, m_flow_table[*search.flow_index]->m_flow.swapped == swapped};
+   }
+   return {search, swapped};
+}
+
 static bool is_tcp_connection_restart(const Packet& packet, const Flow& flow) noexcept
 {
    constexpr uint8_t TCP_FIN = 0x01;
@@ -667,22 +677,26 @@ int NHTFlowCache::put_pkt(Packet& packet)
       return 0;
    }
    m_cache_stats.total++;
-   const FlowKey direct_key = FlowKeyFactory::create_direct_key(&packet.src_ip, &packet.dst_ip,
+   /*const FlowKey direct_key = FlowKeyFactory::create_direct_key(&packet.src_ip, &packet.dst_ip,
       packet.src_port, packet.dst_port, packet.ip_proto, static_cast<IP>(packet.ip_version), packet.vlan_id);
-   //std::visit([](const auto& key) { printFlowKey(key); }, direct_key);
    const FlowKey reversed_key = FlowKeyFactory::create_reversed_key(&packet.src_ip, &packet.dst_ip,
+      packet.src_port, packet.dst_port, packet.ip_proto, static_cast<IP>(packet.ip_version), packet.vlan_id);*/
+
+   const auto [sorted_key, swapped] = FlowKeyFactory::create_sorted_key(&packet.src_ip, &packet.dst_ip,
       packet.src_port, packet.dst_port, packet.ip_proto, static_cast<IP>(packet.ip_version), packet.vlan_id);
 
    prefetch_export_expired();
 
    auto [flow_search, source_to_destination] =
-      find_flow_index(direct_key, reversed_key);
+      //find_flow_index(direct_key, reversed_key);
+      find_flow_index(sorted_key, swapped);
 
-   packet.source_pkt = source_to_destination;
+   packet.source_pkt = flow_search.flow_index.has_value() ? source_to_destination : true;
 
    if (!flow_search.flow_index.has_value()) {
       const size_t empty_place = get_empty_place(flow_search.cache_row, packet.ts) + (flow_search.hash_value & m_line_mask);
       create_record(packet, empty_place, flow_search.hash_value);
+      m_flow_table[empty_place]->m_flow.swapped = source_to_destination;
       export_expired(packet.ts);
       return 0;
    }

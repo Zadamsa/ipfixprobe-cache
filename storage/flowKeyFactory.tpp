@@ -60,6 +60,17 @@ public:
       res.vlan_id = vlan_id;
       return res;
    }
+
+   template<typename Int>
+   static std::pair<FlowKey, bool>
+   create_sorted_key(const Int* src_ip, const Int* dst_ip,
+      uint16_t src_port, uint16_t dst_port, uint8_t proto, IP ip_version, uint16_t vlan_id) noexcept
+   {
+      if (src_port <= dst_port) {
+         return {create_direct_key(src_ip, dst_ip, src_port, dst_port, proto, ip_version, vlan_id), false};
+      }
+      return {create_reversed_key(src_ip, dst_ip, src_port, dst_port, proto, ip_version, vlan_id), true};
+   }
 };
 
 } // ipxp

@@ -126,6 +126,8 @@ private:
 
    std::pair<FlowSearch, bool>
    find_flow_index(const FlowKey& key, const FlowKey& key_reversed) noexcept;
+   std::pair<NHTFlowCache::FlowSearch, bool>
+   find_flow_index(const FlowKey& sorted_key, const bool swapped) noexcept;
 
    FlowSearch find_row(const FlowKey& key) noexcept;
    bool try_to_export_on_inactive_timeout(size_t flow_index, const timeval& now) noexcept;
