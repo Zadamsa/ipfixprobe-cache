@@ -37,8 +37,7 @@ CacheRowSpan::CacheRowSpan(FlowRecord** begin, size_t count) noexcept
 
 std::optional<size_t> CacheRowSpan::find_by_hash(uint64_t hash) const noexcept
 {
-   FlowRecord** it = nullptr;
-   it = std::find_if(m_begin, m_begin + m_count, [&](const FlowRecord* flow) {
+   FlowRecord** it = std::find_if(m_begin, m_begin + m_count, [&](const FlowRecord* flow) {
       return flow->belongs(hash);
    });
    if (it == m_begin + m_count) {

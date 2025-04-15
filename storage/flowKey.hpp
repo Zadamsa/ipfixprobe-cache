@@ -38,6 +38,11 @@ struct FlowKey {
    uint16_t vlan_id;
    uint8_t proto;
    uint8_t ip_version;
+   
+   size_t hash() const noexcept 
+   {
+      return XXH3_64bits(this, sizeof(*this));
+   }
 } __attribute__((packed));
 
 

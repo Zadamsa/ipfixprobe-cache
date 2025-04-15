@@ -233,7 +233,7 @@ void NHTFlowCache::flush(Packet &pkt, size_t flow_index, int return_flags)
 NHTFlowCache::FlowSearch
 NHTFlowCache::find_row(const FlowKey& key) noexcept
 {
-   const size_t hash_value = XXH3_64bits(&key, sizeof(key));
+   const size_t hash_value = key.hash();
    const size_t first_flow_in_row = hash_value & m_line_mask;
    const CacheRowSpan row(&m_flow_table[first_flow_in_row], m_line_size);
    if (const std::optional<size_t> flow_index = row.find_by_hash(hash_value); flow_index.has_value()) {
@@ -303,7 +303,7 @@ bool NHTFlowCache::try_to_export_on_inactive_timeout(size_t flow_index, const ti
 std::optional<feta::OffloadMode> NHTFlowCache::get_offload_mode(size_t flow_index) noexcept
 {
    //return feta::OffloadMode::TRIM_PACKET_META;
-   return std::nullopt;
+   //return std::nullopt;
    /*static int count = 0;
    if (count++ % 100 != 0) {
       m_ctt_stats.drop_packet_offloaded++;
@@ -318,14 +318,14 @@ std::optional<feta::OffloadMode> NHTFlowCache::get_offload_mode(size_t flow_inde
    if (!m_flow_table[flow_index]->can_be_offloaded) {
       return std::nullopt;
    }
-   if (only_metadata_required(m_flow_table[flow_index]->m_flow) && m_flow_table[flow_index]->m_flow.src_packets + m_flow_table[flow_index]->m_flow.dst_packets > 10000) {
+   /*if (only_metadata_required(m_flow_table[flow_index]->m_flow) && m_flow_table[flow_index]->m_flow.src_packets + m_flow_table[flow_index]->m_flow.dst_packets > 10000) {
       m_ctt_stats.drop_packet_offloaded++;
       return feta::OffloadMode::DROP_PACKET_DROP_META ;
-   }
-   /*if (only_metadata_required(m_flow_table[flow_index]->m_flow) && m_flow_table[flow_index]->m_flow.src_packets + m_flow_table[flow_index]->m_flow.dst_packets > 10000) {
+   }*/
+   if (only_metadata_required(m_flow_table[flow_index]->m_flow) && m_flow_table[flow_index]->m_flow.src_packets + m_flow_table[flow_index]->m_flow.dst_packets > 10000) {
       m_ctt_stats.trim_packet_offloaded++;
       return feta::OffloadMode::TRIM_PACKET_META;
-   }*/
+   }
    
    return std::nullopt;
 }
@@ -724,6 +724,7 @@ size_t NHTFlowCache::get_empty_place(CacheRowSpan& row, const timeval& now) noex
 {
    if (const std::optional<size_t> empty_index = row.find_empty(); empty_index.has_value()) {
       m_cache_stats.empty++;
+      size_t x = empty_index.value();
       m_cache_stats.empty_places[empty_index.value()]++;
       return empty_index.value();
    }
@@ -902,7 +903,9 @@ telemetry::Content NHTFlowCache::get_cache_telemetry()
    dict["FlowRecordStats:51-plusPackets"] = m_flow_record_stats.packets_count_51_plus;
 
    dict["TotalExportedFlows"] = m_cache_stats.total_exported;
-
+#ifdef WITH_CTT
+   dict["CttRequests"] = m_ctt_stats.total_requests_count;
+#endif /* WITH_CTT */
    return dict;
 }
 

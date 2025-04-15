@@ -24,8 +24,7 @@ public:
          *reinterpret_cast<uint64_t*>(&res.dst_ip[0]) = 0;
          *reinterpret_cast<uint32_t*>(&res.dst_ip[8]) = htobe32(0x0000FFFF);
          *reinterpret_cast<uint32_t*>(&res.dst_ip[12]) = *reinterpret_cast<const uint32_t*>(dst_ip);
-      }
-      if (ip_version == IP::v6) {
+      } else if (ip_version == IP::v6) {
          std::memcpy(res.src_ip.begin(), src_ip, 16);
          std::memcpy(res.dst_ip.begin(), dst_ip, 16);
       }
