@@ -56,21 +56,14 @@ void input_storage_worker(InputPlugin *plugin, StoragePlugin *cache, size_t queu
 #else
    const clockid_t clk_id = CLOCK_MONOTONIC;
 #endif
-   int repeat_count = 0;
-   int timeout_count = 0;
-   int parsed_count = 0;
-   bool ctt_exports_processed = false;
-   while (!terminate_input || !ctt_exports_processed) {
-      if (terminate_input ) {
-         if (repeat_count == 0) {
+   constexpr size_t FINAL_RUNS = 1 << 18;
+   size_t runs = 0;
+   while (!terminate_input || runs < FINAL_RUNS) {
+      if (terminate_input) {
 #ifdef WITH_CTT
-            cache->prefinish_signal();
-            sleep(1);
-            repeat_count++;
+         cache->prefinish_signal();
 #endif /* WITH_CTT */
-         }
-         repeat_count++;
-         ctt_exports_processed = repeat_count == 500;
+         runs++;
       }
       block.cnt = 0;
       block.bytes = 0;
@@ -113,9 +106,6 @@ void input_storage_worker(InputPlugin *plugin, StoragePlugin *cache, size_t queu
 #ifdef WITH_CTT
                if (block.pkts[i].external_export) {
                   cache->export_external(block.pkts[i]);
-                  continue;
-               }
-               if (terminate_input) {
                   continue;
                }
 #endif /* WITH_CTT */

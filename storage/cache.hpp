@@ -100,6 +100,7 @@ private:
    CttStats m_ctt_stats = {};
    uint8_t m_dma_channel;
    std::shared_ptr<CttController> m_ctt_controller;
+   size_t m_prefinish_index{0};
 
    void set_ctt_config(const std::shared_ptr<CttController>& ctt_controller, uint8_t dma_channel) override;
    void update_ctt_export_stats(feta::ExportReason ctt_reason, feta::MuExportReason mu_reason) noexcept;

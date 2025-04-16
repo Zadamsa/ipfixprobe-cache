@@ -189,13 +189,15 @@ void NHTFlowCache::finish()
 #ifdef WITH_CTT
 void NHTFlowCache::prefinish_signal() noexcept
 {
-   return;
-   std::for_each(m_flow_table.begin(), m_flow_table.begin() + m_cache_size, [&, index = 0](FlowRecord*& flow_record) mutable{
+   constexpr size_t BLOCK_SIZE = 64;
+   for(size_t current_index = m_prefinish_index; current_index < m_prefinish_index + BLOCK_SIZE; current_index++) {
+      FlowRecord* flow_record = m_flow_table[current_index];
       if (!flow_record->is_empty() && flow_record->is_in_ctt && flow_record->offload_mode == feta::OffloadMode::DROP_PACKET_DROP_META) {
          m_ctt_stats.total_requests_count++;
          m_ctt_controller->get_state(flow_record->m_flow.flow_hash_ctt);
       }  
-   });
+   };
+   m_prefinish_index = (m_prefinish_index + BLOCK_SIZE) % m_cache_size;
 }
 #endif /* WITH_CTT */
 
@@ -328,11 +330,11 @@ std::optional<feta::OffloadMode> NHTFlowCache::get_offload_mode(size_t flow_inde
    if (!m_flow_table[flow_index]->can_be_offloaded) {
       return std::nullopt;
    }
-   /*if (only_metadata_required(m_flow_table[flow_index]->m_flow) && m_flow_table[flow_index]->m_flow.src_packets + m_flow_table[flow_index]->m_flow.dst_packets > 10000) {
+   /*if (m_flow_table[flow_index]->m_flow.src_packets + m_flow_table[flow_index]->m_flow.dst_packets > 1000) {
       m_ctt_stats.drop_packet_offloaded++;
       return feta::OffloadMode::DROP_PACKET_DROP_META ;
    }*/
-   if (only_metadata_required(m_flow_table[flow_index]->m_flow) && m_flow_table[flow_index]->m_flow.src_packets + m_flow_table[flow_index]->m_flow.dst_packets > 10000) {
+   if (m_flow_table[flow_index]->m_flow.src_packets + m_flow_table[flow_index]->m_flow.dst_packets > 1000) {
       m_ctt_stats.trim_packet_offloaded++;
       return feta::OffloadMode::TRIM_PACKET_META;
    }
@@ -581,13 +583,14 @@ void NHTFlowCache::export_external(const Packet& pkt) noexcept
    }*/
 
    const uint16_t vlan_id = export_data.record.vlan_vld ? export_data.record.vlan_tci & 0x0FFF : 0; 
-   FlowKey key = FlowKeyFactory::create_direct_key(export_data.record.ip_src.data(), export_data.record.ip_dst.data(),
+   const auto [key, swapped] = FlowKeyFactory::create_sorted_key(export_data.record.ip_src.data(), export_data.record.ip_dst.data(),
       export_data.record.port_src, export_data.record.port_dst, export_data.record.l4_proto, ip_version, vlan_id);
    /*std::visit([](auto& key) {
       std::reverse(key.src_ip.data(), key.src_ip.data() + sizeof(key.src_ip));
       std::reverse(key.dst_ip.data(), key.dst_ip.data() + sizeof(key.dst_ip));
    }, key);*/
-   const auto [row, flow_index, hash_value] = find_row(key);
+   const auto [search, source_to_destination] = find_flow_index(key, swapped);
+   const auto [row, flow_index, hash_value] = search;
    if (!flow_index.has_value()
          || !m_flow_table[flow_index.value()]->is_in_ctt
          || !m_flow_table[flow_index.value()]->offload_mode.has_value()) {
@@ -652,6 +655,7 @@ void NHTFlowCache::export_external(const Packet& pkt) noexcept
    }
 
    if (export_data.fields.rsn == feta::ExportReason::FULL_CTT) {
+      m_flow_table[flow_index.value()]->can_be_offloaded = false;
       MAYBE_DISABLED_CODE(std::cout << "CTT is full" << std::endl;)
    }
 
@@ -738,7 +742,6 @@ size_t NHTFlowCache::get_empty_place(CacheRowSpan& row, const timeval& now) noex
 {
    if (const std::optional<size_t> empty_index = row.find_empty(); empty_index.has_value()) {
       m_cache_stats.empty++;
-      size_t x = empty_index.value();
       m_cache_stats.empty_places[empty_index.value()]++;
       return empty_index.value();
    }
