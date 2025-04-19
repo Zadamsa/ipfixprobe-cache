@@ -110,9 +110,10 @@ void hash_burst_gpu(PacketBlock& parsed_packets)
 	cudaHostGetDevicePointer((void**)&packets_dev, (void*)parsed_packets.pkts, 0);
 	int threadsPerBlock = 256;
 	int numBlocks = (parsed_packets.cnt + threadsPerBlock - 1) / threadsPerBlock;
-	hash<<<numBlocks, threadsPerBlock>>>(packets_dev, parsed_packets.cnt);
-    cudaDeviceSynchronize();  
-
+	if (parsed_packets.cnt != 0) {
+		hash<<<numBlocks, threadsPerBlock>>>(packets_dev, parsed_packets.cnt);
+    	cudaDeviceSynchronize();  
+	}
 	/*std::for_each_n(buffer, buffer_size, [&, index = 0](const Packet& packet) mutable {
 		packet.direct_hash = packet.reverse_hash = 0;
 		if (packet.ip_version != 4 && packet.ip_version != 6) {

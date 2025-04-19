@@ -44,17 +44,10 @@ void parse_burst_gpu(PacketBlock& parsed_result)
 	}
 	int threadsPerBlock = 256;
 	int numBlocks = (parsed_result.cnt + threadsPerBlock - 1) / threadsPerBlock;
-	parse<<<numBlocks, threadsPerBlock>>>(packets_dev, parsed_result.cnt, stats_dev);
-	cudaError_t err = cudaGetLastError();
-    if (err != cudaSuccess) {
-        printf("CUDA error: %s\n", cudaGetErrorString(err));
-    }
-
-    cudaDeviceSynchronize();  
-	err = cudaGetLastError();
-    if (err != cudaSuccess) {
-        printf("CUDA error: %s\n", cudaGetErrorString(err));
-    }
+	if (parsed_result.cnt != 0) {
+		parse<<<numBlocks, threadsPerBlock>>>(packets_dev, parsed_result.cnt, stats_dev);
+    	cudaDeviceSynchronize();  
+	}
 	//cudaMemcpy(raw_packets, packets.data(), packets.size() * sizeof(packets[0]), cudaMemcpyHostToDevice);
 	/*std::for_each(packets.begin(), packets.end(), [index = 0](const PacketData& packet) mutable{
 		packets_data[index].length = std::min<size_t>(packet.length, 256);
