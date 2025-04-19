@@ -21,6 +21,57 @@ inline  uint64_t  __device__ fnv1a_hash(const void* data, size_t size) {
     return hash;
 }
 
+inline uint64_t fast_hash(const void* data, size_t len, uint64_t seed = 0xcbf29ce484222325ULL) {
+    const uint8_t* p = (const uint8_t*)data;
+    uint64_t hash = seed;
+    while (len--) {
+        hash ^= *p++;
+        hash *= 0x100000001b3ULL; // FNV prime
+    }
+    return hash;
+}
+
+inline uint32_t super_fast_hash(const char* data, int len) {
+    uint32_t hash = len, tmp;
+    int rem;
+
+    if (len <= 0 || data == nullptr) return 0;
+    rem = len & 3;
+    len >>= 2;
+
+    for (; len > 0; len--) {
+        hash += *(const uint16_t*)data;
+        tmp = (*(const uint16_t*)(data + 2) << 11) ^ hash;
+        hash = (hash << 16) ^ tmp;
+        data += 4;
+        hash += hash >> 11;
+    }
+
+    switch (rem) {
+    case 3: hash += *(const uint16_t*)data;
+            hash ^= hash << 16;
+            hash ^= ((signed char)data[2]) << 18;
+            hash += hash >> 11;
+            break;
+    case 2: hash += *(const uint16_t*)data;
+            hash ^= hash << 11;
+            hash += hash >> 17;
+            break;
+    case 1: hash += (signed char)*data;
+            hash ^= hash << 10;
+            hash += hash >> 1;
+            break;
+    }
+
+    hash ^= hash << 3;
+    hash += hash >> 5;
+    hash ^= hash << 4;
+    hash += hash >> 17;
+    hash ^= hash << 25;
+    hash += hash >> 6;
+
+    return hash;
+}
 
 struct FlowKey {
 	uint8_t src_ip[16];
@@ -81,9 +132,6 @@ create_reversed_key(const Int* src_ip, const Int* dst_ip,
 	res.vlan_id = vlan_id;
 	return res;
 }
-
-//Key* keys;
-//Key* keys_reversed;
 
 Packet* packets_dev = nullptr;
 
