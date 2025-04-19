@@ -22,7 +22,7 @@ __global__ void parse(Packet* packets, size_t size, ParserStats* stats_dev) {
 	if (idx >= size) {
 		return;
 	}
-	parse_packet(packets + threadIdx.x, *stats_dev);
+	parse_packet(packets + idx, *stats_dev);
 }
 
 //void parse_burst_gpu(PacketBlock& parsed_result, const std::vector<PacketData>& packets)
