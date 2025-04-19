@@ -277,8 +277,6 @@ public:
 	void set_telemetry_dir(std::shared_ptr<telemetry::Directory> dir) override;
 
 private:
-	
-	FlowHash m_current_record;
 	uint32_t m_cache_size;
 	uint32_t m_line_size;
 	uint32_t m_line_mask;
