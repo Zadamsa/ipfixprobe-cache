@@ -84,6 +84,9 @@ create_reversed_key(const Int* src_ip, const Int* dst_ip,
 
 //Key* keys;
 //Key* keys_reversed;
+
+Packet* packets_dev = nullptr;
+
 __global__ void hash(ipxp::Packet* packets_dev, size_t size)
 {
 	int idx = blockIdx.x * blockDim.x + threadIdx.x;
@@ -106,9 +109,7 @@ __global__ void hash(ipxp::Packet* packets_dev, size_t size)
 
 void hash_burst_gpu(PacketBlock& parsed_packets)
 {
-	ipxp::Packet* packets_dev = nullptr;
-	cudaHostGetDevicePointer((void**)&packets_dev, (void*)parsed_packets.pkts, 0);
-	int threadsPerBlock = 256;
+	int threadsPerBlock = 512;
 	int numBlocks = (parsed_packets.cnt + threadsPerBlock - 1) / threadsPerBlock;
 	if (parsed_packets.cnt != 0) {
 		hash<<<numBlocks, threadsPerBlock>>>(packets_dev, parsed_packets.cnt);
@@ -147,8 +148,9 @@ void hash_burst_gpu(PacketBlock& parsed_packets)
     
 }
 
-void gpu_haher_init()
+void gpu_haher_init(Packet* packets)
 {
+	cudaHostGetDevicePointer((void**)&packets_dev, (void*)packets, 0);
 	//cudaMalloc((void **)&hashes, sizeof(FlowHash) * 100);
 	//cudaMalloc((void **)&keys, sizeof(Key) * 100);
 }

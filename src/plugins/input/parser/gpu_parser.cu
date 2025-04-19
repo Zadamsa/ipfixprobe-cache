@@ -3,12 +3,6 @@
 
 namespace ipxp{
 
-Packet* parsed_packets = nullptr;
-
-PacketData* packets_data;
-PacketData* packets_data_dev;
-timeval* timestamps;
-
 /*__device__ void parse_packet(
 	Packet* opt,
 	ParserStats& stats,
@@ -18,6 +12,8 @@ timeval* timestamps;
 	uint16_t caplen);
 */
 ParserStats* stats;
+extern Packet* packets_dev;
+ParserStats* stats_dev = nullptr;	
 
 __global__ void test(){}
 
@@ -34,15 +30,13 @@ void parse_burst_gpu(PacketBlock& parsed_result)
 {
 	//int blockSize = 4;
 	//int numBlocks = (parsed_result.cnt + blockSize - 1) / blockSize;
-	Packet* packets_dev = nullptr;
-	ParserStats* stats_dev = nullptr;	
-	cudaHostGetDevicePointer((void**)&packets_dev, (void*)parsed_result.pkts, 0);
-	cudaHostGetDevicePointer((void**)&stats_dev, (void*)stats, 0);
+	
+	
 	//test<<<1, 1>>>();
-	for (int i = 0; i < parsed_result.cnt; ++i) {
+	/*for (int i = 0; i < parsed_result.cnt; ++i) {
 		cudaHostGetDevicePointer((void**) &parsed_result.pkts[i].packet_dev, (void*)parsed_result.pkts[i].packet, 0);
-	}
-	int threadsPerBlock = 256;
+	}*/
+	int threadsPerBlock = 512;
 	int numBlocks = (parsed_result.cnt + threadsPerBlock - 1) / threadsPerBlock;
 	if (parsed_result.cnt != 0) {
 		parse<<<numBlocks, threadsPerBlock>>>(packets_dev, parsed_result.cnt, stats_dev);
@@ -60,28 +54,28 @@ void parse_burst_gpu(PacketBlock& parsed_result)
 	parsed_result.cnt = packets.size();*/
 }
 
-void init_gpu_parser() {
+void init_gpu_parser(Packet* packets) {
 	cudaHostAlloc(&stats, sizeof(*stats), cudaHostAllocMapped);
-	cudaMalloc((void **)&parsed_packets, sizeof(Packet) * 100);
+	//cudaHostGetDevicePointer((void**)&packets_dev, (void*)packets, 0);
+	cudaHostGetDevicePointer((void**)&stats_dev, (void*)stats, 0);
+
+	return;
+	/*cudaMalloc((void **)&parsed_packets, sizeof(Packet) * 100);
 	cudaHostAlloc(&packets_data, sizeof(PacketData) * 100, cudaHostAllocMapped);
-	//cudaMalloc((void **)&packets_data, sizeof(PacketData) * 100);
-	/*std::for_each(packets_data, packets_data + 100, [](PacketData& data){
-		cudaMalloc(&data.data, 256);
-	});*/
 	cudaHostGetDevicePointer(&packets_data_dev, packets_data, 0);
 	for (int i = 0; i < 100; ++i) {
 		cudaHostAlloc((void**)&packets_data[i].data, 256, cudaHostAllocMapped);
 		cudaHostGetDevicePointer((void**)&packets_data_dev[i].data, (void*)packets_data[i].data, 0);
-	}
+	}*/
 }
 
 void close_gpu_parser() {
 	return;
-	cudaFree(parsed_packets);
+	/*cudaFree(parsed_packets);
 	std::for_each(packets_data, packets_data + 100, [](PacketData& data){
 		cudaFree((void*)(data.data));
 	});
-	cudaFree(packets_data);
+	cudaFree(packets_data);*/
 }
 
 ParserStats get_stats() {

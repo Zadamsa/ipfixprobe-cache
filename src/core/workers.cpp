@@ -35,6 +35,7 @@
 
 #include "hasher.cuh"
 #include "cudaPacketBlock.cuh"
+#include "../../src/plugins/input/parser/gpu_parser.cuh"
 namespace ipxp {
 
 #define MICRO_SEC 1000000L
@@ -56,8 +57,8 @@ void input_storage_worker(
 	InputPlugin::Result ret;
 	InputStats stats = {0, 0, 0, 0, 0};
 	WorkerResult res = {false, ""};
-	gpu_haher_init();
 	std::unique_ptr<PacketBlock, std::function<void(PacketBlock*)>> block_ptr(getCudaPacketBlock(queue_size), [](PacketBlock* ptr) { freeCudaPacketBlock(ptr); });
+	gpu_haher_init(block_ptr->pkts);
 	PacketBlock& block = *block_ptr;
 
 #ifdef __linux__

@@ -101,8 +101,8 @@ PcapReader::~PcapReader()
 
 void PcapReader::init(const char* params)
 {
-	init_gpu_parser();
 	PcapOptParser parser;
+	init_gpu_parser(nullptr);
 	try {
 		parser.parse(params);
 	} catch (ParserError& e) {

@@ -8,7 +8,7 @@ namespace ipxp{
 
 void hash_burst_gpu(PacketBlock& parsed_packets);
 
-void gpu_haher_init();
+void gpu_haher_init(Packet* packets);
 
 void gpu_haher_close();
 
