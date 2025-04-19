@@ -26,7 +26,7 @@
 namespace ipxp {
 
 // Read only 1 packet into packet block
-constexpr size_t PCAP_PACKET_BLOCK_SIZE = 64;
+constexpr size_t PCAP_PACKET_BLOCK_SIZE = 1024;
 
 struct UserData {
 	parser_opt_t* opt;

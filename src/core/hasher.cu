@@ -108,7 +108,9 @@ void hash_burst_gpu(PacketBlock& parsed_packets)
 {
 	ipxp::Packet* packets_dev = nullptr;
 	cudaHostGetDevicePointer((void**)&packets_dev, (void*)parsed_packets.pkts, 0);
-	hash<<<1, 64>>>(packets_dev, parsed_packets.cnt);
+	int threadsPerBlock = 256;
+	int numBlocks = (parsed_packets.cnt + threadsPerBlock - 1) / threadsPerBlock;
+	hash<<<numBlocks, threadsPerBlock>>>(packets_dev, parsed_packets.cnt);
     cudaDeviceSynchronize();  
 
 	/*std::for_each_n(buffer, buffer_size, [&, index = 0](const Packet& packet) mutable {

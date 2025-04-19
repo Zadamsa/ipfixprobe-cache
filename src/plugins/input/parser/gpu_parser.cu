@@ -22,8 +22,8 @@ ParserStats* stats;
 __global__ void test(){}
 
 __global__ void parse(Packet* packets, size_t size, ParserStats* stats_dev) {
-	//int idx = threadIdx.x;
-	if (threadIdx.x >= size) {
+	int idx = blockIdx.x * blockDim.x + threadIdx.x;
+	if (idx >= size) {
 		return;
 	}
 	parse_packet(packets + threadIdx.x, *stats_dev);
@@ -42,7 +42,9 @@ void parse_burst_gpu(PacketBlock& parsed_result)
 	for (int i = 0; i < parsed_result.cnt; ++i) {
 		cudaHostGetDevicePointer((void**) &parsed_result.pkts[i].packet_dev, (void*)parsed_result.pkts[i].packet, 0);
 	}
-	parse<<<1, 64>>>(packets_dev, parsed_result.cnt, stats_dev);
+	int threadsPerBlock = 256;
+	int numBlocks = (parsed_result.cnt + threadsPerBlock - 1) / threadsPerBlock;
+	parse<<<numBlocks, threadsPerBlock>>>(packets_dev, parsed_result.cnt, stats_dev);
 	cudaError_t err = cudaGetLastError();
     if (err != cudaSuccess) {
         printf("CUDA error: %s\n", cudaGetErrorString(err));
