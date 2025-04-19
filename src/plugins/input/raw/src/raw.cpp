@@ -333,7 +333,7 @@ int RawReader::process_packets(struct tpacket_block_desc* pbd, PacketBlock& pack
 		ppd = (struct tpacket3_hdr*) ((uint8_t*) ppd + ppd->tp_next_offset);
 	}
 	m_last_ppd = ppd;
-	parse_burst_gpu(packets, m_packet_buffer);
+	//parse_burst_gpu(packets, m_packet_buffer);
 
 	return to_read;
 }

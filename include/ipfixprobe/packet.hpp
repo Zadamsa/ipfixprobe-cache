@@ -84,7 +84,11 @@ struct Packet : public Record {
 	 */
 	uint32_t mplsTop;
 
-	const uint8_t* packet; /**< Pointer to begin of packet, if available */
+#ifndef __CUDACC__
+	//const 
+#endif
+	uint8_t* packet; /**< Pointer to begin of packet, if available */
+	uint8_t* packet_dev; /**< Pointer to begin of packet, if available */
 	uint16_t packet_len; /**< Length of data in packet buffer, packet_len <= packet_len_wire */
 	uint16_t packet_len_wire; /**< Original packet length on wire */
 
@@ -100,6 +104,11 @@ struct Packet : public Record {
 	uint16_t buffer_size; /**< Size of buffer */
 
 	bool source_pkt; /**< Direction of packet from flow point of view */
+	size_t direct_hash;
+	size_t reverse_hash;
+	bool is_valid;
+	size_t debug;
+	size_t debug2;
 
 	/**
 	 * \brief Constructor.
@@ -156,20 +165,30 @@ struct PacketBlock {
 	size_t size;
 
 #ifdef __CUDACC__
-	__host__ __device__
-#endif
- 	PacketBlock(size_t pkts_size)
+	PacketBlock(size_t pkts_size)
+		: cnt(0)
+		, bytes(0)
+		, size(pkts_size)
+	{
+		cudaHostAlloc(&pkts, sizeof(Packet) * pkts_size, cudaHostAllocMapped);
+	}
+#else
+	PacketBlock(size_t pkts_size)
 		: cnt(0)
 		, bytes(0)
 		, size(pkts_size)
 	{
 		pkts = new Packet[pkts_size];
 	}
+#endif
 
 #ifdef __CUDACC__
 	__host__ __device__
-#endif
+	~PacketBlock() {}
+#else
 	~PacketBlock() { delete[] pkts; }
+#endif
+
 };
 
 } // namespace ipxp

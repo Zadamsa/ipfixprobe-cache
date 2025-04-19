@@ -26,6 +26,7 @@
  *
  */
 
+ 
 #include "parser.cuh"
 
 #include "headers.hpp"
@@ -39,7 +40,7 @@
 #include <ipfixprobe/packet.hpp>
 #include <sys/types.h>
 
-__host__ __device__ inline uint16_t cuda_ntohs(uint16_t x) {
+__device__ inline uint16_t cuda_ntohs(uint16_t x) {
     return ((x >> 8) & 0x00FF) | ((x << 8) & 0xFF00);
 }
 
@@ -49,7 +50,7 @@ __host__ __device__ inline uint16_t cuda_ntohs(uint16_t x) {
 
 #define ntohs(x) cuda_ntohs(x)
 
-__host__ __device__ inline uint32_t cuda_ntohl(uint32_t x) {
+__device__ inline uint32_t cuda_ntohl(uint32_t x) {
     return ((x >> 24) & 0x000000FF) |
            ((x >>  8) & 0x0000FF00) |
            ((x <<  8) & 0x00FF0000) |
@@ -122,13 +123,15 @@ static uint32_t s_total_pkts = 0;
  */
 __device__ inline Optional<uint16_t> parse_eth_hdr(const u_char* data_ptr, uint16_t data_len, Packet* pkt)
 {
+	pkt->debug = 0;
 	struct ethhdr* eth = (struct ethhdr*) data_ptr;
 	if (sizeof(struct ethhdr) > data_len) {
 		return std::nullopt;
 	}
+	pkt->debug = 1;
 	uint16_t hdr_len = sizeof(struct ethhdr);
 	uint16_t ethertype = ntohs(eth->h_proto);
-
+	pkt->debug = 2;
 	DEBUG_MSG("Ethernet header:\n");
 #ifndef __CYGWIN__
 	DEBUG_MSG("\tDest mac:\t%s\n", ether_ntoa((struct ether_addr*) eth->h_dest));
@@ -165,6 +168,7 @@ __device__ inline Optional<uint16_t> parse_eth_hdr(const u_char* data_ptr, uint1
 
 	memcpy(pkt->dst_mac, eth->h_dest, 6);
 	memcpy(pkt->src_mac, eth->h_source, 6);
+	pkt->debug = 3;
 
 	// set the default value in case there is no VLAN ID
 	pkt->vlan_id = 0;
@@ -367,12 +371,16 @@ __device__ inline Optional<uint16_t> parse_gre(const u_char* data_ptr, uint16_t 
  */
 __device__ inline Optional<uint16_t> parse_ipv4_hdr(const u_char* data_ptr, uint16_t data_len, Packet* pkt)
 {
+	pkt->debug = 8;
+
 	struct iphdr* ip = (struct iphdr*) data_ptr;
 	if (sizeof(struct iphdr) > data_len) {
 		return std::nullopt;
 	}
+	pkt->debug = 9;
 
-	const int ihl = ip->ihl << 2;
+	const int ihl = ((*((uint8_t*)ip)) & 0x0F) * 4;	
+	pkt->debug = 10;
 
 	if (ip->protocol == IPPROTO_GRE) {
 		DEBUG_MSG("Parse GRE in ipv4 header\n");
@@ -385,19 +393,28 @@ __device__ inline Optional<uint16_t> parse_ipv4_hdr(const u_char* data_ptr, uint
 		}
 		return *gre_len + ihl;
 	}
-
+	pkt->debug = 11;
 	pkt->ip_version = IP::v4;
 	pkt->ip_proto = ip->protocol;
 	pkt->ip_tos = ip->tos;
 	pkt->ip_len = ntohs(ip->tot_len);
 	pkt->ip_payload_len = pkt->ip_len - ihl;
 	pkt->ip_ttl = ip->ttl;
+	pkt->debug = 12;
+
 	pkt->ip_flags = (ntohs(ip->frag_off) & 0xE000) >> 13;
-	pkt->src_ip.v4 = ip->saddr;
-	pkt->dst_ip.v4 = ip->daddr;
+	pkt->debug = 18;
+	memcpy(&pkt->src_ip.v4, &ip->saddr, 4);
+	memcpy(&pkt->dst_ip.v4, &ip->daddr, 4);
+	//pkt->src_ip.v4 = ip->saddr;
+	//pkt->dst_ip.v4 = ip->daddr;
+	pkt->debug = 19;
 	pkt->frag_id = ntohs(ip->id);
+	pkt->debug = 20;
 	pkt->frag_off = ntohs(ip->frag_off) & IPV4_FRAGMENT_OFFSET;
+	pkt->debug = 21;
 	pkt->more_fragments = ntohs(ip->frag_off) & IPV4_MORE_FRAGMENTS;
+	pkt->debug = 22;
 
 	DEBUG_MSG("IPv4 header:\n");
 	DEBUG_MSG("\tHDR version:\t%u\n", ip->version);
@@ -490,7 +507,9 @@ __device__ inline Optional<uint16_t> parse_ipv6_hdr(const u_char* data_ptr, uint
 	}
 
 	pkt->ip_version = IP::v6;
-	pkt->ip_tos = (ntohl(ip6->ip6_ctlun.ip6_un1.ip6_un1_flow) & 0x0ff00000) >> 20;
+	memcpy(&pkt->ip_tos, &ip6->ip6_ctlun.ip6_un1.ip6_un1_flow, 4);
+	pkt->ip_tos = (ntohl(pkt->ip_tos) & 0x0ff00000) >> 20;
+	//pkt->ip_tos = (ntohl(ip6->ip6_ctlun.ip6_un1.ip6_un1_flow) & 0x0ff00000) >> 20;
 	pkt->ip_proto = ip6->ip6_ctlun.ip6_un1.ip6_un1_nxt;
 	pkt->ip_ttl = ip6->ip6_ctlun.ip6_un1.ip6_un1_hlim;
 	pkt->ip_flags = 0;
@@ -535,15 +554,24 @@ __device__ inline Optional<uint16_t> parse_tcp_hdr(const u_char* data_ptr, uint1
 {
 	struct tcphdr* tcp = (struct tcphdr*) data_ptr;
 	if (sizeof(struct tcphdr) > data_len) {
-		return std::nullopt;
+		return std::nullopt;	
 	}
 
+	pkt->debug = 13;
 	pkt->src_port = ntohs(tcp->source);
+	//pkt->src_port = tcp->source;
 	pkt->dst_port = ntohs(tcp->dest);
-	pkt->tcp_seq = ntohl(tcp->seq);
-	pkt->tcp_ack = ntohl(tcp->ack_seq);
+	//pkt->dst_port = tcp->dest;
+	memcpy(&pkt->tcp_seq, &tcp->seq, 4);
+	memcpy(&pkt->tcp_ack, &tcp->ack_seq, 4);
+	pkt->tcp_seq = ntohl(pkt->tcp_seq);
+	pkt->tcp_ack = ntohl(pkt->tcp_ack);
+	//pkt->tcp_seq = ntohl(tcp->seq);
+	//pkt->tcp_ack = ntohl(tcp->ack_seq);
+	pkt->debug = 131;
 	pkt->tcp_flags = (uint8_t) * (data_ptr + 13) & 0xFF;
 	pkt->tcp_window = ntohs(tcp->window);
+	pkt->debug = 14;
 
 	DEBUG_MSG("TCP header:\n");
 	DEBUG_MSG("\tSrc port:\t%u\n", ntohs(tcp->source));
@@ -565,13 +593,19 @@ __device__ inline Optional<uint16_t> parse_tcp_hdr(const u_char* data_ptr, uint1
 	DEBUG_MSG("\tReserved1:\t%#x\n", tcp->res1);
 	DEBUG_MSG("\tReserved2:\t%#x\n", tcp->res2);
 
-	int hdr_len = tcp->doff << 2;
+	int hdr_len = (*(((uint8_t*)&tcp->ack_seq) + 4) & 0xF0) >> 2;
+	pkt->debug2 = *(((uint8_t*)&tcp->ack_seq) + 4);
+	pkt->debug = 15;
+
+	//int hdr_len = tcp->doff << 2;
 	int hdr_opt_len = hdr_len - sizeof(struct tcphdr);
 	int i = 0;
 	DEBUG_MSG("\tTCP_OPTIONS (%uB):\n", hdr_opt_len);
 	if (hdr_len > data_len) {
 		return std::nullopt;
 	}
+	pkt->debug = 16;
+
 	while (i < hdr_opt_len) {
 		uint8_t* opt_ptr = (uint8_t*) data_ptr + sizeof(struct tcphdr) + i;
 		uint8_t opt_kind = *opt_ptr;
@@ -761,17 +795,23 @@ __device__ inline Optional<uint16_t> process_pppoe(const u_char* data_ptr, uint1
 
 __device__ void parse_packet(
 	Packet* pkt,
-	ParserStats& stats,
-	struct timeval ts,
-	const uint8_t* data,
+	ParserStats& stats
+	//const uint8_t* data
+	/*struct timeval ts,
 	uint16_t len,
-	uint16_t caplen)
+	uint16_t caplen*/)
 {
 	/*if (opt->pblock->cnt >= opt->pblock->size) {
 		return;
 	}
 	Packet* pkt = &opt->pblock->pkts[opt->pblock->cnt];*/
 	uint16_t data_offset = 0;
+	//uint8_t* data = nullptr;
+	auto data = pkt->packet_dev;
+	auto caplen = pkt->packet_len;
+	auto len = pkt->packet_len_wire;
+	struct timeval ts = pkt->ts;
+	stats.debug = 1;
 
 	DEBUG_MSG("---------- packet parser  #%u -------------\n", ++s_total_pkts);
 	DEBUG_CODE(char timestamp[32]; time_t time = ts.tv_sec;
@@ -793,25 +833,31 @@ __device__ void parse_packet(
 	pkt->tcp_options = 0;
 	pkt->tcp_mss = 0;
 	pkt->mplsTop = 0;
+	pkt->is_valid = true;
 
 	stats.seen_packets++;
 
 	uint32_t l3_hdr_offset = 0;
 	uint32_t l4_hdr_offset = 0;
 
+	stats.debug++;
 	auto eth_len = parse_eth_hdr(data, caplen, pkt);
+	stats.debug++;
 	if (!eth_len.has_value()) {
 		stats.unknown_packets++;
 		DEBUG_MSG("Unknown Ethernet packet\n");
+		pkt->is_valid = false;
 		return;
 	}
 	data_offset = *eth_len;
+	stats.debug = 5;
 
 	if (pkt->ethertype == ETH_P_TRILL) {
 		auto trill_len = parse_trill(data + data_offset, caplen - data_offset, pkt);
 		if (!trill_len.has_value()) {
 			stats.unknown_packets++;
 			DEBUG_MSG("Unknown TRILL packet\n");
+			pkt->is_valid = false;
 			return;
 		}
 		data_offset += *trill_len;
@@ -820,24 +866,29 @@ __device__ void parse_packet(
 		if (!eth_len.has_value()) {
 			stats.unknown_packets++;
 			DEBUG_MSG("Unknown TRILL packet\n");
+			pkt->is_valid = false;
 			return;
 		}
 		data_offset += *eth_len;
 	}
 	l3_hdr_offset = data_offset;
 	if (pkt->ethertype == ETH_P_IP) {
+		stats.debug = 6;
 		auto ipv4_len = parse_ipv4_hdr(data + data_offset, caplen - data_offset, pkt);
 		if (!ipv4_len.has_value()) {
 			stats.unknown_packets++;
 			DEBUG_MSG("Unknown IPv4 packet\n");
+			pkt->is_valid = false;
 			return;
 		}
+		stats.debug = 62;
 		data_offset += *ipv4_len;
 	} else if (pkt->ethertype == ETH_P_IPV6) {
 		auto ipv6_len = parse_ipv6_hdr(data + data_offset, caplen - data_offset, pkt);
 		if (!ipv6_len.has_value()) {
 			stats.unknown_packets++;
 			DEBUG_MSG("Unknown IPv6 packet\n");
+			pkt->is_valid = false;
 			return;
 		}
 		data_offset += *ipv6_len;
@@ -846,6 +897,7 @@ __device__ void parse_packet(
 		if (!mpls_len.has_value()) {
 			stats.unknown_packets++;
 			DEBUG_MSG("Unknown MPLS packet\n");
+			pkt->is_valid = false;
 			return;
 		}
 		data_offset += *mpls_len;
@@ -855,6 +907,7 @@ __device__ void parse_packet(
 		if (!pppoe_len.has_value()) {
 			stats.unknown_packets++;
 			DEBUG_MSG("Unknown PPPoE packet\n");
+			pkt->is_valid = false;
 			return;
 		}
 		data_offset += *pppoe_len;
@@ -862,21 +915,26 @@ __device__ void parse_packet(
 	}
 
 	l4_hdr_offset = data_offset;
+	stats.debug = 66;
 	if (pkt->ip_proto == IPPROTO_TCP) {
+		stats.debug = 7;
 		auto tcp_len = parse_tcp_hdr(data + data_offset, caplen - data_offset, pkt);
 		if (!tcp_len.has_value()) {
 			stats.unknown_packets++;
 			DEBUG_MSG("Unknown TCP packet\n");
+			pkt->is_valid = false;
 			return;
 		}
 		data_offset += *tcp_len;
 		//data_offset += parse_tcp_hdr(data + data_offset, caplen - data_offset, pkt);
 		stats.tcp_packets++;
 	} else if (pkt->ip_proto == IPPROTO_UDP) {
+		stats.debug = 8;
 		auto udp_len = parse_udp_hdr(data + data_offset, caplen - data_offset, pkt);
 		if (!udp_len.has_value()) {
 			stats.unknown_packets++;
 			DEBUG_MSG("Unknown UDP packet\n");
+			pkt->is_valid = false;
 			return;
 		}
 		data_offset += *udp_len;
@@ -887,6 +945,7 @@ __device__ void parse_packet(
 	if (pkt->vlan_id) {
 		stats.vlan_packets++;
 	}
+	stats.debug = 9;
 
 	if (pkt->ethertype == ETH_P_IP) {
 		stats.ipv4_packets++;
@@ -897,7 +956,7 @@ __device__ void parse_packet(
 	uint16_t pkt_len = caplen;
 	pkt->packet = data;
 	pkt->packet_len = caplen;
-
+	stats.debug = 10;
 	if (l4_hdr_offset != l3_hdr_offset) {
 		if (l4_hdr_offset + pkt->ip_payload_len < 64) {
 			// Packet contains 0x00 padding bytes, do not include them in payload
@@ -914,7 +973,7 @@ __device__ void parse_packet(
 		pkt->payload_len = pkt_len - data_offset;
 	}
 	pkt->payload = pkt->packet + data_offset;
-
+	stats.debug = 11;
 	DEBUG_MSG("Payload length:\t%u\n", pkt->payload_len);
 	DEBUG_MSG("Packet parser exits: packet parsed\n");
 }

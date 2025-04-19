@@ -34,7 +34,7 @@
 #include <unistd.h>
 
 #include "hasher.cuh"
-
+#include "cudaPacketBlock.cuh"
 namespace ipxp {
 
 #define MICRO_SEC 1000000L
@@ -57,7 +57,8 @@ void input_storage_worker(
 	InputStats stats = {0, 0, 0, 0, 0};
 	WorkerResult res = {false, ""};
 	gpu_haher_init();
-	PacketBlock block(queue_size);
+	std::unique_ptr<PacketBlock, std::function<void(PacketBlock*)>> block_ptr(getCudaPacketBlock(queue_size), [](PacketBlock* ptr) { freeCudaPacketBlock(ptr); });
+	PacketBlock& block = *block_ptr;
 
 #ifdef __linux__
 	const clockid_t clk_id = CLOCK_MONOTONIC_COARSE;
@@ -68,7 +69,7 @@ void input_storage_worker(
 	while (!terminate_input) {
 		block.cnt = 0;
 		block.bytes = 0;
-
+		
 		if (pkt_limit && inputPlugin->m_parsed + block.size >= pkt_limit) {
 			if (inputPlugin->m_parsed >= pkt_limit) {
 				break;
@@ -102,13 +103,18 @@ void input_storage_worker(
 			stats.dropped = inputPlugin->m_dropped;
 			stats.bytes += block.bytes;
 			clock_gettime(clk_id, &start_cache);
-			static FlowHash hashes[100];
-			hash_burst_gpu(block.pkts, block.cnt, hashes);
+			//static FlowHash hashes[100];
+			hash_burst_gpu(block);
+			int invalid = 0;
 			try {
 				for (unsigned i = 0; i < block.cnt; i++) {
-					storagePlugin->put_pkt(block.pkts[i], hashes[i]);
+					if (block.pkts[i].is_valid)
+						storagePlugin->put_pkt(block.pkts[i]);
+					else
+						invalid++;
 				}
 				ts = block.pkts[block.cnt - 1].ts;
+				inputPlugin->m_parsed -= invalid;
 			} catch (PluginError& e) {
 				res.error = true;
 				res.msg = e.what();

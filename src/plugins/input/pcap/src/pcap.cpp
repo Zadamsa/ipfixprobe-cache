@@ -12,7 +12,7 @@
 
 #include "pcap.hpp"
 
-#include "parser.hpp"
+#include "../parser/gpu_parser.cuh"
 
 #include <cstdio>
 #include <cstring>
@@ -26,7 +26,7 @@
 namespace ipxp {
 
 // Read only 1 packet into packet block
-constexpr size_t PCAP_PACKET_BLOCK_SIZE = 1;
+constexpr size_t PCAP_PACKET_BLOCK_SIZE = 64;
 
 struct UserData {
 	parser_opt_t* opt;
@@ -65,9 +65,22 @@ void packet_handler(u_char* arg, const struct pcap_pkthdr* h, const u_char* data
 	new_h.ts.tv_usec = *(reinterpret_cast<const uint32_t*>(h) + 1);
 	new_h.caplen = *(reinterpret_cast<const uint32_t*>(h) + 2);
 	new_h.len = *(reinterpret_cast<const uint32_t*>(h) + 3);
-	parse_packet(user_data->opt, user_data->stats, new_h.ts, data, new_h.len, new_h.caplen);
+	//parse_packet(user_data->opt, user_data->stats, new_h.ts, data, new_h.len, new_h.caplen);
 #else
-	parse_packet(user_data->opt, user_data->stats, h->ts, data, h->len, h->caplen);
+	//user_data->packet_data.push_back(PacketData{data, h->len, h->ts});
+	user_data->opt->pblock->pkts[user_data->opt->pblock->cnt].ts = h->ts;
+	size_t packet_len = 256;
+	std::memcpy(
+		user_data->opt->pblock->pkts[user_data->opt->pblock->cnt].packet,
+		data,
+		std::min<size_t>(h->caplen, packet_len));
+	
+	//user_data->opt->pblock->pkts[user_data->opt->pblock->cnt].packet = data;
+	user_data->opt->pblock->pkts[user_data->opt->pblock->cnt].packet_len = std::min<size_t>(h->len, packet_len);
+	user_data->opt->pblock->pkts[user_data->opt->pblock->cnt].packet_len_wire = std::min<size_t>(h->caplen, packet_len);
+	user_data->opt->pblock->cnt++;
+	user_data->opt->pblock->bytes += h->len;
+	//parse_packet(user_data->opt, user_data->stats, h->ts, data, h->len, h->caplen);
 #endif
 }
 
@@ -88,6 +101,7 @@ PcapReader::~PcapReader()
 
 void PcapReader::init(const char* params)
 {
+	init_gpu_parser();
 	PcapOptParser parser;
 	try {
 		parser.parse(params);
@@ -130,6 +144,7 @@ void PcapReader::close()
 		pcap_close(m_handle);
 		m_handle = nullptr;
 	}
+	close_gpu_parser();
 }
 
 void PcapReader::open_file(const std::string& file)
@@ -259,7 +274,6 @@ InputPlugin::Result PcapReader::get(PacketBlock& packets)
 {
 	parser_opt_t opt = {&packets, false, false, m_datalink};
 	int ret;
-
 	UserData user_data = {&opt, m_parser_stats};
 
 	if (m_handle == nullptr) {
@@ -268,6 +282,8 @@ InputPlugin::Result PcapReader::get(PacketBlock& packets)
 
 	packets.cnt = 0;
 	ret = pcap_dispatch(m_handle, PCAP_PACKET_BLOCK_SIZE, packet_handler, (u_char*) (&user_data));
+	//parse_burst_gpu(packets, packet_data);
+	parse_burst_gpu(packets);
 	if (m_live) {
 		if (ret == 0) {
 			return Result::TIMEOUT;

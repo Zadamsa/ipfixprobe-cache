@@ -46,6 +46,7 @@ struct ParserStats {
 
 	uint64_t seen_packets;
 	uint64_t unknown_packets;
+	uint64_t debug;
 };
 
 } // namespace ipxp

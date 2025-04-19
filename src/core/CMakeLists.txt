@@ -33,6 +33,15 @@ target_include_directories(hasher PUBLIC
 		${CMAKE_BINARY_DIR}/src
 )
 
+add_library(cudaPacketBlock STATIC cudaPacketBlock.cu)
+set_target_properties(cudaPacketBlock PROPERTIES CUDA_SEPARABLE_COMPILATION ON)
+set_target_properties(cudaPacketBlock PROPERTIES POSITION_INDEPENDENT_CODE ON)
+target_include_directories(cudaPacketBlock PUBLIC
+		${CMAKE_SOURCE_DIR}/include
+		${CMAKE_BINARY_DIR}/src
+)
+
+
 target_link_libraries(ipfixprobe-core
 	pthread
 	telemetry::telemetry
@@ -41,6 +50,7 @@ target_link_libraries(ipfixprobe-core
 	unwind::unwind
 	${CMAKE_DL_LIBS}
 	hasher
+	cudaPacketBlock
 )
 
 add_executable(ipfixprobe main.cpp)

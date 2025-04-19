@@ -25,13 +25,10 @@
 
 #include <telemetry.hpp>
 
+#include "flowhash.hpp"
+
 namespace ipxp {
 
-struct FlowHash{
-	size_t direct;
-	size_t reverse;
-};
-	
 
 /**
  * \brief Base class for flow caches.
@@ -57,7 +54,7 @@ public:
 	 * \param [in] pkt Input parsed packet.
 	 * \return 0 on success.
 	 */
-	virtual int put_pkt(Packet& pkt, const FlowHash& hashes) = 0;
+	virtual int put_pkt(Packet& pkt) = 0;
 
 	/**
 	 * \brief Set export queue

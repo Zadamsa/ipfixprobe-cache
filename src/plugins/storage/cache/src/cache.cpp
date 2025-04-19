@@ -25,6 +25,8 @@
 #include <ipfixprobe/ring.h>
 #include <sys/time.h>
 
+using namespace std;
+
 namespace ipxp {
 
 static const PluginManifest cachePluginManifest = {
@@ -285,6 +287,7 @@ void NHTFlowCache::finish()
 #endif /* FLOW_CACHE_STATS */
 		}
 	}
+	print_report();
 }
 
 void NHTFlowCache::flush(Packet& pkt, size_t flow_index, int ret, bool source_flow)
@@ -321,12 +324,6 @@ void NHTFlowCache::flush(Packet& pkt, size_t flow_index, int ret, bool source_fl
 
 int NHTFlowCache::put_pkt(Packet& pkt)
 {
-	return put_pkt(pkt, m_current_record);
-}
-
-int NHTFlowCache::put_pkt(Packet& pkt, const FlowHash& hashes)
-{
-	m_current_record = hashes;	
 	int ret = plugins_pre_create(pkt);
 
 	if (m_enable_fragmentation_cache) {
@@ -340,8 +337,8 @@ int NHTFlowCache::put_pkt(Packet& pkt, const FlowHash& hashes)
 
 	prefetch_export_expired();
 
-	uint64_t hashval
-		= XXH64(m_key, m_keylen, 0); /* Calculates hash value from key created before. */
+	uint64_t hashval = pkt.direct_hash;
+		//= XXH64(m_key, m_keylen, 0); /* Calculates hash value from key created before. */
 
 	FlowRecord* flow; /* Pointer to flow we will be working with. */
 	bool found = false;
@@ -360,7 +357,7 @@ int NHTFlowCache::put_pkt(Packet& pkt, const FlowHash& hashes)
 
 	/* Find inversed flow. */
 	if (!found && !m_split_biflow) {
-		uint64_t hashval_inv = XXH64(m_key_inv, m_keylen, 0);
+		uint64_t hashval_inv = pkt.reverse_hash;//XXH64(m_key_inv, m_keylen, 0);
 		uint64_t line_index_inv = hashval_inv & m_line_mask;
 		uint64_t next_line_inv = line_index_inv + m_line_size;
 		for (flow_index = line_index_inv; flow_index < next_line_inv; flow_index++) {

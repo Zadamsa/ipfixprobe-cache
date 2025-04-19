@@ -1,39 +1,118 @@
 #include "hasher.cuh"
-#include "xxhash.h"
+//#include "xxhash.h"
 #include <cstdint>
 #include <algorithm>
 #include <cstddef>
-#include <ipfixprobe/packet.hpp>
-#include <ipfixprobe/storagePlugin.hpp>
-
+//#include <ipfixprobe/flowhash.hpp>
+#include <array>
+#include <cstring>
 
 namespace ipxp{
 
-FlowHash* hashes;
+//FlowHash* hashes;
 
-struct Key {
+inline  uint64_t  __device__ fnv1a_hash(const void* data, size_t size) {
+    const uint8_t* bytes = static_cast<const uint8_t*>(data);
+    uint64_t hash = 14695981039346656037ULL;
+    for (size_t i = 0; i < size; ++i) {
+        hash ^= bytes[i];
+        hash *= 1099511628211ULL;
+    }
+    return hash;
+}
+
+
+struct FlowKey {
 	uint8_t src_ip[16];
 	uint8_t dst_ip[16];
 	uint16_t src_port;
 	uint16_t dst_port;
-	uint8_t protocol;
-	uint8_t ipv;
+	uint8_t proto;
+	uint8_t ip_version;
+	uint16_t vlan_id;
 } __attribute__((packed));
 
-Key* keys;
-Key* keys_reversed;
-__global__ void hash(Key* keys, Key* keys_reversed, FlowHash* result_hashes, size_t buffer_size)
+template<typename Int>
+__device__ static FlowKey
+create_direct_key(const Int* src_ip, const Int* dst_ip,
+	uint16_t src_port, uint16_t dst_port, uint8_t proto, IP ip_version, uint16_t vlan_id) noexcept
 {
-	int idx = blockIdx.x * blockDim.x + threadIdx.x;
-	if (idx >= buffer_size) {
-		return;
+	FlowKey res;
+	if (ip_version == IP::v4) {   
+		*reinterpret_cast<uint64_t*>(&res.src_ip[0]) = 0;
+		*reinterpret_cast<uint32_t*>(&res.src_ip[8]) = 0x0000FFFF;
+		*reinterpret_cast<uint32_t*>(&res.src_ip[12]) = *reinterpret_cast<const uint32_t*>(src_ip);
+		*reinterpret_cast<uint64_t*>(&res.dst_ip[0]) = 0;
+		*reinterpret_cast<uint32_t*>(&res.dst_ip[8]) = 0x0000FFFF;
+		*reinterpret_cast<uint32_t*>(&res.dst_ip[12]) = *reinterpret_cast<const uint32_t*>(dst_ip);
+	} else if (ip_version == IP::v6) {
+		memcpy(&res.src_ip, src_ip, 16);
+		memcpy(&res.dst_ip, dst_ip, 16);
 	}
-	result_hashes[idx] = {XXH64(&keys[idx], sizeof(Key), 0), XXH64(&keys_reversed[idx], sizeof(Key), 0)};
+	res.src_port = src_port;
+	res.dst_port = dst_port;
+	res.proto = proto;
+	res.ip_version = ip_version;
+	res.vlan_id = vlan_id;
+	return res;
 }
 
-void hash_burst_gpu(struct Packet* buffer, size_t buffer_size, struct FlowHash* result_hashes)
+template<typename Int>
+__device__ static FlowKey
+create_reversed_key(const Int* src_ip, const Int* dst_ip,
+	uint16_t src_port, uint16_t dst_port, uint8_t proto, IP ip_version, uint16_t vlan_id) noexcept
 {
-	std::for_each_n(buffer, buffer_size, [&, index = 0](const Packet& packet) mutable {
+	FlowKey res;
+	if (ip_version == IP::v4) {   
+		*reinterpret_cast<uint64_t*>(&res.dst_ip[0]) = 0;
+		*reinterpret_cast<uint32_t*>(&res.dst_ip[8]) = 0x0000FFFF;
+		*reinterpret_cast<uint32_t*>(&res.dst_ip[12]) = *reinterpret_cast<const uint32_t*>(src_ip);
+		*reinterpret_cast<uint64_t*>(&res.src_ip[0]) = 0;
+		*reinterpret_cast<uint32_t*>(&res.src_ip[8]) = 0x0000FFFF;
+		*reinterpret_cast<uint32_t*>(&res.src_ip[12]) = *reinterpret_cast<const uint32_t*>(dst_ip);
+	} else if (ip_version == IP::v6) {
+		memcpy(&res.src_ip, dst_ip, 16);
+		memcpy(&res.dst_ip, src_ip, 16);
+	}
+	res.src_port = dst_port;
+	res.dst_port = src_port;
+	res.proto = proto;
+	res.ip_version = ip_version;
+	res.vlan_id = vlan_id;
+	return res;
+}
+
+//Key* keys;
+//Key* keys_reversed;
+__global__ void hash(ipxp::Packet* packets_dev, size_t size)
+{
+	int idx = blockIdx.x * blockDim.x + threadIdx.x;
+	if (idx >= size) {
+		return;
+	}
+	Packet& packet = packets_dev[idx];
+	FlowKey direct_key = create_direct_key(
+		&packet.src_ip, &packet.dst_ip,
+		packet.src_port, packet.dst_port,
+		packet.ip_proto, (IP)packet.ip_version, packet.vlan_id);
+	FlowKey reverse_key = create_reversed_key(
+		&packet.src_ip, &packet.dst_ip,
+		packet.src_port, packet.dst_port,
+		packet.ip_proto, (IP)packet.ip_version, packet.vlan_id);
+
+	packet.direct_hash = fnv1a_hash(&direct_key, sizeof(FlowKey));
+	packet.reverse_hash = fnv1a_hash(&reverse_key, sizeof(FlowKey));
+}
+
+void hash_burst_gpu(PacketBlock& parsed_packets)
+{
+	ipxp::Packet* packets_dev = nullptr;
+	cudaHostGetDevicePointer((void**)&packets_dev, (void*)parsed_packets.pkts, 0);
+	hash<<<1, 64>>>(packets_dev, parsed_packets.cnt);
+    cudaDeviceSynchronize();  
+
+	/*std::for_each_n(buffer, buffer_size, [&, index = 0](const Packet& packet) mutable {
+		packet.direct_hash = packet.reverse_hash = 0;
 		if (packet.ip_version != 4 && packet.ip_version != 6) {
 			return;
 		}
@@ -58,24 +137,23 @@ void hash_burst_gpu(struct Packet* buffer, size_t buffer_size, struct FlowHash* 
 		cudaMemcpy((void*)(&buffer[index].dst_port), &keys_reversed[index].src_port, 2, cudaMemcpyHostToDevice);
 		cudaMemcpy((void*)(&buffer[index].ip_proto), &keys[index].protocol, 1, cudaMemcpyHostToDevice);
 		cudaMemcpy((void*)(&buffer[index].ip_version), &keys[index].ipv, 1, cudaMemcpyHostToDevice);
-	});
+	});*/
 
-	int blockSize = 4;
-	int numBlocks = (buffer_size + blockSize - 1) / buffer_size;
-	hash<<<numBlocks, blockSize>>>(keys, keys_reversed, result_hashes, buffer_size);
+	//int blockSize = 4;
+	//int numBlocks = (buffer_size + blockSize - 1) / buffer_size;
     
 }
 
 void gpu_haher_init()
 {
-	cudaMalloc((void **)&hashes, sizeof(FlowHash) * 100);
-	cudaMalloc((void **)&keys, sizeof(Key) * 100);
+	//cudaMalloc((void **)&hashes, sizeof(FlowHash) * 100);
+	//cudaMalloc((void **)&keys, sizeof(Key) * 100);
 }
 
 void gpu_haher_close()
 {
-	cudaFree(hashes);
-	cudaFree(keys);
+	//cudaFree(hashes);
+	//cudaFree(keys);
 }
 
 } // namespace ipxp

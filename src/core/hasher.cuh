@@ -2,12 +2,14 @@
 
 #include <cstddef>
 
+#include <ipfixprobe/packet.hpp>
+
 namespace ipxp{
 
-__host__ void hash_burst_gpu(struct Packet* buffer, size_t buffer_size, struct FlowHash* hashes);
+void hash_burst_gpu(PacketBlock& parsed_packets);
 
-__host__ void gpu_haher_init();
+void gpu_haher_init();
 
-__host__ void gpu_haher_close();
+void gpu_haher_close();
 
 } // namespace ipxp

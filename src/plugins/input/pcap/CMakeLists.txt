@@ -3,8 +3,7 @@ project(ipfixprobe-input-pcap VERSION 1.0.0 DESCRIPTION "ipfixprobe-input-pcap p
 add_library(ipfixprobe-input-pcap MODULE
 	src/pcap.cpp
 	src/pcap.hpp
-	../parser/parser.cpp
-	../parser/parser.hpp
+#	../parser/gpu_parser.cuh
 )
 
 set_target_properties(ipfixprobe-input-pcap PROPERTIES
@@ -24,6 +23,10 @@ target_compile_definitions(ipfixprobe-input-pcap PRIVATE
 target_link_libraries(ipfixprobe-input-pcap PRIVATE
 	${PCAP_LIBRARIES}
 	telemetry::telemetry
+	#$<TARGET_OBJECTS:gpu_parser>
+	gpu_parser
+	cuda 
+	cudart
 )
 
 install(TARGETS ipfixprobe-input-pcap

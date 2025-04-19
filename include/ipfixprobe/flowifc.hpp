@@ -68,7 +68,8 @@ struct RecordExt {
 	 * \brief Constructor.
 	 * \param [in] id ID of extension.
 	 */
-	RecordExt(int id)
+
+	 RecordExt(int id)
 		: m_next(nullptr)
 		, m_ext_id(id)
 	{
@@ -80,7 +81,8 @@ struct RecordExt {
 	 * \param [in] tmplt Unirec template.
 	 * \param [out] record Pointer to the unirec record.
 	 */
-	virtual void fill_unirec(ur_template_t* tmplt, void* record)
+
+	 virtual void fill_unirec(ur_template_t* tmplt, void* record)
 	{
 		(void) tmplt;
 		(void) record;
@@ -99,7 +101,8 @@ struct RecordExt {
 	 * \param [in] size IPFIX template record buffer size.
 	 * \return Number of bytes written to buffer or -1 if data cannot be written.
 	 */
-	virtual int fill_ipfix(uint8_t* buffer, int size)
+
+	 virtual int fill_ipfix(uint8_t* buffer, int size)
 	{
 		(void) buffer;
 		(void) size;
@@ -111,19 +114,22 @@ struct RecordExt {
 	 * \brief Get ipfix string fields.
 	 * \return Return ipfix fields array.
 	 */
-	virtual const char** get_ipfix_tmplt() const { return nullptr; }
+
+	 virtual const char** get_ipfix_tmplt() const { return nullptr; }
 
 	/**
 	 * \brief Get text representation of exported elements
 	 * \return Return fields converted to text
 	 */
-	virtual std::string get_text() const { return ""; }
+
+	 virtual std::string get_text() const { return ""; }
 
 	/**
 	 * \brief Add extension at the end of linked list.
 	 * \param [in] ext Extension to add.
 	 */
-	void add_extension(RecordExt* ext)
+
+	 void add_extension(RecordExt* ext)
 	{
 		RecordExt** tmp = &m_next;
 		while (*tmp) {
@@ -135,6 +141,7 @@ struct RecordExt {
 	/**
 	 * \brief Virtual destructor.
 	 */
+
 	virtual ~RecordExt()
 	{
 		if (m_next != nullptr) {
@@ -150,6 +157,7 @@ struct Record {
 	 * \brief Add new extension header.
 	 * \param [in] ext Pointer to the extension header.
 	 */
+
 	void add_extension(RecordExt* ext)
 	{
 		if (m_exts == nullptr) {
@@ -168,6 +176,7 @@ struct Record {
 	 * \param [in] id Type of extension.
 	 * \return Pointer to the requested extension or nullptr if extension is not present.
 	 */
+
 	RecordExt* get_extension(int id) const
 	{
 		RecordExt* ext = m_exts;
@@ -184,6 +193,7 @@ struct Record {
 	 * \param [in] id Type of extension.
 	 * \return True when successfully removed
 	 */
+
 	bool remove_extension(int id)
 	{
 		RecordExt* ext = m_exts;
@@ -211,6 +221,9 @@ struct Record {
 	/**
 	 * \brief Remove extension headers.
 	 */
+#ifdef __CUDACC__
+	__host__ __device__
+#endif
 	void remove_extensions()
 	{
 		if (m_exts != nullptr) {

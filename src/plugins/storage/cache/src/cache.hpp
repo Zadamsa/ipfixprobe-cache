@@ -17,6 +17,7 @@
 #include "fragmentationCache/fragmentationCache.hpp"
 
 #include <string>
+#define FLOW_CACHE_STATS 1
 
 #include <ipfixprobe/flowifc.hpp>
 #include <ipfixprobe/options.hpp>
@@ -267,7 +268,7 @@ public:
 	OptionsParser* get_parser() const { return new CacheOptParser(); }
 	std::string get_name() const { return "cache"; }
 
-	int put_pkt(Packet& pkt, const FlowHash& hashes);
+	int put_pkt(Packet& pkt) override;
 	void export_expired(time_t ts);
 
 	/**
@@ -276,7 +277,6 @@ public:
 	void set_telemetry_dir(std::shared_ptr<telemetry::Directory> dir) override;
 
 private:
-	int put_pkt(Packet& pkt);
 	
 	FlowHash m_current_record;
 	uint32_t m_cache_size;
