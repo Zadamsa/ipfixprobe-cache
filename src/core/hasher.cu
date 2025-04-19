@@ -21,7 +21,7 @@ inline  uint64_t  __device__ fnv1a_hash(const void* data, size_t size) {
     return hash;
 }
 
-inline uint64_t fast_hash(const void* data, size_t len, uint64_t seed = 0xcbf29ce484222325ULL) {
+inline uint64_t __device__ fast_hash(const void* data, size_t len, uint64_t seed = 0xcbf29ce484222325ULL) {
     const uint8_t* p = (const uint8_t*)data;
     uint64_t hash = seed;
     while (len--) {
@@ -31,7 +31,7 @@ inline uint64_t fast_hash(const void* data, size_t len, uint64_t seed = 0xcbf29c
     return hash;
 }
 
-inline uint32_t super_fast_hash(const char* data, int len) {
+inline uint32_t __device__ super_fast_hash(const char* data, int len) {
     uint32_t hash = len, tmp;
     int rem;
 
@@ -151,8 +151,8 @@ __global__ void hash(ipxp::Packet* packets_dev, size_t size)
 		packet.src_port, packet.dst_port,
 		packet.ip_proto, (IP)packet.ip_version, packet.vlan_id);
 
-	packet.direct_hash = fnv1a_hash(&direct_key, sizeof(FlowKey));
-	packet.reverse_hash = fnv1a_hash(&reverse_key, sizeof(FlowKey));
+	packet.direct_hash = fast_hash(&direct_key, sizeof(FlowKey));
+	packet.reverse_hash = fast_hash(&reverse_key, sizeof(FlowKey));
 }
 
 void hash_burst_gpu(PacketBlock& parsed_packets)
