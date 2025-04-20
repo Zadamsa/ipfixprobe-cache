@@ -161,7 +161,7 @@ void hash_burst_gpu(PacketBlock& parsed_packets)
 	int numBlocks = (parsed_packets.cnt + threadsPerBlock - 1) / threadsPerBlock;
 	if (parsed_packets.cnt != 0) {
 		hash<<<numBlocks, threadsPerBlock>>>(packets_dev, parsed_packets.cnt);
-    	//cudaDeviceSynchronize();  
+    	cudaDeviceSynchronize();  
 	}
 	/*std::for_each_n(buffer, buffer_size, [&, index = 0](const Packet& packet) mutable {
 		packet.direct_hash = packet.reverse_hash = 0;

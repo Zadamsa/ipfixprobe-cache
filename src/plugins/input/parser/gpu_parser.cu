@@ -40,7 +40,7 @@ void parse_burst_gpu(PacketBlock& parsed_result)
 	int numBlocks = (parsed_result.cnt + threadsPerBlock - 1) / threadsPerBlock;
 	if (parsed_result.cnt != 0) {
 		parse<<<numBlocks, threadsPerBlock>>>(packets_dev, parsed_result.cnt, stats_dev);
-    	//cudaDeviceSynchronize();  
+    	cudaDeviceSynchronize();  
 	}
 	//cudaMemcpy(raw_packets, packets.data(), packets.size() * sizeof(packets[0]), cudaMemcpyHostToDevice);
 	/*std::for_each(packets.begin(), packets.end(), [index = 0](const PacketData& packet) mutable{
