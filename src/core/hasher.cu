@@ -126,8 +126,8 @@ create_direct_key( const Int* __restrict__ src_ip,  const Int*  __restrict__ dst
 		*reinterpret_cast<uint32_t*>(&res.dst_ip[8]) = 0x0000FFFF;
 		*reinterpret_cast<uint32_t*>(&res.dst_ip[12]) = *reinterpret_cast<const uint32_t*>(dst_ip);
 	} else if (ip_version == IP::v6) {
-		*(uint4*)&res.src_ip[0] = *(const uint4*)src_ip;
-		*(uint4*)&res.dst_ip[0] = *(const uint4*)dst_ip;
+		memcpy(&res.src_ip[0], &src_ip[0], 16);
+		memcpy(&res.dst_ip[0], &dst_ip[0], 16);
 	}
 	res.src_port = src_port;
 	res.dst_port = dst_port;
@@ -151,8 +151,8 @@ create_reversed_key(const  Int* __restrict__  src_ip, const Int*   __restrict__ 
 		*reinterpret_cast<uint32_t*>(&res.src_ip[8]) = 0x0000FFFF;
 		*reinterpret_cast<uint32_t*>(&res.src_ip[12]) = *reinterpret_cast<const uint32_t*>(dst_ip);
 	} else if (ip_version == IP::v6) {
-		*(uint4*)&res.src_ip[0] = *(const uint4*)dst_ip;
-		*(uint4*)&res.dst_ip[0] = *(const uint4*)src_ip;
+		memcpy(&res.dst_ip[0], &src_ip[0], 16);
+		memcpy(&res.src_ip[0], &dst_ip[0], 16);
 	}
 	res.src_port = dst_port;
 	res.dst_port = src_port;
@@ -166,28 +166,32 @@ Packet* packets_dev = nullptr;
 
 __global__ void hash( Packet* __restrict__ packets_dev, size_t size)
 {
-	int idx = blockIdx.x * blockDim.x + threadIdx.x;
+	int real_idx = blockIdx.x * blockDim.x + threadIdx.x;
+	int idx = real_idx / 2;
 	if (idx >= size) {
 		return;
 	}
 	Packet& packet = packets_dev[idx];
-	FlowKey direct_key = create_direct_key(
-		&packet.src_ip, &packet.dst_ip,
-		packet.src_port, packet.dst_port,
-		packet.ip_proto, (IP)packet.ip_version, packet.vlan_id);
-	FlowKey reverse_key = create_reversed_key(
-		&packet.src_ip, &packet.dst_ip,
-		packet.src_port, packet.dst_port,
-		packet.ip_proto, (IP)packet.ip_version, packet.vlan_id);
-
-	packet.direct_hash = super_fast_hash((const char*)&direct_key, sizeof(FlowKey));
-	packet.reverse_hash = super_fast_hash((const char*)&reverse_key, sizeof(FlowKey));
+	packet.debug = real_idx; 
+	if (real_idx % 2 == 0) {
+        FlowKey direct_key = create_direct_key(
+            &packet.src_ip, &packet.dst_ip,
+            packet.src_port, packet.dst_port,
+            packet.ip_proto, (IP)packet.ip_version, packet.vlan_id);
+        packet.direct_hash = super_fast_hash((const char*)&direct_key, sizeof(FlowKey));
+    } else {
+        FlowKey reverse_key = create_reversed_key(
+            &packet.src_ip, &packet.dst_ip,
+            packet.src_port, packet.dst_port,
+            packet.ip_proto, (IP)packet.ip_version, packet.vlan_id);
+			packet.reverse_hash = super_fast_hash((const char*)&reverse_key, sizeof(FlowKey));
+    }
 }
 
 void hash_burst_gpu(PacketBlock& parsed_packets)
 {
-	int threadsPerBlock = 512;
-	int numBlocks = (parsed_packets.cnt + threadsPerBlock - 1) / threadsPerBlock;
+	int threadsPerBlock = 1024;
+	int numBlocks = (parsed_packets.cnt * 2 + threadsPerBlock - 1) / threadsPerBlock;
 	if (parsed_packets.cnt != 0) {
 		hash<<<numBlocks, threadsPerBlock>>>(packets_dev, parsed_packets.cnt);
     	cudaDeviceSynchronize();  
