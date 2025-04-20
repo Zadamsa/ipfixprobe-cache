@@ -776,22 +776,9 @@ __device__ inline Optional<uint16_t> process_pppoe(const u_char* data_ptr, uint1
 __device__ void parse_packet(
 	Packet* pkt,
 	ParserStats& stats
-	//const uint8_t* data
-	/*struct timeval ts,
-	uint16_t len,
-	uint16_t caplen*/)
+)
 {
-	/*if (opt->pblock->cnt >= opt->pblock->size) {
-		return;
-	}
-	Packet* pkt = &opt->pblock->pkts[opt->pblock->cnt];*/
 	uint16_t data_offset = 0;
-	//uint8_t* data = nullptr;
-	/*uint8_t data[128];
-    #pragma unroll
-    for (int i = 0; i < 128; ++i) {
-        data[i] = pkt->packet_dev[i];
-    }*/
 	auto data = pkt->packet_dev;
 	auto caplen = pkt->packet_len;
 	auto len = pkt->packet_len_wire;
@@ -903,7 +890,6 @@ __device__ void parse_packet(
 			return;
 		}
 		data_offset += *tcp_len;
-		//data_offset += parse_tcp_hdr(data + data_offset, caplen - data_offset, pkt);
 		stats.tcp_packets++;
 	} else if (pkt->ip_proto == IPPROTO_UDP) {
 		auto udp_len = parse_udp_hdr(data + data_offset, caplen - data_offset, pkt);
@@ -914,7 +900,6 @@ __device__ void parse_packet(
 			return;
 		}
 		data_offset += *udp_len;
-		//data_offset += parse_udp_hdr(data + data_offset, caplen - data_offset, pkt);
 		stats.udp_packets++;
 	}
 
@@ -929,7 +914,6 @@ __device__ void parse_packet(
 	}
 
 	uint16_t pkt_len = caplen;
-	//pkt->packet = data;
 	pkt->packet_len = caplen;
 	if (l4_hdr_offset != l3_hdr_offset) {
 		if (l4_hdr_offset + pkt->ip_payload_len < 64) {

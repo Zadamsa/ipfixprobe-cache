@@ -61,45 +61,6 @@ __forceinline__ __device__  uint32_t super_fast_hash(const char* __restrict__ da
     hash += hash >> 6;
 
     return hash;
-    /*uint32_t hash = len, tmp;
-    int rem;
-
-    if (len <= 0 || data == nullptr) return 0;
-    rem = len & 3;
-    len >>= 2;
-
-    for (; len > 0; len--) {
-        hash += *(const uint16_t*)data;
-        tmp = (*(const uint16_t*)(data + 2) << 11) ^ hash;
-        hash = (hash << 16) ^ tmp;
-        data += 4;
-        hash += hash >> 11;
-    }
-
-    switch (rem) {
-    case 3: hash += *(const uint16_t*)data;
-            hash ^= hash << 16;
-            hash ^= ((signed char)data[2]) << 18;
-            hash += hash >> 11;
-            break;
-    case 2: hash += *(const uint16_t*)data;
-            hash ^= hash << 11;
-            hash += hash >> 17;
-            break;
-    case 1: hash += (signed char)*data;
-            hash ^= hash << 10;
-            hash += hash >> 1;
-            break;
-    }
-
-    hash ^= hash << 3;
-    hash += hash >> 5;
-    hash ^= hash << 4;
-    hash += hash >> 17;
-    hash ^= hash << 25;
-    hash += hash >> 6;
-
-    return hash;*/
 }
 
 struct __align__(16) FlowKey {
@@ -232,7 +193,6 @@ __global__ void hash( Packet* __restrict__ packets_dev, size_t size)
             &packet.src_ip, &packet.dst_ip,
             packet.src_port, packet.dst_port,
             packet.ip_proto, (IP)packet.ip_version, packet.vlan_id);
-        	//packet.direct_hash = super_fast_hash((const char*)&direct_key, sizeof(FlowKey));
 			packet.direct_hash  = parallel_xor_hash(&direct_key);
     } else {
         FlowKey reverse_key = create_reversed_key(
@@ -240,7 +200,6 @@ __global__ void hash( Packet* __restrict__ packets_dev, size_t size)
             packet.src_port, packet.dst_port,
             packet.ip_proto, (IP)packet.ip_version, packet.vlan_id);
 			packet.reverse_hash = parallel_xor_hash(&reverse_key);
-			//packet.reverse_hash = super_fast_hash((const char*)&reverse_key, sizeof(FlowKey));
     }
 }
 
@@ -252,50 +211,12 @@ void hash_burst_gpu(PacketBlock& parsed_packets)
 		hash<<<numBlocks, threadsPerBlock>>>(packets_dev, parsed_packets.cnt);
     	cudaDeviceSynchronize();  
 	}
-	/*std::for_each_n(buffer, buffer_size, [&, index = 0](const Packet& packet) mutable {
-		packet.direct_hash = packet.reverse_hash = 0;
-		if (packet.ip_version != 4 && packet.ip_version != 6) {
-			return;
-		}
-		cudaMemset(&keys[index].src_ip, 0, sizeof(keys[index].src_ip));
-		cudaMemset(&keys_reversed[index].src_ip, 0, sizeof(keys_reversed[index].src_ip));
-		cudaMemset(&keys[index].dst_ip, 0, sizeof(keys[index].dst_ip));
-		cudaMemset(&keys_reversed[index].dst_ip, 0, sizeof(keys_reversed[index].dst_ip));
-		if (packet.ip_version == 4) {
-			cudaMemcpy((void*)(&buffer[index].src_ip), &keys[index].src_ip, 4, cudaMemcpyHostToDevice);
-			cudaMemcpy((void*)(&buffer[index].dst_ip), &keys[index].dst_ip, 4, cudaMemcpyHostToDevice);
-			cudaMemcpy((void*)(&buffer[index].src_ip), &keys_reversed[index].dst_ip, 4, cudaMemcpyHostToDevice);
-			cudaMemcpy((void*)(&buffer[index].dst_ip), &keys_reversed[index].src_ip, 4, cudaMemcpyHostToDevice);
-		} else {
-			cudaMemcpy((void*)(&buffer[index].src_ip), &keys[index].src_ip, 16, cudaMemcpyHostToDevice);
-			cudaMemcpy((void*)(&buffer[index].dst_ip), &keys[index].dst_ip, 16, cudaMemcpyHostToDevice);
-			cudaMemcpy((void*)(&buffer[index].src_ip), &keys_reversed[index].dst_ip, 16, cudaMemcpyHostToDevice);
-			cudaMemcpy((void*)(&buffer[index].dst_ip), &keys_reversed[index].src_ip, 16, cudaMemcpyHostToDevice);
-		}
-		cudaMemcpy((void*)(&buffer[index].src_port), &keys[index].src_port, 2, cudaMemcpyHostToDevice);
-		cudaMemcpy((void*)(&buffer[index].src_port), &keys_reversed[index].dst_port, 2, cudaMemcpyHostToDevice);
-		cudaMemcpy((void*)(&buffer[index].dst_port), &keys[index].dst_port, 2, cudaMemcpyHostToDevice);
-		cudaMemcpy((void*)(&buffer[index].dst_port), &keys_reversed[index].src_port, 2, cudaMemcpyHostToDevice);
-		cudaMemcpy((void*)(&buffer[index].ip_proto), &keys[index].protocol, 1, cudaMemcpyHostToDevice);
-		cudaMemcpy((void*)(&buffer[index].ip_version), &keys[index].ipv, 1, cudaMemcpyHostToDevice);
-	});*/
-
-	//int blockSize = 4;
-	//int numBlocks = (buffer_size + blockSize - 1) / buffer_size;
-    
 }
 
 void gpu_haher_init(Packet* packets)
 {
 	cudaHostGetDevicePointer((void**)&packets_dev, (void*)packets, 0);
-	//cudaMalloc((void **)&hashes, sizeof(FlowHash) * 100);
-	//cudaMalloc((void **)&keys, sizeof(Key) * 100);
 }
 
-void gpu_haher_close()
-{
-	//cudaFree(hashes);
-	//cudaFree(keys);
-}
 
 } // namespace ipxp

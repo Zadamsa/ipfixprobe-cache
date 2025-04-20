@@ -6,8 +6,6 @@ namespace ipxp {
 
 PacketBlock* getCudaPacketBlock(size_t pkts_size)
 {
-    //Packet* packets = nullptr;
-    //cudaHostAlloc(&packets, sizeof(Packet) * pkts_size, cudaHostAllocMapped);
     auto res = new PacketBlock(pkts_size);
     for (size_t i = 0; i < pkts_size; ++i) {
         cudaHostAlloc((void**)&res->pkts[i].packet, 256, cudaHostAllocMapped);
