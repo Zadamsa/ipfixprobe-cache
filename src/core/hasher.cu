@@ -126,8 +126,8 @@ create_direct_key( const Int* __restrict__ src_ip,  const Int*  __restrict__ dst
 		*reinterpret_cast<uint32_t*>(&res.dst_ip[8]) = 0x0000FFFF;
 		*reinterpret_cast<uint32_t*>(&res.dst_ip[12]) = *reinterpret_cast<const uint32_t*>(dst_ip);
 	} else if (ip_version == IP::v6) {
-		memcpy(&res.src_ip, src_ip, 16);
-		memcpy(&res.dst_ip, dst_ip, 16);
+		*(uint4*)&res.src_ip[0] = *(const uint4*)src_ip;
+		*(uint4*)&res.dst_ip[0] = *(const uint4*)dst_ip;
 	}
 	res.src_port = src_port;
 	res.dst_port = dst_port;
@@ -151,8 +151,8 @@ create_reversed_key(const  Int* __restrict__  src_ip, const Int*   __restrict__ 
 		*reinterpret_cast<uint32_t*>(&res.src_ip[8]) = 0x0000FFFF;
 		*reinterpret_cast<uint32_t*>(&res.src_ip[12]) = *reinterpret_cast<const uint32_t*>(dst_ip);
 	} else if (ip_version == IP::v6) {
-		memcpy(&res.src_ip, dst_ip, 16);
-		memcpy(&res.dst_ip, src_ip, 16);
+		*(uint4*)&res.src_ip[0] = *(const uint4*)dst_ip;
+		*(uint4*)&res.dst_ip[0] = *(const uint4*)src_ip;
 	}
 	res.src_port = dst_port;
 	res.dst_port = src_port;

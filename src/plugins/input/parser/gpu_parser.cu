@@ -36,7 +36,7 @@ void parse_burst_gpu(PacketBlock& parsed_result)
 	/*for (int i = 0; i < parsed_result.cnt; ++i) {
 		cudaHostGetDevicePointer((void**) &parsed_result.pkts[i].packet_dev, (void*)parsed_result.pkts[i].packet, 0);
 	}*/
-	int threadsPerBlock = 512;
+	int threadsPerBlock = 1024;
 	int numBlocks = (parsed_result.cnt + threadsPerBlock - 1) / threadsPerBlock;
 	if (parsed_result.cnt != 0) {
 		parse<<<numBlocks, threadsPerBlock>>>(packets_dev, parsed_result.cnt, stats_dev);
