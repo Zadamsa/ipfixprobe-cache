@@ -69,7 +69,7 @@ void packet_handler(u_char* arg, const struct pcap_pkthdr* h, const u_char* data
 #else
 	//user_data->packet_data.push_back(PacketData{data, h->len, h->ts});
 	user_data->opt->pblock->pkts[user_data->opt->pblock->cnt].ts = h->ts;
-	size_t packet_len = 256;
+	size_t packet_len = 128;
 	std::memcpy(
 		user_data->opt->pblock->pkts[user_data->opt->pblock->cnt].packet,
 		data,
