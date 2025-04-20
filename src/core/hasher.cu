@@ -31,7 +31,7 @@ inline uint64_t __device__ fast_hash(const void* data, size_t len, uint64_t seed
     return hash;
 }
 
-inline uint32_t __device__ super_fast_hash(const char* data, int len) {
+__forceinline__ __device__  uint32_t super_fast_hash(const char* __restrict__ data, int len) {
     uint32_t hash = len, tmp;
     int rem;
 
@@ -78,14 +78,14 @@ struct FlowKey {
 	uint8_t dst_ip[16];
 	uint16_t src_port;
 	uint16_t dst_port;
+	uint16_t vlan_id;
 	uint8_t proto;
 	uint8_t ip_version;
-	uint16_t vlan_id;
 } __attribute__((packed));
 
 template<typename Int>
-__device__ static FlowKey
-create_direct_key(const Int* src_ip, const Int* dst_ip,
+__forceinline__  __device__ static FlowKey
+create_direct_key( const Int* __restrict__ src_ip,  const Int*  __restrict__ dst_ip,
 	uint16_t src_port, uint16_t dst_port, uint8_t proto, IP ip_version, uint16_t vlan_id) noexcept
 {
 	FlowKey res;
@@ -109,8 +109,8 @@ create_direct_key(const Int* src_ip, const Int* dst_ip,
 }
 
 template<typename Int>
-__device__ static FlowKey
-create_reversed_key(const Int* src_ip, const Int* dst_ip,
+__forceinline__  __device__ static FlowKey
+create_reversed_key(const  Int* __restrict__  src_ip, const Int*   __restrict__ dst_ip,
 	uint16_t src_port, uint16_t dst_port, uint8_t proto, IP ip_version, uint16_t vlan_id) noexcept
 {
 	FlowKey res;
@@ -135,7 +135,7 @@ create_reversed_key(const Int* src_ip, const Int* dst_ip,
 
 Packet* packets_dev = nullptr;
 
-__global__ void hash(ipxp::Packet* packets_dev, size_t size)
+__global__ void hash( Packet* __restrict__ packets_dev, size_t size)
 {
 	int idx = blockIdx.x * blockDim.x + threadIdx.x;
 	if (idx >= size) {
@@ -151,8 +151,8 @@ __global__ void hash(ipxp::Packet* packets_dev, size_t size)
 		packet.src_port, packet.dst_port,
 		packet.ip_proto, (IP)packet.ip_version, packet.vlan_id);
 
-	packet.direct_hash = fast_hash(&direct_key, sizeof(FlowKey));
-	packet.reverse_hash = fast_hash(&reverse_key, sizeof(FlowKey));
+	packet.direct_hash = super_fast_hash((const char*)&direct_key, sizeof(FlowKey));
+	packet.reverse_hash = super_fast_hash((const char*)&reverse_key, sizeof(FlowKey));
 }
 
 void hash_burst_gpu(PacketBlock& parsed_packets)
