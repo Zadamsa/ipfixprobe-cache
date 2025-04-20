@@ -32,7 +32,36 @@ inline uint64_t __device__ fast_hash(const void* data, size_t len, uint64_t seed
 }
 
 __forceinline__ __device__  uint32_t super_fast_hash(const char* __restrict__ data, int len) {
-    uint32_t hash = len, tmp;
+	uint32_t hash = len;
+
+    const uint32_t* data32 = reinterpret_cast<const uint32_t*>(data);
+    int len_words = len / 4;
+    int rem = len & 3;
+
+    for (int i = 0; i < len_words; ++i) {
+        uint32_t word = data32[i];
+        hash += word;
+        hash ^= hash << 13;
+        hash += hash >> 17;
+    }
+
+    if (rem > 0) {
+        uint32_t last_word = 0;
+        memcpy(&last_word, data + len_words * 4, rem);
+        hash += last_word;
+        hash ^= hash << 13;
+        hash += hash >> 17;
+    }
+
+    hash ^= hash << 3;
+    hash += hash >> 5;
+    hash ^= hash << 4;
+    hash += hash >> 17;
+    hash ^= hash << 25;
+    hash += hash >> 6;
+
+    return hash;
+    /*uint32_t hash = len, tmp;
     int rem;
 
     if (len <= 0 || data == nullptr) return 0;
@@ -70,7 +99,7 @@ __forceinline__ __device__  uint32_t super_fast_hash(const char* __restrict__ da
     hash ^= hash << 25;
     hash += hash >> 6;
 
-    return hash;
+    return hash;*/
 }
 
 struct FlowKey {
