@@ -929,7 +929,7 @@ __device__ void parse_packet(
 	}
 
 	uint16_t pkt_len = caplen;
-	pkt->packet = data;
+	//pkt->packet = data;
 	pkt->packet_len = caplen;
 	if (l4_hdr_offset != l3_hdr_offset) {
 		if (l4_hdr_offset + pkt->ip_payload_len < 64) {
