@@ -146,7 +146,7 @@ __device__ __forceinline__ uint32_t parallel_xor_hash(const FlowKey* key) {
     return h;
 }
 
-__device__ __forceinline__ uint32_t crc32_hash(const FlowKey* key) {
+/*__device__ __forceinline__ uint32_t crc32_hash(const FlowKey* key) {
     const uint32_t* k = reinterpret_cast<const uint32_t*>(key);
     uint32_t h = 0;
     
@@ -164,7 +164,7 @@ __device__ __forceinline__ uint32_t crc32_hash(const FlowKey* key) {
     h = __crc32(h, k[11]);
 
     return h;
-}
+}*/
 
 template<typename Int>
 __forceinline__  __device__ static FlowKey
@@ -233,13 +233,13 @@ __global__ void hash( Packet* __restrict__ packets_dev, size_t size)
             packet.src_port, packet.dst_port,
             packet.ip_proto, (IP)packet.ip_version, packet.vlan_id);
         	//packet.direct_hash = super_fast_hash((const char*)&direct_key, sizeof(FlowKey));
-			packet.direct_hash  = crc32_hash(&direct_key);
+			packet.direct_hash  = parallel_xor_hash(&direct_key);
     } else {
         FlowKey reverse_key = create_reversed_key(
             &packet.src_ip, &packet.dst_ip,
             packet.src_port, packet.dst_port,
             packet.ip_proto, (IP)packet.ip_version, packet.vlan_id);
-			packet.reverse_hash = crc32_hash(&reverse_key);
+			packet.reverse_hash = parallel_xor_hash(&reverse_key);
 			//packet.reverse_hash = super_fast_hash((const char*)&reverse_key, sizeof(FlowKey));
     }
 }

@@ -12,6 +12,11 @@ enable_language(CUDA)
 include(cmake/build_type.cmake)
 include(cmake/installation.cmake)
 
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -pg")
+set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -pg")
+set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -pg")
+
+
 include_directories(${CMAKE_SOURCE_DIR}/_deps/telemetry-src/include)
 #include_directories(_deps/telemetry-src/include)
 
