@@ -787,7 +787,12 @@ __device__ void parse_packet(
 	Packet* pkt = &opt->pblock->pkts[opt->pblock->cnt];*/
 	uint16_t data_offset = 0;
 	//uint8_t* data = nullptr;
-	auto data = pkt->packet_dev;
+	uint8_t data[128];
+    #pragma unroll
+    for (int i = 0; i < 128; ++i) {
+        data[i] = pkt->packet_dev[i];
+    }
+	//auto data = pkt->packet_dev;
 	auto caplen = pkt->packet_len;
 	auto len = pkt->packet_len_wire;
 	struct timeval ts = pkt->ts;

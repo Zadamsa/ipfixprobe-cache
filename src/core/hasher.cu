@@ -190,7 +190,7 @@ __global__ void hash( Packet* __restrict__ packets_dev, size_t size)
 
 void hash_burst_gpu(PacketBlock& parsed_packets)
 {
-	int threadsPerBlock = 1024;
+	int threadsPerBlock = 256;
 	int numBlocks = (parsed_packets.cnt * 2 + threadsPerBlock - 1) / threadsPerBlock;
 	if (parsed_packets.cnt != 0) {
 		hash<<<numBlocks, threadsPerBlock>>>(packets_dev, parsed_packets.cnt);
