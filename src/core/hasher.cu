@@ -126,6 +126,45 @@ __device__ __forceinline__ uint32_t simd_style_hash(const FlowKey* key) {
     return h;
 }
 
+__device__ __forceinline__ uint32_t parallel_xor_hash(const FlowKey* key) {
+    const uint32_t* k = reinterpret_cast<const uint32_t*>(key);
+    uint32_t h = (k[0] << 1) ^
+                 (k[1] << 3) ^
+                 (k[2] << 5) ^
+                 (k[3] << 7) ^
+                 (k[4] << 9) ^
+                 (k[5] << 11) ^
+                 (k[6] << 13) ^
+                 (k[7] << 15) ^
+                 (k[8] << 17) ^
+                 (k[9] << 19) ^
+                 (k[10] << 21) ^
+                 (k[11] << 23);
+
+    h ^= h >> 16;
+    h *= 0x85EBCA77;
+    return h;
+}
+
+__device__ __forceinline__ uint32_t crc32_hash(const FlowKey* key) {
+    const uint32_t* k = reinterpret_cast<const uint32_t*>(key);
+    uint32_t h = 0;
+    
+    h = __crc32(h, k[0]);
+    h = __crc32(h, k[1]);
+    h = __crc32(h, k[2]);
+    h = __crc32(h, k[3]);
+    h = __crc32(h, k[4]);
+    h = __crc32(h, k[5]);
+    h = __crc32(h, k[6]);
+    h = __crc32(h, k[7]);
+    h = __crc32(h, k[8]);
+    h = __crc32(h, k[9]);
+    h = __crc32(h, k[10]);
+    h = __crc32(h, k[11]);
+
+    return h;
+}
 
 template<typename Int>
 __forceinline__  __device__ static FlowKey
@@ -194,13 +233,13 @@ __global__ void hash( Packet* __restrict__ packets_dev, size_t size)
             packet.src_port, packet.dst_port,
             packet.ip_proto, (IP)packet.ip_version, packet.vlan_id);
         	//packet.direct_hash = super_fast_hash((const char*)&direct_key, sizeof(FlowKey));
-			packet.direct_hash  = simd_style_hash(&direct_key);
+			packet.direct_hash  = crc32_hash(&direct_key);
     } else {
         FlowKey reverse_key = create_reversed_key(
             &packet.src_ip, &packet.dst_ip,
             packet.src_port, packet.dst_port,
             packet.ip_proto, (IP)packet.ip_version, packet.vlan_id);
-			packet.reverse_hash = simd_style_hash(&reverse_key);
+			packet.reverse_hash = crc32_hash(&reverse_key);
 			//packet.reverse_hash = super_fast_hash((const char*)&reverse_key, sizeof(FlowKey));
     }
 }
