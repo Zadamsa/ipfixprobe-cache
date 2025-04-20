@@ -112,6 +112,20 @@ struct FlowKey {
 	uint8_t ip_version;
 };
 
+
+__device__ __forceinline__ uint32_t simd_style_hash(const FlowKey* key) {
+    const uint32_t* k = reinterpret_cast<const uint32_t*>(key);
+    uint32_t h = (k[0] + k[1]) ^ (k[2] - k[3]) +
+                 (k[4] ^ k[5]) * (k[6] | k[7]) +
+                 (k[8] << 1) + (k[9] << 2) +
+                 (k[10] * 0xA55A) ^ (k[11] * 0xC3C3);
+
+    h ^= h >> 16;
+    h *= 0x85EBCA77;
+    return h;
+}
+
+
 template<typename Int>
 __forceinline__  __device__ static FlowKey
 create_direct_key( const Int* __restrict__ src_ip,  const Int*  __restrict__ dst_ip,
@@ -178,13 +192,15 @@ __global__ void hash( Packet* __restrict__ packets_dev, size_t size)
             &packet.src_ip, &packet.dst_ip,
             packet.src_port, packet.dst_port,
             packet.ip_proto, (IP)packet.ip_version, packet.vlan_id);
-        packet.direct_hash = super_fast_hash((const char*)&direct_key, sizeof(FlowKey));
+        	//packet.direct_hash = super_fast_hash((const char*)&direct_key, sizeof(FlowKey));
+			packet.direct_hash  = simd_style_hash(&direct_key);
     } else {
         FlowKey reverse_key = create_reversed_key(
             &packet.src_ip, &packet.dst_ip,
             packet.src_port, packet.dst_port,
             packet.ip_proto, (IP)packet.ip_version, packet.vlan_id);
-			packet.reverse_hash = super_fast_hash((const char*)&reverse_key, sizeof(FlowKey));
+			packet.reverse_hash = simd_style_hash(&reverse_key);
+			//packet.reverse_hash = super_fast_hash((const char*)&reverse_key, sizeof(FlowKey));
     }
 }
 
