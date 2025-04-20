@@ -102,7 +102,7 @@ __forceinline__ __device__  uint32_t super_fast_hash(const char* __restrict__ da
     return hash;*/
 }
 
-struct FlowKey {
+struct __align__(16) FlowKey {
 	uint8_t src_ip[16];
 	uint8_t dst_ip[16];
 	uint16_t src_port;
@@ -113,6 +113,7 @@ struct FlowKey {
 };
 
 
+//NOT ALLIGNED DATA = FAILS
 __device__ __forceinline__ uint32_t simd_style_hash(const FlowKey* key) {
     const uint32_t* k = reinterpret_cast<const uint32_t*>(key);
     uint32_t h = (k[0] + k[1]) ^ (k[2] - k[3]) +

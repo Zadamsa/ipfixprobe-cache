@@ -53,7 +53,7 @@ volatile sig_atomic_t stop = 0;
 volatile sig_atomic_t terminate_export = 0;
 volatile sig_atomic_t terminate_input = 0;
 
-const uint32_t DEFAULT_IQUEUE_SIZE = 1024;
+const uint32_t DEFAULT_IQUEUE_SIZE = 4096;
 const uint32_t DEFAULT_OQUEUE_SIZE = 16536;
 const uint32_t DEFAULT_FPS = 0; // unlimited
 

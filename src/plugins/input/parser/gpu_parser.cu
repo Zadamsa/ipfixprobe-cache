@@ -22,6 +22,7 @@ __global__ void parse(Packet* packets, size_t size, ParserStats* stats_dev) {
 	if (idx >= size) {
 		return;
 	}
+	(packets + idx)->debug = 66;
 	parse_packet(packets + idx, *stats_dev);
 }
 
