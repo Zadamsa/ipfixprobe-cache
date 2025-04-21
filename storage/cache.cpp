@@ -330,14 +330,14 @@ std::optional<feta::OffloadMode> NHTFlowCache::get_offload_mode(size_t flow_inde
    if (!m_flow_table[flow_index]->can_be_offloaded) {
       return std::nullopt;
    }
-   /*if (m_flow_table[flow_index]->m_flow.src_packets + m_flow_table[flow_index]->m_flow.dst_packets > 1000) {
+   if (m_flow_table[flow_index]->m_flow.src_packets + m_flow_table[flow_index]->m_flow.dst_packets > 1000) {
       m_ctt_stats.drop_packet_offloaded++;
       return feta::OffloadMode::DROP_PACKET_DROP_META ;
-   }*/
-   if (m_flow_table[flow_index]->m_flow.src_packets + m_flow_table[flow_index]->m_flow.dst_packets > 1000) {
+   }
+   /*if (m_flow_table[flow_index]->m_flow.src_packets + m_flow_table[flow_index]->m_flow.dst_packets > 1000) {
       m_ctt_stats.trim_packet_offloaded++;
       return feta::OffloadMode::TRIM_PACKET_META;
-   }
+   }*/
    
    return std::nullopt;
 }
@@ -382,6 +382,7 @@ void NHTFlowCache::try_to_add_flow_to_ctt(size_t flow_index) noexcept
    }
    if (const std::optional<feta::OffloadMode> offload_mode = get_offload_mode(flow_index); offload_mode.has_value()) {
       offload_flow_to_ctt(flow_index, *offload_mode);
+      m_flow_table[flow_index]->m_flow.offload_time = m_flow_table[flow_index]->m_flow.time_last;
    }
 }
 #endif /* WITH_CTT */
@@ -415,7 +416,11 @@ int NHTFlowCache::update_flow(Packet& packet, size_t flow_index, bool flow_is_wa
 
    m_flow_table[flow_index]->update(packet);
 #ifdef WITH_CTT
-   try_to_add_flow_to_ctt(flow_index);
+//TODO REMOVE
+   if (m_flow_table[flow_index]->is_in_ctt && !packet.cttmeta.ctt_rec_matched) {
+      m_ctt_stats.packet_right_after_offload++;
+   }   
+   try_to_add_flow_to_ctt(flow_index);     
 #endif /* WITH_CTT */
    const size_t post_update_return_flags = plugins_post_update(m_flow_table[flow_index]->m_flow, packet);
    if ((post_update_return_flags & ProcessPlugin::FlowAction::FLUSH)
@@ -534,6 +539,20 @@ static bool is_counter_overflow(feta::ExportReason ctt_reason, feta::MuExportRea
    return ctt_reason == feta::ExportReason::EXPORT_BY_MU && (static_cast<uint8_t>(mu_reason) & static_cast<uint8_t>(feta::MuExportReason::COUNTER_OVERFLOW));
 }
 
+static void update_packet_counters_from_active_timeout_external_export(Flow& flow, const feta::CttRecord& state) noexcept
+{
+   flow.src_packets += state.pkts;
+   flow.dst_packets += state.pkts_rev;
+   flow.src_bytes += state.bytes;
+   flow.dst_bytes += state.bytes_rev;
+   flow.time_last.tv_sec = state.ts_last.time_sec;
+   flow.time_last.tv_usec = state.ts_last.time_ns / 1000;
+   if (flow.ip_proto == 6) {
+      flow.src_tcp_flags |= state.tcp_flags;
+      flow.dst_tcp_flags |= state.tcp_flags_rev;
+   }
+}
+
 static void update_packet_counters_from_external_export(Flow& flow, const feta::CttRecord& state) noexcept
 {
    flow.src_packets = state.pkts;
@@ -603,7 +622,10 @@ void NHTFlowCache::export_external(const Packet& pkt) noexcept
 
    if (m_flow_table[flow_index.value()]->offload_mode == feta::OffloadMode::DROP_PACKET_DROP_META) {
       m_flow_table[flow_index.value()]->is_waiting_ctt_response = false;
-      update_packet_counters_from_external_export(m_flow_table[flow_index.value()]->m_flow, export_data.record);
+      //if (is_active_timeout(export_data.fields.rsn, export_data.fields.ursn))
+         update_packet_counters_from_active_timeout_external_export(m_flow_table[flow_index.value()]->m_flow, export_data.record);
+      //else
+      //   update_packet_counters_from_external_export(m_flow_table[flow_index.value()]->m_flow, export_data.record);
       MAYBE_DISABLED_CODE(std::cout << "Update of 3L offloaded flow" << std::endl;)  
    }
 
@@ -846,6 +868,7 @@ void NHTFlowCache::print_report() const
    std::cout << "CTT exports with active timeout reason: " << m_ctt_stats.export_reasons.active_timeout << "\n";
    std::cout << "CTT total requests count: " << m_ctt_stats.total_requests_count << "\n";
    std::cout << "CTT lost requests count: " << m_ctt_stats.lost_requests_count << "\n";
+   std::cout << "CTT close packet after offload: " << m_ctt_stats.packet_right_after_offload << "\n";
 #endif /* WITH_CTT */
 }
 

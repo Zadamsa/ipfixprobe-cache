@@ -42,6 +42,18 @@ inline struct timeval operator+(const struct timeval& a, const struct timeval& b
     return result;
 }
 
+inline struct timeval operator-(const struct timeval& a, const struct timeval& b) noexcept
+{
+    struct timeval result;
+    result.tv_sec = a.tv_sec - b.tv_sec;
+    result.tv_usec = a.tv_usec - b.tv_usec;
+    if (result.tv_usec < 0) {
+        result.tv_sec--;
+        result.tv_usec += 1000000;
+    }
+    return result;
+}
+
 inline bool operator>(const struct timeval& a, const struct timeval& b) noexcept
 {
     if (a.tv_sec == b.tv_sec)

@@ -73,6 +73,7 @@ void CttController::create_record(const Flow& flow, uint8_t dma_channel, feta::O
 
 void CttController::get_state(uint64_t flow_hash_ctt)
 {
+    return export_record(flow_hash_ctt);
     MAYBE_DISABLED_CODE(std::cout << "Getting state of " << std::hex << flow_hash_ctt << std::endl;)
     try {
         std::vector<std::byte> key = assemble_key(flow_hash_ctt);
@@ -162,12 +163,19 @@ std::vector<std::byte> CttController::assemble_state(
     record.meta_type = meta_type;
     record.limit_size = 0;
     record.dma_chan = dma_channel;
-    record.bytes = flow.src_bytes;
-    record.bytes_rev = flow.dst_bytes;
-    record.pkts = flow.src_packets;
-    record.pkts_rev = flow.dst_packets;
-    record.tcp_flags = flow.src_tcp_flags;
-    record.tcp_flags_rev = flow.dst_tcp_flags;
+    //record.bytes = flow.src_bytes;
+    //record.bytes_rev = flow.dst_bytes;
+    //record.pkts = flow.src_packets;
+    //record.pkts_rev = flow.dst_packets;
+    //record.tcp_flags = flow.src_tcp_flags;
+    //record.tcp_flags_rev = flow.dst_tcp_flags;
+    
+    record.bytes = 0;
+    record.bytes_rev = 0;
+    record.pkts = 0;
+    record.pkts_rev = 0;
+    record.tcp_flags = 0;
+    record.tcp_flags_rev = 0;
     feta::CttRecord::serialize(record, state.data());
     /*CttState* ctt_state = reinterpret_cast<CttState*>(state.data());
     const size_t ip_length = flow.ip_version == IP::v4 ? 4 : 16;

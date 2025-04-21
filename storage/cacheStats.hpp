@@ -50,6 +50,7 @@ struct CttStats {
    uint64_t export_packets{0};
    uint64_t export_packets_for_missing_flow{0};
    uint64_t export_packets_parsing_failed{0};
+   uint64_t packet_right_after_offload{0};
    struct {
       uint64_t counter_overflow{0};
       uint64_t tcp_eof{0};

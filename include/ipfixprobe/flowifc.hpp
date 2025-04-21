@@ -295,6 +295,8 @@ struct Flow : public Record {
    uint8_t dst_mac[6];
    uint8_t end_reason;
    bool swapped; /**< Flow addresses and ports were swapped on creation. */
+   //TODO REMOVE
+   timeval offload_time;
 };
 
 }
