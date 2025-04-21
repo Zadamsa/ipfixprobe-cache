@@ -315,7 +315,7 @@ bool NHTFlowCache::try_to_export_on_inactive_timeout(size_t flow_index, const ti
 std::optional<feta::OffloadMode> NHTFlowCache::get_offload_mode(size_t flow_index) noexcept
 {
    //return feta::OffloadMode::TRIM_PACKET_META;
-   //return std::nullopt;
+   return std::nullopt;
    /*static int count = 0;
    if (count++ % 100 != 0) {
       m_ctt_stats.drop_packet_offloaded++;
@@ -330,14 +330,14 @@ std::optional<feta::OffloadMode> NHTFlowCache::get_offload_mode(size_t flow_inde
    if (!m_flow_table[flow_index]->can_be_offloaded) {
       return std::nullopt;
    }
-   if (m_flow_table[flow_index]->m_flow.src_packets + m_flow_table[flow_index]->m_flow.dst_packets > 1000) {
+   /*if (m_flow_table[flow_index]->m_flow.src_packets + m_flow_table[flow_index]->m_flow.dst_packets > 1000) {
       m_ctt_stats.drop_packet_offloaded++;
       return feta::OffloadMode::DROP_PACKET_DROP_META ;
-   }
-   /*if (m_flow_table[flow_index]->m_flow.src_packets + m_flow_table[flow_index]->m_flow.dst_packets > 1000) {
+   }*/
+   if (m_flow_table[flow_index]->m_flow.src_packets + m_flow_table[flow_index]->m_flow.dst_packets > 1000) {
       m_ctt_stats.trim_packet_offloaded++;
       return feta::OffloadMode::TRIM_PACKET_META;
-   }*/
+   }
    
    return std::nullopt;
 }
@@ -416,10 +416,6 @@ int NHTFlowCache::update_flow(Packet& packet, size_t flow_index, bool flow_is_wa
 
    m_flow_table[flow_index]->update(packet);
 #ifdef WITH_CTT
-//TODO REMOVE
-   if (m_flow_table[flow_index]->is_in_ctt && !packet.cttmeta.ctt_rec_matched) {
-      m_ctt_stats.packet_right_after_offload++;
-   }   
    try_to_add_flow_to_ctt(flow_index);     
 #endif /* WITH_CTT */
    const size_t post_update_return_flags = plugins_post_update(m_flow_table[flow_index]->m_flow, packet);
