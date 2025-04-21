@@ -382,7 +382,6 @@ void NHTFlowCache::try_to_add_flow_to_ctt(size_t flow_index) noexcept
    }
    if (const std::optional<feta::OffloadMode> offload_mode = get_offload_mode(flow_index); offload_mode.has_value()) {
       offload_flow_to_ctt(flow_index, *offload_mode);
-      m_flow_table[flow_index]->m_flow.offload_time = m_flow_table[flow_index]->m_flow.time_last;
    }
 }
 #endif /* WITH_CTT */

@@ -30,7 +30,7 @@
 
 namespace ipxp {
 
-struct alignas(16) FlowKey {
+struct FlowKey {
    std::array<uint8_t, 16> src_ip;
    std::array<uint8_t, 16> dst_ip;
    uint16_t src_port;

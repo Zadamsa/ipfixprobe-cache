@@ -56,7 +56,7 @@ public:
    [[gnu::always_inline]] std::optional<size_t> find_by_hash(uint64_t hash) const noexcept
    {
       for (size_t i = 0; i < m_count; ++i) {
-         //__builtin_prefetch(m_begin[i + 1], 0, 1);
+         __builtin_prefetch(m_begin[i + 1], 0, 1);
          if (m_begin[i]->belongs(hash)) {
              return i;
          }
@@ -102,7 +102,7 @@ public:
    [[gnu::always_inline]] std::optional<size_t> find_empty() const noexcept
    {
       for (size_t i = 0; i < m_count; ++i) {
-         //__builtin_prefetch(m_begin[i + 1], 0, 1);
+         __builtin_prefetch(m_begin[i + 1], 0, 1);
          if (m_begin[i]->is_empty()) {
                return i;
          }
