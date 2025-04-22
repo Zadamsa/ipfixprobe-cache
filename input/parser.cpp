@@ -787,29 +787,25 @@ void parse_packet(parser_opt_t *opt, ParserStats& stats, struct timeval ts, cons
 }
 
 #ifdef WITH_CTT
-int parse_packet_ctt_metadata(parser_opt_t *opt, ParserStats& stats, const CttMetadata& metadata, const uint8_t *data, uint16_t len, uint16_t caplen)
+int parse_packet_ctt_metadata(parser_opt_t *opt, ParserStats& stats, const uint8_t *header_data, uint16_t header_len, struct timeval ts, const uint8_t *data, uint16_t len, uint16_t caplen)
 {
-
    //std::vector<uint8_t> pkt_data(data, data + len);
    if (opt->pblock->cnt >= opt->pblock->size) {
       return 0;
    }
-   if (metadata.l4_ptype == L4_TCP) {
-      stats.total_tcp_set++;
-   }
-   if (metadata.l3_ptype == L3_IPV4 || metadata.l3_ptype == L3_IPV4_EXT) {
-      stats.total_ip4_set++;
-   }
    Packet *pkt = &opt->pblock->pkts[opt->pblock->cnt];
-
-   // check metadata validity
-   if (metadata.parser_status == PA_OK) {
-      pkt->cttmeta_valid = true;
-   } else {
-      pkt->cttmeta_valid = false;
-      return -1;
+   pkt->cttmeta = CttMetadata::parse(header_data, header_len);
+   pkt->cttmeta_valid = pkt->cttmeta.parser_status == PA_OK; 
+   
+   if (pkt->cttmeta_valid) {
+      parse_packet(opt, stats, pkt->cttmeta.ts, data, len, caplen);
+      return 0;
    }
-   pkt->cttmeta = metadata;
+   
+   parse_packet(opt, stats, ts, data, len, caplen);
+   return -1;
+   //TODO REMOVE
+   CttMetadata metadata;
 
    pkt->packet_len_wire = len;
    pkt->ts = {metadata.ts.tv_sec, metadata.ts.tv_usec};

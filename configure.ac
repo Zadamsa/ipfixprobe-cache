@@ -27,11 +27,11 @@ AC_ARG_ENABLE([debug],
               CXXFLAGS="-Wall -g -O0 $CXXFLAGS"
               CFLAGS="-Wall -g -O0 $CFLAGS"
          else
-              CXXFLAGS="-Wall -g -O3 $CXXFLAGS"
-              CFLAGS="-Wall -g -O3 $CFLAGS"
-        fi], [CXXFLAGS="-Wall -g -O3 $CXXFLAGS"
-              CPPFLAGS="-DNDEBUG=1 $CPPFLAGS"
-              CFLAGS="-Wall -g -O3"])
+              CXXFLAGS="-Wall -g -O4 -flto $CXXFLAGS"
+              CFLAGS="-Wall -g -O4 -flto $CFLAGS"
+        fi], [CXXFLAGS="-Wall -g -O4 -flto $CXXFLAGS"
+              CPPFLAGS="-DNDEBUG=1 -flto $CPPFLAGS"
+              CFLAGS="-Wall -g -O4 -flto"])
 AM_CONDITIONAL(DEBUG, test x"$debug" = x"true")
 
 AC_ARG_ENABLE([coprrpm],

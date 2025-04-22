@@ -315,7 +315,7 @@ bool NHTFlowCache::try_to_export_on_inactive_timeout(size_t flow_index, const ti
 std::optional<feta::OffloadMode> NHTFlowCache::get_offload_mode(size_t flow_index) noexcept
 {
    //return feta::OffloadMode::TRIM_PACKET_META;
-   return std::nullopt;
+   //return std::nullopt;
    /*static int count = 0;
    if (count++ % 100 != 0) {
       m_ctt_stats.drop_packet_offloaded++;
@@ -723,12 +723,6 @@ int NHTFlowCache::put_pkt(Packet& packet)
    }
 
    size_t flow_index = *flow_search.flow_index;
-   /*if (std::memcmp(&m_flow_table[flow_index]->m_flow.src_ip, &packet.src_ip, 4) != 0) {
-      m_cache_stats.bad++;
-   }*/
-   if (m_flow_table[flow_index]->m_flow.src_port == 0 || m_flow_table[flow_index]->m_flow.dst_port == 0) {
-      m_cache_stats.bad++;
-   }  
 
 #ifdef WITH_CTT
    const bool flow_is_waiting_for_export = m_flow_table[flow_index]->is_waiting_ctt_response;
@@ -845,6 +839,12 @@ void NHTFlowCache::print_report() const
    for (size_t i = 0; i < m_line_size; i++) {
       std::cout << "Empty places in line " << i << ": " << m_cache_stats.empty_places[i] << "\n";
    }
+   std::cout << "Flow end stats: " << "\n";
+   std::cout << "Flow end reason: active timeout: " << m_flow_end_reason_stats.active_timeout << "\n";
+   std::cout << "Flow end reason: inactive timeout: " << m_flow_end_reason_stats.inactive_timeout << "\n";
+   std::cout << "Flow end reason: end of flow: " << m_flow_end_reason_stats.end_of_flow << "\n";
+   std::cout << "Flow end reason: collision: " << m_flow_end_reason_stats.collision << "\n";
+   std::cout << "Flow end reason: forced: " << m_flow_end_reason_stats.forced << "\n";
 #ifdef WITH_CTT
    std::cout << "Really processed: " << m_ctt_stats.real_processed_packets << "\n";
    std::cout << "CTT offloaded: " << m_ctt_stats.flows_offloaded << "\n";

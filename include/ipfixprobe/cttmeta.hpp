@@ -84,11 +84,12 @@ enum L4PType : uint8_t {
 struct CttMetadata {
     constexpr static size_t SIZE = 32;
 
-    static std::optional<CttMetadata> parse(const uint8_t* data, size_t length) noexcept
+    static CttMetadata parse(const uint8_t* data, size_t length) noexcept
     {
         CttMetadata metadata;
         if (length != CttMetadata::SIZE) {
-            return std::nullopt;
+            metadata.parser_status = ParserStatus::PA_ERROR;
+            return metadata;
         }
 
         metadata.ts.tv_usec      = extract(data, 0,   32) / 1000; ///< CTT uses seconds/nanoseconds ts
@@ -96,16 +97,19 @@ struct CttMetadata {
         metadata.vlan_tci        = extract(data, 64,  16);
         metadata.vlan_vld        = extract(data, 80,  1);
         metadata.vlan_stripped   = extract(data, 81,  1);
-        metadata.ip_csum_status  = static_cast<CsumStatus>(extract(data, 82,  2));
-        metadata.l4_csum_status  = static_cast<CsumStatus>(extract(data, 84,  2));
+
         metadata.parser_status   = static_cast<ParserStatus>(extract(data, 86,  2));
         metadata.ifc             = extract(data, 88,  8);
+        metadata.flow_hash       = extract(data, 128, 64);
+
+        return metadata;
+        metadata.ip_csum_status  = static_cast<CsumStatus>(extract(data, 82,  2));
+        metadata.l4_csum_status  = static_cast<CsumStatus>(extract(data, 84,  2));
         metadata.filter_bitmap   = extract(data, 96,  16);
         metadata.ctt_export_trig = extract(data, 112, 1);
         metadata.ctt_rec_matched = extract(data, 113, 1);
         metadata.ctt_rec_created = extract(data, 114, 1);
         metadata.ctt_rec_deleted = extract(data, 115, 1);
-        metadata.flow_hash       = extract(data, 128, 64);
         metadata.l2_len          = extract(data, 192, 7);
         metadata.l3_len          = extract(data, 199, 9);
         metadata.l4_len          = extract(data, 208, 8);
@@ -114,7 +118,7 @@ struct CttMetadata {
         metadata.l4_ptype        = static_cast<L4PType>(extract(data, 224, 4));
         
         if (metadata.parser_status != ParserStatus::PA_OK) {
-            return std::nullopt;
+            //return std::nullopt;
         }
         return metadata;
     }

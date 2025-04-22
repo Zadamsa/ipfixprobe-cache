@@ -168,10 +168,10 @@ InputPlugin::Result NdpPacketReader::get(PacketBlock &packets)
             break;
          }
          case MessageType::FRAME_AND_FULL_METADATA:{
-            std::optional<CttMetadata> metadata = CttMetadata::parse(ndp_packet->header, ndp_packet->header_length);
-            if (!metadata.has_value() || parse_packet_ctt_metadata(&opt, m_parser_stats, *metadata, ndp_packet->data, ndp_packet->data_length, ndp_packet->data_length) == -1) {
+            //std::optional<CttMetadata> metadata = CttMetadata::parse(ndp_packet->header, ndp_packet->header_length);
+            if (parse_packet_ctt_metadata(&opt, m_parser_stats, ndp_packet->header, ndp_packet->header_length, timestamp, ndp_packet->data, ndp_packet->data_length, ndp_packet->data_length) == -1) {
                m_stats.bad_metadata++;
-               parse_packet(&opt, m_parser_stats, timestamp, ndp_packet->data, ndp_packet->data_length, ndp_packet->data_length);
+               //parse_packet(&opt, m_parser_stats, timestamp, ndp_packet->data, ndp_packet->data_length, ndp_packet->data_length);
             }
             break;
          }

@@ -56,7 +56,7 @@ public:
    [[gnu::always_inline]] std::optional<size_t> find_by_hash(uint64_t hash) const noexcept
    {
       for (size_t i = 0; i < m_count; ++i) {
-         __builtin_prefetch(m_begin[i + 1], 0, 1);
+         //__builtin_prefetch(m_begin[i + 1], 0, 1);
          if (m_begin[i]->belongs(hash)) {
              return i;
          }
@@ -88,6 +88,18 @@ public:
     */
    [[gnu::always_inline]] void advance_flow_to(size_t from, size_t to) noexcept
    {
+      if (from == to) return;
+
+      FlowRecord* tmp = m_begin[from];
+
+      if (from < to) {
+         std::memmove(m_begin + from, m_begin + from + 1, (to - from) * sizeof(FlowRecord*));
+         m_begin[to] = tmp;
+      } else {
+         std::memmove(m_begin + to + 1, m_begin + to, (from - to) * sizeof(FlowRecord*));
+         m_begin[to] = tmp;
+      }
+      return;
       if (from < to) {
          std::rotate(m_begin + from, m_begin + from + 1, m_begin + to + 1);
          return;
@@ -102,7 +114,7 @@ public:
    [[gnu::always_inline]] std::optional<size_t> find_empty() const noexcept
    {
       for (size_t i = 0; i < m_count; ++i) {
-         __builtin_prefetch(m_begin[i + 1], 0, 1);
+         //__builtin_prefetch(m_begin[i + 1], 0, 1);
          if (m_begin[i]->is_empty()) {
                return i;
          }
@@ -131,6 +143,15 @@ public:
     */
    [[gnu::always_inline]] size_t find_victim(const timeval& now) const noexcept
    {
+      for (size_t i = m_count; i > 0; i-- ) {
+         //__builtin_prefetch(m_begin[i - 1], 0, 1);
+         if (!m_begin[i - 1]->is_in_ctt || 
+            (m_begin[i - 1]->offload_mode.has_value() 
+               && m_begin[i - 1]->offload_mode.value() == feta::OffloadMode::TRIM_PACKET_META)) {
+            return i - 1;
+         }
+      }
+      return m_count - 1;
       FlowRecord* const* victim = m_begin + m_count - 1;
       auto it = std::find_if(std::reverse_iterator(m_begin + m_count), 
                                  std::reverse_iterator(m_begin), [&](FlowRecord* const& flow) {

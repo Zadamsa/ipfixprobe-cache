@@ -88,7 +88,8 @@ void parse_packet(parser_opt_t *opt, ParserStats& stats, struct timeval ts, cons
 
 #ifdef WITH_CTT
 
-int parse_packet_ctt_metadata(parser_opt_t *opt, ParserStats& stats, const CttMetadata& metadata, const uint8_t *data, uint16_t len, uint16_t caplen);
+int parse_packet_ctt_metadata(parser_opt_t *opt, ParserStats& stats, const uint8_t *header_data, uint16_t header_len, struct timeval ts, 
+   const uint8_t *data, uint16_t len, uint16_t caplen);
 
 #endif /* WITH_CTT */
 
