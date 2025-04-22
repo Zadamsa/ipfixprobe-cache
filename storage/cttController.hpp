@@ -78,7 +78,9 @@ public:
 
    void get_state(uint64_t flow_hash_ctt);
 private:
-   std::unique_ptr<ctt::AsyncCommander> m_commander;
+   static constexpr size_t KEY_SIZE = 8;
+   static constexpr size_t MASK_SIZE = 21;
+   std::unique_ptr<ctt::AsyncCommander<KEY_SIZE, sizeof(feta::CttRecord), MASK_SIZE>> m_commander;
    size_t m_key_size_bytes;
    size_t m_state_size_bytes;
    size_t m_state_mask_size_bytes;
@@ -91,7 +93,7 @@ private:
    * @param timestamp_first  The first timestamp of the flow.
    * @return A byte vector representing the assembled state vector.
    */
-   std::vector<std::byte>
+  std::array<std::byte, sizeof(feta::CttRecord)>
    assemble_state(feta::OffloadMode offload_mode, feta::MetaType meta_type, const Flow& flow, uint8_t dma_channel);
 
    /**
@@ -100,10 +102,10 @@ private:
    * @param flow_hash_ctt    The flow hash.
    * @return A byte vector representing the assembled key vector.
    */
-   std::vector<std::byte> assemble_key(uint64_t flow_hash_ctt);
+  std::array<std::byte, KEY_SIZE> assemble_key(uint64_t flow_hash_ctt);
 
-   std::pair<std::vector<std::byte>, std::vector<std::byte>>
-   get_key_and_state(uint64_t flow_hash_ctt, const Flow& flow, uint8_t dma_channel);
+   /*std::pair<std::vector<std::byte>, std::vector<std::byte>>
+   get_key_and_state(uint64_t flow_hash_ctt, const Flow& flow, uint8_t dma_channel);*/
 };
 
 } // ipxp

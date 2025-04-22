@@ -35,7 +35,7 @@ CttController::CttController(const std::string& nfb_dev, unsigned ctt_comp_index
     //cpu_set_t cpuset;      
     //CPU_ZERO(&cpuset);     
     //CPU_SET(14, &cpuset);   
-    m_commander = std::make_unique<ctt::AsyncCommander>(ctt::NfbParamsFast{nfb_dev, ctt_comp_index});
+    m_commander = std::make_unique<ctt::AsyncCommander<KEY_SIZE, sizeof(feta::CttRecord), MASK_SIZE>>(ctt::NfbParamsFast{nfb_dev, ctt_comp_index});
     try {
         // Get UserInfo to determine key, state, and state_mask sizes
         ctt::UserInfo user_info = m_commander->get_user_info();
@@ -58,8 +58,8 @@ CttController::CttController(const std::string& nfb_dev, unsigned ctt_comp_index
 void CttController::create_record(const Flow& flow, uint8_t dma_channel, feta::OffloadMode offload_mode)
 {
     try {
-        std::vector<std::byte> key = assemble_key(flow.flow_hash_ctt);
-        std::vector<std::byte> state = assemble_state(
+        std::array<std::byte, KEY_SIZE> key = assemble_key(flow.flow_hash_ctt);
+        std::array<std::byte, sizeof(feta::CttRecord)> state = assemble_state(
               offload_mode,
               feta::MetaType::FULL_META,
               flow, dma_channel);
@@ -76,7 +76,7 @@ void CttController::get_state(uint64_t flow_hash_ctt)
     return export_record(flow_hash_ctt);
     MAYBE_DISABLED_CODE(std::cout << "Getting state of " << std::hex << flow_hash_ctt << std::endl;)
     try {
-        std::vector<std::byte> key = assemble_key(flow_hash_ctt);
+        std::array<std::byte, KEY_SIZE> key = assemble_key(flow_hash_ctt);
         m_commander->export_record(std::move(key));
     }
     catch (const std::exception& e) {
@@ -87,7 +87,7 @@ void CttController::get_state(uint64_t flow_hash_ctt)
 void CttController::remove_record_without_notification(uint64_t flow_hash_ctt)
 {
     try {
-        std::vector<std::byte> key = assemble_key(flow_hash_ctt);
+        std::array<std::byte, KEY_SIZE> key = assemble_key(flow_hash_ctt);
         m_commander->delete_record(std::move(key));
         MAYBE_DISABLED_CODE(std::cout << "Deliting without export key " << std::hex << flow_hash_ctt << std::endl;)
     }
@@ -99,7 +99,7 @@ void CttController::remove_record_without_notification(uint64_t flow_hash_ctt)
 void CttController::export_record(uint64_t flow_hash_ctt)
 {
     try {
-        std::vector<std::byte> key = assemble_key(flow_hash_ctt);
+        std::array<std::byte, KEY_SIZE> key = assemble_key(flow_hash_ctt);
         m_commander->export_and_delete_record(std::move(key));
         MAYBE_DISABLED_CODE(std::cout << "Exporting and deliting key " << std::hex << flow_hash_ctt << std::endl;)
 
@@ -109,30 +109,35 @@ void CttController::export_record(uint64_t flow_hash_ctt)
     }
 }
 
-std::pair<std::vector<std::byte>, std::vector<std::byte>>
+/*std::pair<std::vector<std::byte>, std::vector<std::byte>>
 CttController::get_key_and_state(uint64_t flow_hash_ctt, const Flow& flow, uint8_t dma_channel)
 {
     return {assemble_key(flow_hash_ctt), assemble_state(
           feta::OffloadMode::TRIM_PACKET_META,
           feta::MetaType::FULL_META,
           flow, dma_channel)};
-}
+}*/
 
-std::vector<std::byte> CttController::assemble_key(uint64_t flow_hash_ctt)
+std::array<std::byte, CttController::KEY_SIZE> CttController::assemble_key(uint64_t flow_hash_ctt)
 {
-    return std::vector<std::byte>(reinterpret_cast<const std::byte*>(&flow_hash_ctt),
-        reinterpret_cast<const std::byte*>(&flow_hash_ctt) + m_key_size_bytes);
-    std::vector<std::byte> key(m_key_size_bytes, std::byte(0));
+    std::array<std::byte, KEY_SIZE> key;
+    std::memcpy(key.data(), &flow_hash_ctt, KEY_SIZE);
+    return key;
+    /*return (reinterpret_cast<const std::byte*>(&flow_hash_ctt),
+        reinterpret_cast<const std::byte*>(&flow_hash_ctt) + KEY_SIZE);*/
+
+    /*std::vector<std::byte> key(m_key_size_bytes, std::byte(0));
     for (size_t i = 0; i < sizeof(flow_hash_ctt) && i < m_key_size_bytes; ++i) {
         key[i] = static_cast<std::byte>((flow_hash_ctt >> (8 * i)) & 0xFF);
     }
-    return key;
+    return key;*/
 }
 
-std::vector<std::byte> CttController::assemble_state(
+std::array<std::byte, sizeof(feta::CttRecord)> CttController::assemble_state(
     feta::OffloadMode offload_mode, feta::MetaType meta_type, const Flow& flow, uint8_t dma_channel)
 {
-    std::vector<std::byte> state(sizeof(feta::CttRecord), std::byte(0));
+    std::array<std::byte, sizeof(feta::CttRecord)> state; //(sizeof(feta::CttRecord), std::byte(0));
+    std::memset(state.data(), 0, sizeof(feta::CttRecord));
     feta::CttRecord record;
     record.ts_first.time_sec = flow.time_first.tv_sec;
     record.ts_first.time_ns = flow.time_first.tv_usec * 1000;
