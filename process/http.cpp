@@ -110,7 +110,7 @@ ProcessPlugin::FlowAction HTTPPlugin::post_create(Flow& rec, const Packet& pkt)
                 return ProcessPlugin::FlowAction::GET_ALL_DATA;
 	}
 
-	return ProcessPlugin::FlowAction::NO_PROCESS;
+	return ProcessPlugin::FlowAction::GET_ALL_DATA;
 }
 
 ProcessPlugin::FlowAction HTTPPlugin::pre_update(Flow& rec, Packet& pkt)

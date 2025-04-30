@@ -52,6 +52,7 @@ class StoragePlugin : public Plugin
 {
 protected:
    ipx_ring_t *m_export_queue;
+   bool m_input_terminted = false; 
 
 private:
    ProcessPlugin **m_plugins; /**< Array of plugins. */
@@ -101,10 +102,23 @@ public:
    {
    }
 
+   virtual void terminate_input()
+   {
+      m_input_terminted = true;
+   }
+
+   virtual bool requires_input() const
+   {
+      return !m_input_terminted;
+   }
+
 #ifdef WITH_CTT
-    virtual void set_ctt_config(const std::shared_ptr<CttController>& ctt_controller, uint8_t dma_channel) = 0;
-    virtual void export_external(const Packet& pkt) noexcept = 0;
-    virtual void prefinish_signal() noexcept = 0;
+    virtual void init_ctt(uint8_t dma_channel)
+    {
+        throw PluginError("CTT is not supported in this storage plugin");
+    }
+    //virtual void export_external(const Packet& pkt) noexcept = 0;
+    //virtual void prefinish_signal() noexcept = 0;
 #endif /* WITH_CTT */
 
    /**

@@ -797,10 +797,10 @@ int parse_packet_ctt_metadata(parser_opt_t *opt, ParserStats& stats, const uint8
    pkt->cttmeta = CttMetadata::parse(header_data, header_len);
    pkt->cttmeta_valid = pkt->cttmeta.parser_status == PA_OK; 
    
-   if (pkt->cttmeta_valid) {
+   /*if (pkt->cttmeta_valid) {
       parse_packet(opt, stats, pkt->cttmeta.ts, data, len, caplen);
       return 0;
-   }
+   }*/
    
    parse_packet(opt, stats, ts, data, len, caplen);
    return -1;

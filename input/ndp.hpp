@@ -74,7 +74,7 @@ public:
       std::shared_ptr<telemetry::Directory> queues_dir) override;
 
 #ifdef WITH_CTT
-   virtual std::pair<std::string, unsigned> get_ctt_config() const override;
+   virtual std::optional<unsigned> get_dma_channel() const override;
 #endif /* WITH_CTT */
 
 private:

@@ -92,15 +92,20 @@ struct CttMetadata {
             return metadata;
         }
 
-        metadata.ts.tv_usec      = extract(data, 0,   32) / 1000; ///< CTT uses seconds/nanoseconds ts
-        metadata.ts.tv_sec       = extract(data, 32,  32);
-        metadata.vlan_tci        = extract(data, 64,  16);
-        metadata.vlan_vld        = extract(data, 80,  1);
-        metadata.vlan_stripped   = extract(data, 81,  1);
+        //metadata.ts.tv_usec      = extract(data, 0,   32) / 1000; ///< CTT uses seconds/nanoseconds ts
+        //metadata.ts.tv_sec       = extract(data, 32,  32);
+        //metadata.vlan_tci        = extract(data, 64,  16);
+        metadata.vlan_tci = *reinterpret_cast<const uint16_t*>(data + 8);
+        //metadata.vlan_vld        = extract(data, 80,  1);
+        metadata.vlan_vld = *reinterpret_cast<const uint8_t*>(data + 10) & 0x01;       
+        //metadata.vlan_stripped   = extract(data, 81,  1);
+        metadata.vlan_stripped = *reinterpret_cast<const uint8_t*>(data + 10) & 0x02;
 
-        metadata.parser_status   = static_cast<ParserStatus>(extract(data, 86,  2));
-        metadata.ifc             = extract(data, 88,  8);
-        metadata.flow_hash       = extract(data, 128, 64);
+        //metadata.parser_status   = static_cast<ParserStatus>(extract(data, 86,  2));
+        metadata.parser_status = static_cast<ParserStatus>(*reinterpret_cast<const uint8_t*>(data + 10) & 0xC0);
+        //metadata.ifc             = extract(data, 88,  8);
+        //metadata.flow_hash       = extract(data, 128, 64);
+        metadata.flow_hash = *reinterpret_cast<const uint64_t*>(data + 16);
 
         return metadata;
         metadata.ip_csum_status  = static_cast<CsumStatus>(extract(data, 82,  2));

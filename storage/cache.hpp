@@ -67,8 +67,8 @@ public:
    void export_expired(time_t now) override;
 
 #ifdef WITH_CTT
-   void export_external(const Packet& pkt) noexcept override;
-   void prefinish_signal() noexcept override;
+   void export_external(const Packet& pkt) noexcept;
+   void flush_ctt() noexcept;
 #endif /* WITH_CTT */
 
    /**
@@ -77,6 +77,7 @@ public:
    void set_telemetry_dir(std::shared_ptr<telemetry::Directory> dir) override;
 
 private:
+
    uint32_t m_cache_size{0};
    uint32_t m_line_size{0};
    uint32_t m_line_mask{0};
@@ -101,9 +102,12 @@ private:
    uint8_t m_dma_channel;
    std::shared_ptr<CttController> m_ctt_controller;
    size_t m_prefinish_index{0};
+   bool m_table_flushed{false};
 
-   void set_ctt_config(const std::shared_ptr<CttController>& ctt_controller, uint8_t dma_channel) override;
+   void init_ctt(uint8_t dma_channel) override;
    void update_ctt_export_stats(feta::ExportReason ctt_reason, feta::MuExportReason mu_reason) noexcept;
+   std::optional<feta::OffloadMode> get_offload_mode(size_t flow_index) noexcept;
+   void offload_flow_to_ctt(size_t flow_index, feta::OffloadMode offload_mode) noexcept; 
 #endif /* WITH_CTT */
 
    void try_to_fill_ports_to_fragmented_packet(Packet& packet);
@@ -143,13 +147,10 @@ private:
    void print_report() const;
    void send_export_request_to_ctt(size_t ctt_flow_hash) noexcept;
    void export_expired(const timeval& now);
-   void try_to_add_flow_to_ctt(size_t flow_index) noexcept;
-#ifdef WITH_CTT
-   std::optional<feta::OffloadMode> get_offload_mode(size_t flow_index) noexcept;
-   void offload_flow_to_ctt(size_t flow_index, feta::OffloadMode offload_mode) noexcept; 
-#endif /* WITH_CTT */   
+   void try_to_add_flow_to_ctt(size_t flow_index) noexcept; 
    void export_and_reuse_flow(size_t flow_index) noexcept;
    size_t get_empty_place(CacheRowSpan& row, const timeval& now) noexcept;
+   bool requires_input() const override;
 };
 }
 #endif /* IPXP_STORAGE_CACHE_HPP */

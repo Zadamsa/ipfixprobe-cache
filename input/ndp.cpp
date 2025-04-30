@@ -95,7 +95,7 @@ void NdpPacketReader::close()
 }
 
 #ifdef WITH_CTT
-std::pair<std::string, unsigned> NdpPacketReader::get_ctt_config() const
+std::optional<unsigned> NdpPacketReader::get_dma_channel() const
 {
    std::string dev = m_device;
    int channel_id = 0;
@@ -105,7 +105,7 @@ std::pair<std::string, unsigned> NdpPacketReader::get_ctt_config() const
       dev = m_device.substr(0, delimiter_found);
       channel_id = std::stoi(channel_str);
    }
-   return std::make_pair(dev, channel_id);
+   return channel_id;
 }
 #endif /* WITH_CTT */
 

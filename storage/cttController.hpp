@@ -37,7 +37,7 @@
 #include <ipfixprobe/flowifc.hpp>
 #include <sys/time.h>
 #include <ctt_async.hpp>
-#include <ctt_factory.hpp>
+#include <ctt_card.hpp>
 #include <ctt_exceptions.hpp>
 #include <ctt_modes.hpp>
 #include <ctt.hpp>
@@ -50,6 +50,9 @@ namespace ipxp {
 
 class CttController {
 public:
+   static constexpr size_t KEY_SIZE = 8;
+   static constexpr size_t MASK_SIZE = 21;
+   
    /**
    * @brief init the CTT.
    *
@@ -78,8 +81,7 @@ public:
 
    void get_state(uint64_t flow_hash_ctt);
 private:
-   static constexpr size_t KEY_SIZE = 8;
-   static constexpr size_t MASK_SIZE = 21;
+   
    std::unique_ptr<ctt::AsyncCommander<KEY_SIZE, sizeof(feta::CttRecord), MASK_SIZE>> m_commander;
    size_t m_key_size_bytes;
    size_t m_state_size_bytes;

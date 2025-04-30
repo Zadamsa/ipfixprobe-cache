@@ -68,12 +68,10 @@ public:
       std::shared_ptr<telemetry::Directory> plugin_dir, 
       std::shared_ptr<telemetry::Directory> queues_dir);
 
-#ifdef WITH_CTT
-   virtual std::pair<std::string, unsigned> get_ctt_config() const {
-      return std::make_pair("/dev/nfb0", 0);
-      throw PluginError("CTT is not supported by this input plugin");
+   virtual std::optional<unsigned> get_dma_channel() const 
+   {
+      return std::nullopt;
    }
-#endif /* WITH_CTT */
 
 protected:
    virtual void configure_telemetry_dirs(

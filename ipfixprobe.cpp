@@ -361,14 +361,9 @@ bool process_plugin_args(ipxp_conf_t &conf, IpfixprobeOptParser &parser)
          if (storage_plugin == nullptr) {
             throw IPXPError("invalid storage plugin " + storage_name);
          }
-#ifdef WITH_CTT
-         const auto& [device, channel_id] = input_plugin->get_ctt_config();
-         const std::string key = device + std::to_string(channel_id/16);
-         if (ctt_controllers.find(key) == ctt_controllers.end()) {
-            ctt_controllers[key] = std::make_shared<CttController>(device, channel_id/16);
+         if (std::optional<unsigned> channel_id = input_plugin->get_dma_channel(); channel_id.has_value()) {
+            storage_plugin->init_ctt(channel_id);
          }
-         storage_plugin->set_ctt_config(ctt_controllers[key], channel_id);
-#endif /* WITH_CTT */
          storage_plugin->set_queue(output_queue);
          storage_plugin->init(storage_params.c_str());
          storage_plugin->set_telemetry_dir(pipeline_queue_dir);
