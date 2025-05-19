@@ -19,6 +19,7 @@ option(ENABLE_OUTPUT_UNIREC         "Enable build of output UNIREC plugin"      
 option(ENABLE_PROCESS_EXPERIMENTAL  "Enable build of experimental process plugins"            OFF)
 option(ENABLE_MILISECONDS_TIMESTAMP "Compile ipfixprobe with miliseconds timestamp precesion" OFF)
 option(ENABLE_NEMEA                 "Enable build of NEMEA plugins"                           OFF)
+option(ENABLE_CTT                   "Enable support of conaction tracking table"              OFF)
 
 option(ENABLE_RPMBUILD              "Enable build of RPM package"                             ON)
 option(ENABLE_TESTS                 "Build tests (make test)"                                 OFF)

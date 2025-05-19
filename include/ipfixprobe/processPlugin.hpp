@@ -22,25 +22,41 @@
 namespace ipxp {
 
 /**
- * \brief Tell storage plugin to flush (immediately export) current flow.
- * Behavior when called from post_create, pre_update and post_update: flush current Flow and erase
- * FlowRecord.
- */
-#define FLOW_FLUSH 0x1
-
-/**
- * \brief Tell storage plugin to flush (immediately export) current flow.
- * Behavior when called from post_create: flush current Flow and erase FlowRecord.
- * Behavior when called from pre_update and post_update: flush current Flow, erase FlowRecord and
- * call post_create on packet.
- */
-#define FLOW_FLUSH_WITH_REINSERT 0x3
-
-/**
  * \brief Class template for flow cache plugins.
  */
 class IPXP_API ProcessPlugin : public Plugin {
 public:
+	enum FlowAction : int {
+		/**
+		 * \brief Tell storage plugin that process plugin requires all incoming data for given flow.
+		 */
+		GET_ALL_DATA = 0,
+		/**
+		 * \brief Tell storage plugin that process plugin requires only metadata.
+		 * Used to offload the cache when all process plugin return GET_METADATA.
+		 */
+		GET_METADATA = 0x2,
+		/**
+		 * \brief Tell storage plugin that process plugin has ended up its work and doesn't require
+		 * any new data. Used to offload the cache when all process plugin return NO_PROCESS.
+		 */
+		NO_PROCESS = 0x4,
+		/**
+		 * \brief Tell storage plugin to flush (immediately export) current flow.
+		 * Behavior when called from post_create, pre_update and post_update: flush current Flow and
+		 * erase FlowRecord.
+		 */
+		FLUSH = 0x1,
+
+		/**
+		 * \brief Tell storage plugin to flush (immediately export) current flow.
+		 * Behavior when called from post_create: flush current Flow and erase FlowRecord.
+		 * Behavior when called from pre_update and post_update: flush current Flow, erase
+		 * FlowRecord and call post_create on packet.
+		 */
+		FLUSH_WITH_REINSERT = 0x7
+	};
+	
 	ProcessPlugin(int pluginID)
 		: m_pluginID(pluginID)
 	{

@@ -1,0 +1,123 @@
+/**
+ * \file cache.hpp
+ * \brief "NewHashTable" flow cache
+ * \author Jiri Havranek <havranek@cesnet.cz>
+ * \date 2014
+ * \date 2015
+ * \date 2016
+ */
+/*
+ * Copyright (C) 2014-2016 CESNET
+ *
+ * LICENSE TERMS
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
+ * 1. Redistributions of source code must retain the above copyright
+ *    notice, this list of conditions and the following disclaimer.
+ * 2. Redistributions in binary form must reproduce the above copyright
+ *    notice, this list of conditions and the following disclaimer in
+ *    the documentation and/or other materials provided with the
+ *    distribution.
+ * 3. Neither the name of the Company nor the names of its contributors
+ *    may be used to endorse or promote products derived from this
+ *    software without specific prior written permission.
+ *
+ *
+ *
+ */
+#pragma once
+
+#include "../../cache/src/cache.hpp"
+
+#include <feta.hpp>
+
+#include "cttController.hpp"
+#include "flowRecordCtt.hpp"
+#include "cttRemoveQueue.hpp"
+
+namespace ipxp {
+
+/**
+ * \brief Extension of the NHTFlowCache class with CTT support
+ */
+class NHTFlowCacheCtt : public NHTFlowCache {
+public:
+   
+   /**
+     * \brief Constructor
+     * \param params Parameters for the cache
+     * \param queue Pointer to the ring buffer
+     */
+   NHTFlowCacheCtt(const std::string& params, ipx_ring_t* queue);
+   
+   ~NHTFlowCacheCtt() override;
+   
+   /**
+    * \brief Get the options parser for the cache
+    * \return Pointer to the options parser
+    */
+   OptionsParser * get_parser() const override;
+   
+   /** 
+     * \brief Get the name of the cache
+     * \return Name of the cache
+     */
+   std::string get_name() const noexcept override;
+   
+   /**
+     * \brief Initialize the cache with parameters
+     * \param params Parameters for the cache
+     */
+   void init(const char* params) override;
+
+   /** 
+     * \brief Insert a packet into the cache
+     * \param packet Packet to be inserted
+     * \return 0 on success, -1 on error
+     */
+   int put_pkt(Packet& packet) override;
+
+private:
+   void export_expired(const timeval& now) override;
+   void export_external(const Packet& pkt) noexcept;
+   void flush_ctt(const timeval now) noexcept;
+   void export_flow(FlowRecord** flow, int reason) override;
+
+   void finish() override;
+   //bool try_to_export_on_inactive_timeout(size_t flow_index, const timeval& now) noexcept override;
+   //bool try_to_export_on_inactive_timeout(size_t flow_index, const timeval& now) noexcept override;
+   void create_record(const Packet& packet, size_t flow_index, size_t hash_value) noexcept override;
+   int update_flow(Packet& packet, size_t flow_index, bool flow_is_waiting_for_export) noexcept override;
+   bool try_to_export(size_t flow_index, bool call_pre_export, const timeval& now, int reason) noexcept override;
+   //size_t get_empty_place(CacheRowSpan& row, const timeval& now) noexcept override;
+   bool can_be_exported(size_t flow_index) const noexcept override;
+   bool requires_input() const override;
+   void init_ctt(const CttConfig& ctt_config) override;
+   void allocate_table() override;
+   void print_report() const override;
+   telemetry::Dict get_cache_telemetry() override;
+   void close() override;
+   size_t find_victim(CacheRowSpan& row) const noexcept override;
+   
+   std::optional<feta::OffloadMode> get_offload_mode(size_t flow_index) noexcept;
+   void offload_flow_to_ctt(size_t flow_index, feta::OffloadMode offload_mode) noexcept;
+   void try_to_add_flow_to_ctt(size_t flow_index) noexcept;
+   bool try_to_export_delayed_flow(const Packet& packet, size_t flow_index) noexcept;
+   void send_export_request_to_ctt(size_t ctt_flow_hash) noexcept;
+   void update_ctt_export_stats(feta::ExportReason ctt_reason, feta::MuExportReason mu_reason) noexcept;
+
+   CttStats m_ctt_stats = {};
+   uint8_t m_dma_channel{0};
+   std::optional<CttController> m_ctt_controller;
+   size_t m_prefinish_index{0};
+   bool m_ctt_flow_seen{false};
+   bool m_table_flushed{false};
+   std::optional<feta::OffloadMode> m_offload_mode;
+   FlowRecordCtt** m_flow_table{nullptr};
+   std::unique_ptr<FlowRecordCtt[]> m_flows;
+   CttRemoveQueue m_ctt_remove_queue;
+   size_t m_ctt_remove_queue_size{1024};
+};
+}

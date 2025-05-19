@@ -19,10 +19,10 @@
 #include "plugin.hpp"
 #include "processPlugin.hpp"
 #include "ring.h"
+#include "cttConfig.hpp"
 
 #include <memory>
 #include <string>
-
 #include <telemetry.hpp>
 
 namespace ipxp {
@@ -65,6 +65,15 @@ public:
 
 	virtual void export_expired(time_t ts) { (void) ts; }
 	virtual void finish() {}
+
+	virtual void terminate_input() { m_input_terminted = true; }
+
+   virtual bool requires_input() const { return !m_input_terminted; }
+
+    virtual void init_ctt([[maybe_unused]]const CttConfig& ctt_config)
+    {
+        throw PluginError("CTT is not supported in this storage plugin");
+    }
 
 	/**
 	 * \brief set telemetry directory for the storage
@@ -164,11 +173,73 @@ protected:
 		}
 	}
 
+	/**
+     * \brief Auxiliary class for manipulations plugins status.
+     */
+    class PluginStatusConverter {
+	public:
+		PluginStatusConverter(Flow::PluginsStatus& plugins_status) noexcept
+			: m_plugins_status(plugins_status)
+		{
+		}
+
+		/**
+		 * \brief Resets all kept plugins status to the initial state.
+		 * \param [in] plugin_count Count of process plugins.
+		 */
+		void reset(size_t plugin_count) noexcept
+		{
+			m_plugins_status.get_all_data.reset();
+			m_plugins_status.get_no_data = (uint64_t) -1 << plugin_count;
+		}
+
+		/**
+		 * \brief Sets process plugin status at the given index.
+		 * \param [in] index Index of the process plugin.
+		 * \param [in] flow_action Given flow action to set.
+		 */
+		void set_flow_status(size_t index, ProcessPlugin::FlowAction flow_action) noexcept
+		{
+			if (flow_action == ProcessPlugin::FlowAction::NO_PROCESS) {
+				m_plugins_status.get_all_data[index] = false;
+				m_plugins_status.get_no_data[index] = true;
+			} else if (flow_action == ProcessPlugin::FlowAction::GET_METADATA) {
+				m_plugins_status.get_all_data[index] = false;
+			} else if (flow_action == ProcessPlugin::FlowAction::GET_ALL_DATA) {
+				m_plugins_status.get_all_data[index] = true;
+			}
+		}
+
+		/**
+		 * \brief Checks if the process plugin at the given index doesn't require any data.
+		 * \param [in] index Index of the process plugin.
+		 * \return True, if the process plugin doesn't require any data.
+		 */
+		bool plugin_gets_no_data(size_t index) noexcept
+		{
+			return m_plugins_status.get_no_data[index];
+		}
+
+		PluginStatusConverter&
+		operator=(const PluginStatusConverter& plugin_status_converter) noexcept
+		{
+			m_plugins_status.get_all_data = plugin_status_converter.m_plugins_status.get_all_data;
+			m_plugins_status.get_no_data = plugin_status_converter.m_plugins_status.get_no_data;
+			return *this;
+		}
+
+	private:
+		Flow::PluginsStatus& m_plugins_status;
+	};
+
 	ipx_ring_t* m_export_queue;
+	bool m_input_terminted = false; 
 
 private:
-	ProcessPlugin** m_plugins; /**< Array of plugins. */
+	ProcessPlugin **m_plugins; /**< Array of plugins. */
 	uint32_t m_plugin_cnt;
+	Flow::PluginsStatus
+		m_plugins_status; /**< Keeps statuses of the process plugin before flow is created. */
 };
 
 /**
