@@ -668,6 +668,8 @@ telemetry::Dict NHTFlowCacheCtt::get_cache_telemetry()
    dict["ExportPacketsForMissingFlow"] = m_ctt_stats.export_packets_for_missing_flow;
    dict["CttHashCollision"] = m_ctt_stats.export_reasons.hash_collision;
    dict["CttCounterOverflow"] = m_ctt_stats.export_reasons.counter_overflow;
+   dict["CttExportPackets"] = m_ctt_stats.export_packets;
+   dict["CttFull"] = m_ctt_stats.export_reasons.ctt_full;
    return dict;
 }
 
