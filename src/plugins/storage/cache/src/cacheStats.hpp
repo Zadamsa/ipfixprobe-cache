@@ -48,6 +48,8 @@ struct CttStats {
    uint64_t export_packets_for_missing_flow{0};
    uint64_t export_packets_parsing_failed{0};
    uint64_t packet_right_after_offload{0};
+   uint64_t remove_queue_lost_requests{0};
+   uint64_t flush_ctt_lost_requests{0};
    struct {
       uint64_t counter_overflow{0};
       uint64_t tcp_eof{0};
@@ -57,6 +59,15 @@ struct CttStats {
       uint64_t hash_collision{0};
       uint64_t reserved{0};
    } export_reasons;
+   struct {
+      uint64_t counter_overflow[2]{0, 0};
+      uint64_t tcp_eof[2]{0, 0};
+      uint64_t active_timeout[2]{0, 0};
+      uint64_t by_request[2]{0, 0};
+      uint64_t ctt_full[2]{0, 0};
+      uint64_t hash_collision[2]{0, 0};
+      uint64_t reserved[2]{0, 0};
+   } advanced_export_reasons;
 };
 
 } // namespace ipxp

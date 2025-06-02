@@ -36,6 +36,16 @@ FlowRecordCtt** CttRemoveQueue::find(size_t hash) noexcept
     return nullptr;
 }
 
+FlowRecordCtt** CttRemoveQueue::find_by_flowhash(size_t hash) noexcept
+{
+    for (size_t index = 0; index < m_last_index; index++) {
+        if (!m_flow_table[index]->is_empty() && m_flow_table[index]->m_flow.flow_hash_ctt == hash) {
+            return &m_flow_table[index];                
+        } 
+    }
+    return nullptr;
+}
+
 FlowRecordCtt* CttRemoveQueue::add(FlowRecordCtt* flow)
 {
     if (m_last_index == m_flows_capacity) {

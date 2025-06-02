@@ -109,7 +109,7 @@ source /opt/rh/gcc-toolset-14/enable
 %{_libdir}/ipfixprobe/process/libipfixprobe-process-ssadetector.so
 %{_libdir}/ipfixprobe/process/libipfixprobe-process-ssdp.so
 
-%{_libdir}/ipfixprobe/storage/libipfixprobe-storage-cache.so
+%{_libdir}/ipfixprobe/storage/libipfixprobe-storage-cache-ctt.so
 
 %{_sysconfdir}/ipfixprobe/link0.conf.example
 %{_sysconfdir}/ipfixprobe/dpdk_direct.conf.example

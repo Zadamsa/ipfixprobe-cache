@@ -107,6 +107,7 @@ private:
    bool try_to_export_delayed_flow(const Packet& packet, size_t flow_index) noexcept;
    void send_export_request_to_ctt(size_t ctt_flow_hash) noexcept;
    void update_ctt_export_stats(feta::ExportReason ctt_reason, feta::MuExportReason mu_reason) noexcept;
+   void update_advanced_ctt_export_stats(const feta::CttExportPkt& export_data) noexcept;
 
    CttStats m_ctt_stats = {};
    uint8_t m_dma_channel{0};

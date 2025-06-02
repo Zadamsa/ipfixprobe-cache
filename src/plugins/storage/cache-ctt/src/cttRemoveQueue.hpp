@@ -19,6 +19,8 @@ public:
     void set_ctt_controller(CttController* ctt_controller) noexcept;
 
     FlowRecordCtt** find(size_t hash) noexcept;
+    
+    FlowRecordCtt** find_by_flowhash(size_t hash) noexcept;
 
     FlowRecordCtt* add(FlowRecordCtt* flow);
 

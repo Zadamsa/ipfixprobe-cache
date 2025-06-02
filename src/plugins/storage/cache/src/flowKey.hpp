@@ -35,13 +35,13 @@ struct FlowKey {
    std::array<uint8_t, 16> dst_ip;
    uint16_t src_port;
    uint16_t dst_port;
-   uint16_t vlan_id;
    uint8_t proto;
    uint8_t ip_version;
+   uint16_t vlan_id;
    
    size_t hash() const noexcept 
    {
-      return XXH3_64bits(this, sizeof(*this));
+      return XXH3_64bits(this, sizeof(*this) - sizeof(vlan_id));
    }
 } __attribute__((packed));
 
