@@ -30,7 +30,7 @@
 
 namespace ipxp {
 
-struct FlowKey {
+struct alignas(16) FlowKey {
    std::array<uint8_t, 16> src_ip;
    std::array<uint8_t, 16> dst_ip;
    uint16_t src_port;
@@ -41,7 +41,7 @@ struct FlowKey {
    
    size_t hash() const noexcept 
    {
-      return XXH3_64bits(this, sizeof(*this) - sizeof(vlan_id));
+      return XXH3_64bits(this, sizeof(*this));
    }
 } __attribute__((packed));
 

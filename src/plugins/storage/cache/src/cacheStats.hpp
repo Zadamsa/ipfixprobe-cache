@@ -50,6 +50,7 @@ struct CttStats {
    uint64_t packet_right_after_offload{0};
    uint64_t remove_queue_lost_requests{0};
    uint64_t flush_ctt_lost_requests{0};
+   uint64_t pv_zero{0};
    struct {
       uint64_t counter_overflow{0};
       uint64_t tcp_eof{0};

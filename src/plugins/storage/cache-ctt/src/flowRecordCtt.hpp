@@ -43,6 +43,7 @@ struct alignas(64) FlowRecordCtt : public FlowRecord
     //timeval limit_export_time;            /**< Time point when we sure that the export request has already been processed by ctt, and flow is not in ctt anymore. */
     timeval last_request_time;            /**< Time point when the last state request was sent to CTT. */
     std::optional<feta::OffloadMode> offload_mode;        /**< Offload mode of the flow. */
+    //std::optional<feta::CttExportPkt> export_data; //Last export data
 
 
     void erase() override;

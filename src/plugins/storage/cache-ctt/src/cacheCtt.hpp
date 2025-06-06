@@ -32,6 +32,7 @@
 #include "../../cache/src/cache.hpp"
 
 #include <feta.hpp>
+#include <unordered_map>
 
 #include "cttController.hpp"
 #include "flowRecordCtt.hpp"
@@ -84,6 +85,7 @@ private:
    void export_external(const Packet& pkt) noexcept;
    void flush_ctt(const timeval now) noexcept;
    void export_flow(FlowRecord** flow, int reason) override;
+   void terminate_input() noexcept override;
 
    void finish() override;
    //bool try_to_export_on_inactive_timeout(size_t flow_index, const timeval& now) noexcept override;
@@ -100,6 +102,7 @@ private:
    telemetry::Dict get_cache_telemetry() override;
    void close() override;
    size_t find_victim(CacheRowSpan& row) const noexcept override;
+   void print_flush_progress(size_t current_pos) const noexcept;
    
    std::optional<feta::OffloadMode> get_offload_mode(size_t flow_index) noexcept;
    void offload_flow_to_ctt(size_t flow_index, feta::OffloadMode offload_mode) noexcept;
@@ -114,11 +117,16 @@ private:
    std::optional<CttController> m_ctt_controller;
    size_t m_prefinish_index{0};
    bool m_ctt_flow_seen{false};
+   size_t m_ctt_flows_flushed{0};
+   size_t m_flows_offloaded_on_termination{0};
    bool m_table_flushed{false};
    std::optional<feta::OffloadMode> m_offload_mode;
    FlowRecordCtt** m_flow_table{nullptr};
    std::unique_ptr<FlowRecordCtt[]> m_flows;
    CttRemoveQueue m_ctt_remove_queue;
    size_t m_ctt_remove_queue_size{1024};
+
+  //std::unordered_map<uint32_t, size_t> m_vlan_bad;
+   
 };
 }

@@ -152,6 +152,7 @@ void NHTFlowCacheCtt::flush_ctt(const timeval now) noexcept
             m_ctt_stats.lost_requests_count++;
             m_ctt_stats.flush_ctt_lost_requests++;
          }
+         m_ctt_flows_flushed++;
          m_ctt_controller->get_state(flow_record->m_flow.flow_hash_ctt);
          flow_record->last_request_time = now;
          m_ctt_stats.total_requests_count++;
@@ -162,7 +163,43 @@ void NHTFlowCacheCtt::flush_ctt(const timeval now) noexcept
       m_table_flushed = !m_ctt_flow_seen; 
       m_ctt_flow_seen = false;  
    }
-   usleep(100);
+   if (m_ctt_flows_flushed >= 16) {
+      m_ctt_flows_flushed = 0;
+      usleep(100);   
+   }
+   if (m_prefinish_index % 16384 == 0) {
+      //print_flush_progress(m_prefinish_index);
+   }
+}
+
+void NHTFlowCacheCtt::print_flush_progress(size_t current_pos) const noexcept
+{
+   std::ostringstream oss;
+   //std::cout << m_dma_channel << std::endl;
+   std::cout << "\0338" << std::flush; // Restore cursor position
+   oss << "\033[" << static_cast<uint16_t>(m_dma_channel + 1) << "A"; // Move cursor up
+   oss << "\r\033[2K"; // Clear whole line
+   const size_t current_ctt_flows_count = m_ctt_stats.flows_offloaded - m_ctt_stats.flows_removed;
+   const double current_ctt_flush_progress = current_ctt_flows_count == 0 ? 1 : (1 - static_cast<double>(current_ctt_flows_count)/m_flows_offloaded_on_termination);
+   //double flush_loop_progress = static_cast<double>(current_pos) / m_cache_size;
+   const double flush_loop_progress = 1;
+   const double progress = 100.0 * current_ctt_flush_progress * flush_loop_progress;
+   oss << "Flushing cache " << static_cast<uint16_t>(m_dma_channel) << ": " << std::setw(2) << std::setfill('0') << static_cast<int>(progress) << "%";
+   oss << "\033[" << static_cast<uint16_t>(m_dma_channel + 1) << "B"; // Move cursor down to the original position
+
+   std::cout << oss.str() << std::flush;
+   /*size_t lines_up = 1;
+   std::ostringstream oss;
+oss << "\033[" << lines_up << "A"; // вверх
+oss << "\033[K";                   // очистить строку
+size_t current_ctt_flows_count = m_ctt_stats.flows_offloaded - m_ctt_stats.flows_removed;
+oss << "Flushing cache " << m_dma_channel << ": "
+    << (current_ctt_flows_count == 0 ? 100 :
+        100 * (1 - static_cast<double>(current_ctt_flows_count) / m_flows_offloaded_on_termination))
+    << "%";
+oss << "\033[" << lines_up << "B"; // вернуть курсор на исходную позицию
+
+std::cout << oss.str() << std::flush;*/
 }
 
 /*bool NHTFlowCacheCtt::try_to_export_on_inactive_timeout(size_t flow_index, const timeval& now) noexcept
@@ -405,7 +442,7 @@ void NHTFlowCacheCtt::update_ctt_export_stats(feta::ExportReason ctt_reason, fet
          if (static_cast<uint8_t>(mu_reason) & static_cast<uint8_t>(feta::MuExportReason::ACTIVE_TIMEOUT)) {
             m_ctt_stats.export_reasons.active_timeout++;
          }
-         if (static_cast<uint8_t>(mu_reason) & static_cast<uint8_t>(feta::MuExportReason::FLOW_COLLISION)) {
+         if (static_cast<uint8_t>(mu_reason) == static_cast<uint8_t>(feta::MuExportReason::FLOW_COLLISION)) {
             m_ctt_stats.export_reasons.hash_collision++;
          }
          break;
@@ -437,7 +474,7 @@ void NHTFlowCacheCtt::update_advanced_ctt_export_stats(const feta::CttExportPkt&
          if (static_cast<uint8_t>(mu_reason) & static_cast<uint8_t>(feta::MuExportReason::ACTIVE_TIMEOUT)) {
             m_ctt_stats.advanced_export_reasons.active_timeout[export_data.fields.wb]++;
          }
-         if (static_cast<uint8_t>(mu_reason) & static_cast<uint8_t>(feta::MuExportReason::FLOW_COLLISION)) {
+         if (static_cast<uint8_t>(mu_reason) == static_cast<uint8_t>(feta::MuExportReason::FLOW_COLLISION)) {
             m_ctt_stats.advanced_export_reasons.hash_collision[export_data.fields.wb]++;
          }
          break;
@@ -470,12 +507,12 @@ static bool is_hash_collision(feta::ExportReason ctt_reason, feta::MuExportReaso
 
 static bool is_tcp_restart(feta::ExportReason ctt_reason, feta::MuExportReason mu_reason) noexcept 
 {
-   return ctt_reason == feta::ExportReason::EXPORT_BY_MU && mu_reason == feta::MuExportReason::TCP_CONN_END;
+   return ctt_reason == feta::ExportReason::EXPORT_BY_MU && (mu_reason & feta::MuExportReason::TCP_CONN_END);
 }
 
 static bool is_active_timeout(feta::ExportReason ctt_reason, feta::MuExportReason mu_reason) noexcept
 {
-   return ctt_reason == feta::ExportReason::EXPORT_BY_MU && mu_reason == feta::MuExportReason::ACTIVE_TIMEOUT;
+   return ctt_reason == feta::ExportReason::EXPORT_BY_MU && (mu_reason & feta::MuExportReason::ACTIVE_TIMEOUT);
 }
 
 /*void dump_invalid_record(const feta::CttExportPkt& export_data, FlowRecordCtt* flow_record) noexcept
@@ -539,6 +576,11 @@ void NHTFlowCacheCtt::export_external(const Packet& pkt) noexcept
    MAYBE_DISABLED_CODE(std::vector<std::byte> data(reinterpret_cast<const std::byte*>(pkt.packet), reinterpret_cast<const std::byte*>(pkt.packet) + pkt.packet_len);)
    feta::CttExportPkt export_data = feta::CttExportPkt::deserialize(reinterpret_cast<std::byte*>(const_cast<uint8_t*>(pkt.packet)));
 
+   if (export_data.fields.pv != 1 || export_data.fields.es != 0) {
+      m_ctt_stats.pv_zero++;
+      return; // Drop invalid packet
+   }
+
    update_ctt_export_stats(export_data.fields.rsn, export_data.fields.ursn);
    update_advanced_ctt_export_stats(export_data);
    
@@ -551,8 +593,19 @@ void NHTFlowCacheCtt::export_external(const Packet& pkt) noexcept
 
    const auto [search, source_to_destination] = find_flow_index(key, swapped);
    const auto [row, flow_index, hash_value] = search;
-   FlowRecordCtt** flow_record_ptr = m_ctt_remove_queue.find_by_flowhash(export_data.flow_hash);
-   //FlowRecordCtt** flow_record_ptr = m_ctt_remove_queue.find(hash_value);
+
+   FlowRecordCtt** flow_record_ptr = m_ctt_remove_queue.find(hash_value);
+
+   /*FlowRecordCtt** flow_record_ptrx = m_ctt_remove_queue.find_by_flowhash(export_data.flow_hash);
+
+   if (export_data.fields.pv == 0 && flow_record_ptrx != nullptr && (*flow_record_ptrx)->export_data.has_value()) {
+      auto x = 777 * 999;
+   } 
+
+   if (export_data.fields.pv == 1 && flow_record_ptrx && !flow_record_ptr) {
+      m_vlan_bad[vlan_id << 16 | (*flow_record_ptrx)->m_flow.vlan_id]++;
+      (*flow_record_ptrx)->export_data = export_data;
+   }*/
 
    //if (!flow_index.has_value() && flow_record_ptr == nullptr && flow_record_ptrx != nullptr)  
    //   dump_invalid_record(export_data, *flow_record_ptrx);
@@ -572,7 +625,6 @@ void NHTFlowCacheCtt::export_external(const Packet& pkt) noexcept
    
    FlowRecordCtt*& flow_record = *flow_record_ptr;
 
-
    if (flow_record->offload_mode == feta::OffloadMode::DROP_PACKET_DROP_META) {
       flow_record->is_waiting_ctt_response = false;
       update_packet_counters_from_active_timeout_external_export(flow_record->m_flow, export_data.record);
@@ -589,7 +641,6 @@ void NHTFlowCacheCtt::export_external(const Packet& pkt) noexcept
    if (!export_data.fields.wb  
       && flow_record->offload_mode == feta::OffloadMode::DROP_PACKET_DROP_META 
       && (is_tcp_restart(export_data.fields.rsn, export_data.fields.ursn)
-         || is_active_timeout(export_data.fields.rsn, export_data.fields.ursn)
          || export_data.fields.rsn == feta::ExportReason::EXPORT_BY_SW
          || is_counter_overflow(export_data.fields.rsn, export_data.fields.ursn))) {
       MAYBE_DISABLED_CODE(std::cout << "Real export of ctt site FULL OFFLOADED flow from the ipfixprobe because of TCP/AT/SW" << std::endl;)
@@ -611,15 +662,6 @@ void NHTFlowCacheCtt::export_external(const Packet& pkt) noexcept
       return;
    }
 
-   if (!export_data.fields.wb) {
-      flow_record->is_in_ctt = false;
-      flow_record->offload_mode = std::nullopt;
-      m_ctt_stats.flows_removed++;
-      if (from_remove_queue) {
-         NHTFlowCache::export_flow(reinterpret_cast<FlowRecord**>(flow_record_ptr));
-      }
-   }
-
    if (is_counter_overflow(export_data.fields.rsn, export_data.fields.ursn)) {
       MAYBE_DISABLED_CODE(std::cout << "Counter overflow" << std::endl;)
    }
@@ -632,6 +674,23 @@ void NHTFlowCacheCtt::export_external(const Packet& pkt) noexcept
    if (export_data.fields.rsn == feta::ExportReason::FULL_CTT) {
       flow_record->can_be_offloaded = false;
       MAYBE_DISABLED_CODE(std::cout << "CTT is full" << std::endl;)
+   }
+   
+   if (!export_data.fields.wb) {
+      flow_record->is_in_ctt = false;
+      flow_record->offload_mode = std::nullopt;
+      m_ctt_stats.flows_removed++;
+      if (from_remove_queue) {
+         NHTFlowCache::export_flow(reinterpret_cast<FlowRecord**>(flow_record_ptr));
+      }
+   }
+}
+
+void NHTFlowCacheCtt::terminate_input() noexcept
+{
+   StoragePlugin::terminate_input();
+   if (m_flows_offloaded_on_termination == 0) {
+      m_flows_offloaded_on_termination = m_ctt_stats.flows_offloaded - m_ctt_stats.flows_removed;
    }
 }
 
@@ -759,7 +818,6 @@ telemetry::Dict NHTFlowCacheCtt::get_cache_telemetry()
    dict["CttHashCollision"] = std::to_string(m_ctt_stats.advanced_export_reasons.hash_collision[0]) +
       " (WB0), " + std::to_string(m_ctt_stats.advanced_export_reasons.hash_collision[1]) + " (WB1)";
    //dict["CttCounterOverflow"] = m_ctt_stats.export_reasons.counter_overflow;
-   dict["CttCounterOverflow"] = m_ctt_stats.export_reasons.counter_overflow;
    dict["CttExportPackets"] = m_ctt_stats.export_packets;
    //dict["CttFull"] = m_ctt_stats.export_reasons.ctt_full;
    dict["CttFull"] = std::to_string(m_ctt_stats.advanced_export_reasons.ctt_full[0]) +
@@ -772,6 +830,7 @@ telemetry::Dict NHTFlowCacheCtt::get_cache_telemetry()
       " (WB0), " + std::to_string(m_ctt_stats.advanced_export_reasons.counter_overflow[1]) + " (WB1)";
    dict["CttRemoveQueueLostRequests"] = m_ctt_stats.remove_queue_lost_requests;
    dict["CttFlushCttLostRequests"] = m_ctt_stats.flush_ctt_lost_requests;
+   dict["CttPvZero"] = m_ctt_stats.pv_zero;
    return dict;
 }
 
