@@ -83,6 +83,11 @@ void NHTFlowCache::finish()
    print_report();
 }
 
+NHTFlowCache::NHTFlowCache(bool vlan_is_flow_key)
+: m_vlan_is_flow_key(vlan_is_flow_key)
+{   
+}
+
 NHTFlowCache::NHTFlowCache(const std::string& params, ipx_ring_t* queue)
 {
    set_queue(queue);
@@ -224,7 +229,7 @@ void NHTFlowCache::flush(Packet &pkt, size_t flow_index, int return_flags)
       }
       return;
    }
-   try_to_export(flow_index, false, pkt.ts, FLOW_END_FORCED);
+   try_to_export(flow_index, false, FLOW_END_FORCED);
 }
 
 NHTFlowCache::FlowSearch
@@ -277,7 +282,7 @@ static bool is_tcp_connection_restart(const Packet& packet, const Flow& flow) no
 bool NHTFlowCache::try_to_export_on_inactive_timeout(size_t flow_index, const timeval& now) noexcept
 {
    if (!m_flow_table[flow_index]->is_empty() && now.tv_sec - m_flow_table[flow_index]->m_flow.time_last.tv_sec >= m_inactive) {  
-      return try_to_export(flow_index, false, now);
+      return try_to_export(flow_index, false);
    }
    return false;
 }
@@ -288,7 +293,8 @@ void NHTFlowCache::create_record(const Packet& packet, size_t flow_index, size_t
    m_flow_table[flow_index]->create(packet, hash_value);
    const size_t post_create_return_flags = plugins_post_create(m_flow_table[flow_index]->m_flow, packet);
    if (post_create_return_flags & ProcessPlugin::FlowAction::FLUSH) {
-      export_flow(flow_index);
+      try_to_export(flow_index, false, FLOW_END_FORCED);
+      //export_flow(flow_index);
       m_cache_stats.flushed++;
       return;
    }
@@ -297,7 +303,7 @@ void NHTFlowCache::create_record(const Packet& packet, size_t flow_index, size_t
 int NHTFlowCache::update_flow(Packet& packet, size_t flow_index, bool flow_is_waiting_for_export) noexcept
 {
    if (!flow_is_waiting_for_export && is_tcp_connection_restart(packet, m_flow_table[flow_index]->m_flow)) {
-      if (try_to_export(flow_index, false, packet.ts, FLOW_END_EOF)) {
+      if (try_to_export(flow_index, false, FLOW_END_EOF)) {
          put_pkt(packet);
          return 0;
       }
@@ -333,12 +339,12 @@ int NHTFlowCache::update_flow(Packet& packet, size_t flow_index, bool flow_is_wa
    return 0;
 }
 
-bool NHTFlowCache::try_to_export(size_t flow_index, bool call_pre_export, const timeval& now) noexcept
+bool NHTFlowCache::try_to_export(size_t flow_index, bool call_pre_export) noexcept
 {
-   return try_to_export(flow_index, call_pre_export, now, get_export_reason(m_flow_table[flow_index]->m_flow));
+   return try_to_export(flow_index, call_pre_export, get_export_reason(m_flow_table[flow_index]->m_flow));
 }
 
-bool NHTFlowCache::try_to_export(size_t flow_index, bool call_pre_export, const timeval& now, int reason) noexcept
+bool NHTFlowCache::try_to_export(size_t flow_index, bool call_pre_export, int reason) noexcept
 {
    if (call_pre_export) {
       plugins_pre_export(m_flow_table[flow_index]->m_flow);
@@ -370,7 +376,7 @@ int NHTFlowCache::put_pkt(Packet& packet)
    }
    m_cache_stats.total++;
    const auto [sorted_key, swapped] = FlowKeyFactory::create_sorted_key(&packet.src_ip, &packet.dst_ip,
-      packet.src_port, packet.dst_port, packet.ip_proto, static_cast<IP>(packet.ip_version), packet.vlan_id);
+      packet.src_port, packet.dst_port, packet.ip_proto, static_cast<IP>(packet.ip_version), m_vlan_is_flow_key ? packet.vlan_id : FlowKeyFactory::EMPTY_VLAN);
 
    prefetch_export_expired();
 
@@ -379,7 +385,7 @@ int NHTFlowCache::put_pkt(Packet& packet)
    packet.source_pkt = flow_search.flow_index.has_value() ? source_to_destination : true;
 
    if (!flow_search.flow_index.has_value()) {
-      const size_t empty_place = get_empty_place(flow_search.cache_row, packet.ts) + (flow_search.hash_value & m_line_mask);
+      const size_t empty_place = get_empty_place(flow_search.cache_row) + (flow_search.hash_value & m_line_mask);
       create_record(packet, empty_place, flow_search.hash_value);
       m_flow_table[empty_place]->m_flow.swapped = source_to_destination;
       export_expired(packet.ts);
@@ -399,12 +405,12 @@ int NHTFlowCache::put_pkt(Packet& packet)
    return update_flow(packet, flow_index - relative_flow_index, cant_be_exported);
 }
 
-size_t NHTFlowCache::find_victim(CacheRowSpan& row) const noexcept
+size_t NHTFlowCache::find_victim([[maybe_unused]] CacheRowSpan& row) const noexcept
 {
    return m_line_size - 1;
 }
 
-size_t NHTFlowCache::get_empty_place(CacheRowSpan& row, const timeval& now) noexcept
+size_t NHTFlowCache::get_empty_place(CacheRowSpan& row) noexcept
 {
    if (const std::optional<size_t> empty_index = row.find_empty(); empty_index.has_value()) {
       m_cache_stats.empty++;
@@ -416,7 +422,7 @@ size_t NHTFlowCache::get_empty_place(CacheRowSpan& row, const timeval& now) noex
    const size_t victim_index = m_line_size - 1;
    row.advance_flow_to(victim_index, m_new_flow_insert_index);
 
-   try_to_export(&row[m_new_flow_insert_index] - m_flow_table.get(), true, now, FLOW_END_NO_RES);
+   try_to_export(&row[m_new_flow_insert_index] - m_flow_table.get(), true, FLOW_END_NO_RES);
    //plugins_pre_export(row[m_new_flow_insert_index]->m_flow);
    //export_flow(&row[m_new_flow_insert_index] - m_flow_table.get(), FLOW_END_NO_RES);
    return m_new_flow_insert_index;
@@ -425,7 +431,7 @@ size_t NHTFlowCache::get_empty_place(CacheRowSpan& row, const timeval& now) noex
 bool NHTFlowCache::try_to_export_on_active_timeout(size_t flow_index, const timeval& now) noexcept
 {
    if (!m_flow_table[flow_index]->is_empty() && now.tv_sec - m_flow_table[flow_index]->m_flow.time_first.tv_sec >= m_active) {
-      return try_to_export(flow_index, true, now, FLOW_END_ACTIVE);
+      return try_to_export(flow_index, true, FLOW_END_ACTIVE);
    }
    return false;
 }

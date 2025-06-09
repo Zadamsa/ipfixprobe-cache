@@ -92,7 +92,7 @@ private:
    //bool try_to_export_on_inactive_timeout(size_t flow_index, const timeval& now) noexcept override;
    void create_record(const Packet& packet, size_t flow_index, size_t hash_value) noexcept override;
    int update_flow(Packet& packet, size_t flow_index, bool flow_is_waiting_for_export) noexcept override;
-   bool try_to_export(size_t flow_index, bool call_pre_export, const timeval& now, int reason) noexcept override;
+   bool try_to_export(size_t flow_index, bool call_pre_export, int reason) noexcept override;
    //size_t get_empty_place(CacheRowSpan& row, const timeval& now) noexcept override;
    bool can_be_exported(size_t flow_index) const noexcept override;
    bool requires_input() const override;
@@ -103,6 +103,7 @@ private:
    void close() override;
    size_t find_victim(CacheRowSpan& row) const noexcept override;
    void print_flush_progress(size_t current_pos) const noexcept;
+   void export_and_reuse_flow(size_t flow_index) noexcept override;
    
    std::optional<feta::OffloadMode> get_offload_mode(size_t flow_index) noexcept;
    void offload_flow_to_ctt(size_t flow_index, feta::OffloadMode offload_mode) noexcept;

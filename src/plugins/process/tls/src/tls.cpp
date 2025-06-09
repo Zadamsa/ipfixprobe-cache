@@ -98,13 +98,12 @@ ProcessPlugin* TLSPlugin::copy()
 	return new TLSPlugin(*this);
 }
 
-int TLSPlugin::post_create(Flow& rec, const Packet& pkt)
+ProcessPlugin::FlowAction TLSPlugin::post_create(Flow& rec, const Packet& pkt)
 {
-	add_tls_record(rec, pkt);
-	return 0;
+	return add_tls_record(rec, pkt);
 }
 
-int TLSPlugin::pre_update(Flow& rec, Packet& pkt)
+ProcessPlugin::FlowAction TLSPlugin::pre_update(Flow& rec, Packet& pkt)
 {
 	auto* ext = static_cast<RecordExtTLS*>(rec.get_extension(m_pluginID));
 
@@ -112,12 +111,11 @@ int TLSPlugin::pre_update(Flow& rec, Packet& pkt)
 		if (!ext->server_hello_parsed) {
 			// Add ALPN from server packet
 			parse_tls(pkt.payload, pkt.payload_len, ext, rec.ip_proto);
+			return ProcessPlugin::FlowAction::GET_ALL_DATA;
 		}
-		return 0;
+		return ProcessPlugin::FlowAction::GET_NO_DATA;
 	}
-	add_tls_record(rec, pkt);
-
-	return 0;
+	return add_tls_record(rec, pkt);
 }
 
 static std::string concatenate_vector_to_string(const std::vector<uint16_t>& vector)
@@ -407,7 +405,7 @@ bool TLSPlugin::parse_tls(
 	return false;
 }
 
-void TLSPlugin::add_tls_record(Flow& rec, const Packet& pkt)
+ProcessPlugin::FlowAction TLSPlugin::add_tls_record(Flow& rec, const Packet& pkt)
 {
 	if (ext_ptr == nullptr) {
 		ext_ptr = new RecordExtTLS(m_pluginID);
@@ -420,7 +418,10 @@ void TLSPlugin::add_tls_record(Flow& rec, const Packet& pkt)
 		DEBUG_MSG("%s\n", ext_ptr->alpn);
 		rec.add_extension(ext_ptr);
 		ext_ptr = nullptr;
+		return ProcessPlugin::FlowAction::GET_ALL_DATA;
 	}
+
+	return ProcessPlugin::FlowAction::GET_NO_DATA;
 }
 
 void TLSPlugin::finish(bool print_stats)

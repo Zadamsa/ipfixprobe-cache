@@ -11,6 +11,8 @@ namespace ipxp {
 
 class FlowKeyFactory {
 public:
+   static constexpr size_t EMPTY_VLAN = 0;
+
    template<typename Int>
    static FlowKey
    create_direct_key(const Int* src_ip, const Int* dst_ip,
@@ -32,8 +34,7 @@ public:
       res.dst_port = dst_port;
       res.proto = proto;
       res.ip_version = ip_version;
-      //res.vlan_id = vlan_id;
-      res.vlan_id = 0;
+      res.vlan_id = vlan_id;
       return res;
    }
 

@@ -73,6 +73,7 @@ std::string NHTFlowCacheCtt::get_name() const noexcept
 }
 
 NHTFlowCacheCtt::NHTFlowCacheCtt(const std::string& params, ipx_ring_t* queue)
+: NHTFlowCache(false)
 {
    set_queue(queue);
 	init(params.c_str());
@@ -265,8 +266,9 @@ std::optional<feta::OffloadMode> NHTFlowCacheCtt::get_offload_mode(size_t flow_i
    if (!m_offload_mode.has_value() || !m_flow_table[flow_index]->can_be_offloaded) {
       return std::nullopt;
    }
-   if (*m_offload_mode == feta::OffloadMode::DROP_PACKET_DROP_META &&
+   if (no_data_required(m_flow_table[flow_index]->m_flow) && *m_offload_mode == feta::OffloadMode::DROP_PACKET_DROP_META &&
          m_flow_table[flow_index]->m_flow.src_packets + m_flow_table[flow_index]->m_flow.dst_packets > 1000) {
+         //m_flow_table[flow_index]->m_flow.src_packets + m_flow_table[flow_index]->m_flow.dst_packets > 10) {
       m_ctt_stats.drop_packet_offloaded++;
       return feta::OffloadMode::DROP_PACKET_DROP_META;
    }
@@ -302,6 +304,17 @@ std::optional<feta::OffloadMode> NHTFlowCacheCtt::get_offload_mode(size_t flow_i
    }*/
    
    return std::nullopt;
+}
+
+void NHTFlowCacheCtt::export_and_reuse_flow(size_t flow_index) noexcept
+{
+   if (!m_flow_table[flow_index]->is_in_ctt) {
+      return NHTFlowCache::export_and_reuse_flow(flow_index);
+   }
+   auto& flow_record = *m_flow_table[flow_index];
+   m_flow_table[flow_index] = m_ctt_remove_queue.add(m_flow_table[flow_index]);
+   *m_flow_table[flow_index] = flow_record;
+   m_flow_table[flow_index]->reuse();
 }
 
 void NHTFlowCacheCtt::create_record(const Packet& packet, size_t flow_index, size_t hash_value) noexcept
@@ -371,7 +384,7 @@ void NHTFlowCacheCtt::send_export_request_to_ctt(size_t ctt_flow_hash) noexcept
    m_ctt_controller->export_record(ctt_flow_hash);
 }
 
-bool NHTFlowCacheCtt::try_to_export(size_t flow_index, bool call_pre_export, const timeval& now, int reason) noexcept
+bool NHTFlowCacheCtt::try_to_export(size_t flow_index, bool call_pre_export, int reason) noexcept
 {
    /*if (m_flow_table[flow_index]->is_in_ctt) {
       if (!m_flow_table[flow_index]->is_waiting_ctt_response) {
@@ -568,11 +581,11 @@ static bool is_active_timeout(feta::ExportReason ctt_reason, feta::MuExportReaso
 void NHTFlowCacheCtt::export_external(const Packet& pkt) noexcept
 {
    m_ctt_stats.export_packets++;
-   if (pkt.packet_len != sizeof(feta::CttExportPkt)) {
+   /*if (pkt.packet_len != sizeof(feta::CttExportPkt)) {
       m_ctt_stats.export_packets_parsing_failed++;
       MAYBE_DISABLED_CODE(std::cout << "Parsing external export failed" << std::endl;)
       return;
-   }
+   }*/
    MAYBE_DISABLED_CODE(std::vector<std::byte> data(reinterpret_cast<const std::byte*>(pkt.packet), reinterpret_cast<const std::byte*>(pkt.packet) + pkt.packet_len);)
    feta::CttExportPkt export_data = feta::CttExportPkt::deserialize(reinterpret_cast<std::byte*>(const_cast<uint8_t*>(pkt.packet)));
 
@@ -587,17 +600,17 @@ void NHTFlowCacheCtt::export_external(const Packet& pkt) noexcept
    MAYBE_DISABLED_CODE(std::cout << "External export of " << std::hex << export_data.flow_hash << std::endl;)
    const IP ip_version = export_data.record.ip_ver == feta::IpVersion::IPV4 ? IP::v4 : IP::v6;
 
-   const uint16_t vlan_id = export_data.record.vlan_vld ? export_data.record.vlan_tci & 0x0FFF : 0; 
+   //const uint16_t vlan_id = export_data.record.vlan_vld ? export_data.record.vlan_tci & 0x0FFF : 0; 
    const auto [key, swapped] = FlowKeyFactory::create_sorted_key(export_data.record.ip_src.data(), export_data.record.ip_dst.data(),
-      export_data.record.port_src, export_data.record.port_dst, export_data.record.l4_proto, ip_version, vlan_id);
+      export_data.record.port_src, export_data.record.port_dst, export_data.record.l4_proto, ip_version, FlowKeyFactory::EMPTY_VLAN);
 
    const auto [search, source_to_destination] = find_flow_index(key, swapped);
    const auto [row, flow_index, hash_value] = search;
 
    FlowRecordCtt** flow_record_ptr = m_ctt_remove_queue.find(hash_value);
 
-   /*FlowRecordCtt** flow_record_ptrx = m_ctt_remove_queue.find_by_flowhash(export_data.flow_hash);
-
+   FlowRecordCtt** flow_record_ptrx = m_ctt_remove_queue.find_by_flowhash(export_data.flow_hash);
+   /*
    if (export_data.fields.pv == 0 && flow_record_ptrx != nullptr && (*flow_record_ptrx)->export_data.has_value()) {
       auto x = 777 * 999;
    } 
@@ -607,8 +620,9 @@ void NHTFlowCacheCtt::export_external(const Packet& pkt) noexcept
       (*flow_record_ptrx)->export_data = export_data;
    }*/
 
-   //if (!flow_index.has_value() && flow_record_ptr == nullptr && flow_record_ptrx != nullptr)  
+   if (!flow_index.has_value() && flow_record_ptr == nullptr && flow_record_ptrx != nullptr)  
    //   dump_invalid_record(export_data, *flow_record_ptrx);
+      auto x = 707;
 
    bool from_remove_queue = true;
    if (flow_record_ptr == nullptr && flow_index.has_value()) {
@@ -828,6 +842,8 @@ telemetry::Dict NHTFlowCacheCtt::get_cache_telemetry()
       " (WB0), " + std::to_string(m_ctt_stats.advanced_export_reasons.active_timeout[1]) + " (WB1)";
    dict["CttCounterOverflow"] = std::to_string(m_ctt_stats.advanced_export_reasons.counter_overflow[0]) +
       " (WB0), " + std::to_string(m_ctt_stats.advanced_export_reasons.counter_overflow[1]) + " (WB1)";
+   dict["CttSwExport"] = std::to_string(m_ctt_stats.advanced_export_reasons.by_request[0]) +
+      " (WB0), " + std::to_string(m_ctt_stats.advanced_export_reasons.by_request[1]) + " (WB1)";
    dict["CttRemoveQueueLostRequests"] = m_ctt_stats.remove_queue_lost_requests;
    dict["CttFlushCttLostRequests"] = m_ctt_stats.flush_ctt_lost_requests;
    dict["CttPvZero"] = m_ctt_stats.pv_zero;

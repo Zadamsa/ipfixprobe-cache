@@ -72,7 +72,7 @@ size_t CttRemoveQueue::resend_lost_requests(const timeval now) noexcept
     constexpr size_t BLOCK_SIZE = 16;
     size_t lost_requests = 0;
 
-    for (size_t index = m_export_index; index < m_export_index + BLOCK_SIZE; index++) {
+    for (size_t index = m_export_index; index < m_export_index + BLOCK_SIZE && index < m_last_index; index++) {
         if (!m_flow_table[index]->is_empty() && m_flow_table[index]->is_in_ctt) {
             if (!m_flow_table[index]->is_waiting_ctt_response || now > m_flow_table[index]->last_request_time + CTT_REQUEST_TIMEOUT) {
                 if (m_flow_table[index]->is_waiting_ctt_response) {

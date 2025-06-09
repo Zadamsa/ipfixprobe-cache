@@ -95,9 +95,9 @@ void input_storage_worker(
 				diff.tv_sec--;
 			}
 			storagePlugin->export_expired(ts.tv_sec + diff.tv_sec);
-			//if (!terminate_input) {
+			if (!terminate_input) {
 				usleep(1);
-			//}
+			}
 			continue;
 		} else if (ret == InputPlugin::Result::PARSED) {
 			stats.packets = inputPlugin->m_seen;

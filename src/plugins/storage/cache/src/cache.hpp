@@ -51,7 +51,7 @@ namespace ipxp {
 class NHTFlowCache : TelemetryUtils, public StoragePlugin
 {
 public:
-   NHTFlowCache() = default;
+   NHTFlowCache(bool vlan_is_flow_key = true);
    NHTFlowCache(const std::string& params, ipx_ring_t* queue);
    ~NHTFlowCache() override;
    void init(const char* params) override;
@@ -125,15 +125,18 @@ protected:
    virtual int update_flow(Packet& packet, size_t flow_index, bool flow_is_waiting_for_export) noexcept;
    bool try_to_export_delayed_flow(const Packet& packet, size_t flow_index) noexcept;
    virtual void create_record(const Packet& packet, size_t flow_index, size_t hash_value) noexcept;
-   virtual bool try_to_export(size_t flow_index, bool call_pre_export, const timeval& now, int reason) noexcept;
-   bool try_to_export(size_t flow_index, bool call_pre_export, const timeval& now) noexcept;
+   virtual bool try_to_export(size_t flow_index, bool call_pre_export, int reason) noexcept;
+   bool try_to_export(size_t flow_index, bool call_pre_export) noexcept;
    virtual void print_report() const;
    void send_export_request_to_ctt(size_t ctt_flow_hash) noexcept;
    virtual void export_expired(const timeval& now);
    void try_to_add_flow_to_ctt(size_t flow_index) noexcept; 
-   void export_and_reuse_flow(size_t flow_index) noexcept;
-   size_t get_empty_place(CacheRowSpan& row, const timeval& now) noexcept;
+   size_t get_empty_place(CacheRowSpan& row) noexcept;
    virtual bool can_be_exported(size_t flow_index) const noexcept;
    virtual size_t find_victim(CacheRowSpan& row) const noexcept;
+   virtual void export_and_reuse_flow(size_t flow_index) noexcept;
+private:
+   const bool m_vlan_is_flow_key{true};
+
 };
 }
