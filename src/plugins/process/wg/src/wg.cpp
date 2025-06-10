@@ -105,11 +105,6 @@ ProcessPlugin::FlowAction WGPlugin::pre_update(Flow& rec, Packet& pkt)
 	return ProcessPlugin::FlowAction::GET_NO_DATA;
 }
 
-void WGPlugin::pre_export(Flow& rec)
-{
-	(void) rec;
-}
-
 void WGPlugin::finish(bool print_stats)
 {
 	if (print_stats) {

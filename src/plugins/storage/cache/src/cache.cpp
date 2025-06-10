@@ -211,7 +211,8 @@ void NHTFlowCache::export_and_reuse_flow(size_t flow_index) noexcept
 {
    push_to_export_queue(flow_index);
    m_flow_table[flow_index]->m_flow.remove_extensions();
-   *m_flow_table[flow_index] = *m_flow_table[m_cache_size + m_queue_index];
+   const size_t old_queue_index = m_queue_index == 0 ? m_queue_size - 1 : m_queue_index - 1;
+   *m_flow_table[flow_index] = *m_flow_table[m_cache_size + old_queue_index];
    m_flow_table[flow_index]->m_flow.m_exts = nullptr;
    m_flow_table[flow_index]->reuse(); // Clean counters, set time first to last
 }

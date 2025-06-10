@@ -111,10 +111,11 @@ ProcessPlugin::FlowAction TLSPlugin::pre_update(Flow& rec, Packet& pkt)
 		if (!ext->server_hello_parsed) {
 			// Add ALPN from server packet
 			parse_tls(pkt.payload, pkt.payload_len, ext, rec.ip_proto);
-			return ProcessPlugin::FlowAction::GET_ALL_DATA;
+			return ProcessPlugin::FlowAction::GET_NO_DATA;
 		}
-		return ProcessPlugin::FlowAction::GET_NO_DATA;
+		return ProcessPlugin::FlowAction::GET_ALL_DATA;
 	}
+	
 	return add_tls_record(rec, pkt);
 }
 
@@ -418,10 +419,9 @@ ProcessPlugin::FlowAction TLSPlugin::add_tls_record(Flow& rec, const Packet& pkt
 		DEBUG_MSG("%s\n", ext_ptr->alpn);
 		rec.add_extension(ext_ptr);
 		ext_ptr = nullptr;
-		return ProcessPlugin::FlowAction::GET_ALL_DATA;
 	}
 
-	return ProcessPlugin::FlowAction::GET_NO_DATA;
+	return ProcessPlugin::FlowAction::GET_ALL_DATA;
 }
 
 void TLSPlugin::finish(bool print_stats)

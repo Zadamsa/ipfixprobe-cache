@@ -111,6 +111,9 @@ ProcessPlugin::FlowAction PassiveDNSPlugin::post_create(Flow& rec, const Packet&
 			pkt.ip_proto == IPPROTO_TCP,
 			rec);
 	}
+	if (pkt.dst_port == 53) {
+		return ProcessPlugin::FlowAction::GET_ALL_DATA;
+	}
 
 	return ProcessPlugin::FlowAction::GET_NO_DATA;
 }
@@ -125,7 +128,7 @@ ProcessPlugin::FlowAction PassiveDNSPlugin::post_update(Flow& rec, const Packet&
 			rec);
 	}
 
-	return ProcessPlugin::FlowAction::GET_NO_DATA;
+	return ProcessPlugin::FlowAction::GET_ALL_DATA;
 }
 
 void PassiveDNSPlugin::finish(bool print_stats)

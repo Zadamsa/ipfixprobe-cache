@@ -267,8 +267,8 @@ std::optional<feta::OffloadMode> NHTFlowCacheCtt::get_offload_mode(size_t flow_i
       return std::nullopt;
    }
    if (no_data_required(m_flow_table[flow_index]->m_flow) && *m_offload_mode == feta::OffloadMode::DROP_PACKET_DROP_META &&
-         m_flow_table[flow_index]->m_flow.src_packets + m_flow_table[flow_index]->m_flow.dst_packets > 1000) {
-         //m_flow_table[flow_index]->m_flow.src_packets + m_flow_table[flow_index]->m_flow.dst_packets > 10) {
+         //m_flow_table[flow_index]->m_flow.src_packets + m_flow_table[flow_index]->m_flow.dst_packets > 1000) {
+         m_flow_table[flow_index]->m_flow.src_packets + m_flow_table[flow_index]->m_flow.dst_packets > 500) {
       m_ctt_stats.drop_packet_offloaded++;
       return feta::OffloadMode::DROP_PACKET_DROP_META;
    }
@@ -455,7 +455,7 @@ void NHTFlowCacheCtt::update_ctt_export_stats(feta::ExportReason ctt_reason, fet
          if (static_cast<uint8_t>(mu_reason) & static_cast<uint8_t>(feta::MuExportReason::ACTIVE_TIMEOUT)) {
             m_ctt_stats.export_reasons.active_timeout++;
          }
-         if (static_cast<uint8_t>(mu_reason) == static_cast<uint8_t>(feta::MuExportReason::FLOW_COLLISION)) {
+         if (static_cast<uint8_t>(mu_reason) & static_cast<uint8_t>(feta::MuExportReason::FLOW_COLLISION)) {
             m_ctt_stats.export_reasons.hash_collision++;
          }
          break;
@@ -487,7 +487,7 @@ void NHTFlowCacheCtt::update_advanced_ctt_export_stats(const feta::CttExportPkt&
          if (static_cast<uint8_t>(mu_reason) & static_cast<uint8_t>(feta::MuExportReason::ACTIVE_TIMEOUT)) {
             m_ctt_stats.advanced_export_reasons.active_timeout[export_data.fields.wb]++;
          }
-         if (static_cast<uint8_t>(mu_reason) == static_cast<uint8_t>(feta::MuExportReason::FLOW_COLLISION)) {
+         if (static_cast<uint8_t>(mu_reason) & static_cast<uint8_t>(feta::MuExportReason::FLOW_COLLISION)) {
             m_ctt_stats.advanced_export_reasons.hash_collision[export_data.fields.wb]++;
          }
          break;
@@ -515,7 +515,7 @@ static void update_packet_counters_from_active_timeout_external_export(Flow& flo
 
 static bool is_hash_collision(feta::ExportReason ctt_reason, feta::MuExportReason mu_reason) noexcept
 {
-   return ctt_reason == feta::ExportReason::EXPORT_BY_MU && mu_reason == feta::MuExportReason::FLOW_COLLISION;
+   return ctt_reason == feta::ExportReason::EXPORT_BY_MU && (mu_reason & feta::MuExportReason::FLOW_COLLISION);
 }
 
 static bool is_tcp_restart(feta::ExportReason ctt_reason, feta::MuExportReason mu_reason) noexcept 
@@ -581,11 +581,11 @@ static bool is_active_timeout(feta::ExportReason ctt_reason, feta::MuExportReaso
 void NHTFlowCacheCtt::export_external(const Packet& pkt) noexcept
 {
    m_ctt_stats.export_packets++;
-   /*if (pkt.packet_len != sizeof(feta::CttExportPkt)) {
+   if (pkt.packet_len != sizeof(feta::CttExportPkt)) {
       m_ctt_stats.export_packets_parsing_failed++;
       MAYBE_DISABLED_CODE(std::cout << "Parsing external export failed" << std::endl;)
       return;
-   }*/
+   }
    MAYBE_DISABLED_CODE(std::vector<std::byte> data(reinterpret_cast<const std::byte*>(pkt.packet), reinterpret_cast<const std::byte*>(pkt.packet) + pkt.packet_len);)
    feta::CttExportPkt export_data = feta::CttExportPkt::deserialize(reinterpret_cast<std::byte*>(const_cast<uint8_t*>(pkt.packet)));
 

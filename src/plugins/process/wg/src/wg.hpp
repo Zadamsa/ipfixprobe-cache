@@ -132,7 +132,6 @@ public:
 
 	ProcessPlugin::FlowAction post_create(Flow& rec, const Packet& pkt);
 	ProcessPlugin::FlowAction pre_update(Flow& rec, Packet& pkt);
-	void pre_export(Flow& rec);
 	void finish(bool print_stats);
 
 private:

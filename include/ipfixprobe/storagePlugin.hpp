@@ -224,8 +224,8 @@ protected:
     {
         PluginStatusConverter plugin_status_converter(rec.plugins_status);
         for (unsigned int i = 0; i < m_plugin_cnt; i++) {
-            if (plugin_status_converter.plugin_gets_no_data(i))
-                continue;
+            //if (plugin_status_converter.plugin_gets_no_data(i))
+            //    continue;
             m_plugins[i]->pre_export(rec);
         }
     }
