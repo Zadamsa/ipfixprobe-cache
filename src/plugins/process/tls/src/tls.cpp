@@ -110,8 +110,9 @@ ProcessPlugin::FlowAction TLSPlugin::pre_update(Flow& rec, Packet& pkt)
 	if (ext != nullptr) {
 		if (!ext->server_hello_parsed) {
 			// Add ALPN from server packet
-			parse_tls(pkt.payload, pkt.payload_len, ext, rec.ip_proto);
-			return ProcessPlugin::FlowAction::GET_NO_DATA;
+			if (parse_tls(pkt.payload, pkt.payload_len, ext, rec.ip_proto)) {
+				return ProcessPlugin::FlowAction::GET_NO_DATA;
+			}
 		}
 		return ProcessPlugin::FlowAction::GET_ALL_DATA;
 	}
@@ -389,6 +390,8 @@ bool TLSPlugin::parse_tls(
 			rec->extensions_buffer_size = count_to_copy;
 		}
 		rec->version = parser.get_handshake()->version.version;
+		//rec->version = parser.get_supported_versions().empty() ? parser.get_handshake()->version.version
+		//													   : parser.get_supported_versions()[0];
 		parser.save_server_names(rec->sni, sizeof(rec->sni));
 		md5_get_bin(get_ja3_string(parser), rec->ja3);
 		auto ja4 = get_ja4_string(parser, ip_proto);

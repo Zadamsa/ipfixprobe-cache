@@ -36,12 +36,11 @@ namespace ipxp {
 
 struct alignas(64) FlowRecordCtt : public FlowRecord 
 {
-    bool is_in_ctt;                 /**< Flow is offloaded by CTT if set. */
-    bool is_waiting_ctt_response;        /**< Export request of flow was sent to ctt,
-                                                but still has not been processed in ctt. */
+    //bool is_in_ctt;                 /**< Flow is offloaded by CTT if set. */
+    //bool is_waiting_ctt_response;        /**< Export request of flow was sent to ctt, but still has not been processed in ctt. */
     bool can_be_offloaded;            /**< No flow collision in CTT */
     //timeval limit_export_time;            /**< Time point when we sure that the export request has already been processed by ctt, and flow is not in ctt anymore. */
-    timeval last_request_time;            /**< Time point when the last state request was sent to CTT. */
+    std::optional<timeval> last_request_time;            /**< Time point when the last not processed request was sent to CTT. */
     std::optional<feta::OffloadMode> offload_mode;        /**< Offload mode of the flow. */
     //std::optional<feta::CttExportPkt> export_data; //Last export data
 
@@ -49,6 +48,17 @@ struct alignas(64) FlowRecordCtt : public FlowRecord
     void erase() override;
 
     void create(const Packet &pkt, uint64_t pkt_hash) override;
+
+    __attribute__((always_inline)) bool is_in_ctt() const noexcept
+    {
+        return offload_mode.has_value();
+    }
+
+    __attribute__((always_inline)) bool is_waiting_ctt_response() const noexcept
+    {
+        return is_in_ctt() && last_request_time.has_value();
+    }
+
 };
 
 } // ipxp

@@ -33,21 +33,19 @@ namespace ipxp {
 void FlowRecordCtt::erase()
 {
    FlowRecord::erase();
-   is_waiting_ctt_response = false;
-   is_in_ctt = false;
-   last_request_time = {0, 0};
+   //is_waiting_ctt_response = false;
+   last_request_time.reset();
    can_be_offloaded = false;
-   offload_mode = std::nullopt;
+   offload_mode.reset();
 }
 
 void FlowRecordCtt::create(const Packet &pkt, uint64_t hash)
 {
    FlowRecord::create(pkt, hash);
-   is_waiting_ctt_response = false;
-   is_in_ctt = false;
+   //is_waiting_ctt_response = false;
    can_be_offloaded = true;
-   last_request_time = {pkt.ts.tv_sec, pkt.ts.tv_usec - 1};
+   //last_request_time = {pkt.ts.tv_sec, pkt.ts.tv_usec - 1};
+   last_request_time.reset();
 }
-
 
 } // ipxp

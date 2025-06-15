@@ -283,7 +283,8 @@ static bool is_tcp_connection_restart(const Packet& packet, const Flow& flow) no
 bool NHTFlowCache::try_to_export_on_inactive_timeout(size_t flow_index, const timeval& now) noexcept
 {
    if (!m_flow_table[flow_index]->is_empty() && now.tv_sec - m_flow_table[flow_index]->m_flow.time_last.tv_sec >= m_inactive) {  
-      return try_to_export(flow_index, false);
+      try_to_export(flow_index, false);
+      return true;
    }
    return false;
 }
@@ -295,43 +296,37 @@ void NHTFlowCache::create_record(const Packet& packet, size_t flow_index, size_t
    const size_t post_create_return_flags = plugins_post_create(m_flow_table[flow_index]->m_flow, packet);
    if (post_create_return_flags & ProcessPlugin::FlowAction::FLUSH) {
       try_to_export(flow_index, false, FLOW_END_FORCED);
-      //export_flow(flow_index);
       m_cache_stats.flushed++;
       return;
    }
 }
 
-int NHTFlowCache::update_flow(Packet& packet, size_t flow_index, bool flow_is_waiting_for_export) noexcept
+int NHTFlowCache::update_flow(Packet& packet, size_t flow_index) noexcept
 {
-   if (!flow_is_waiting_for_export && is_tcp_connection_restart(packet, m_flow_table[flow_index]->m_flow)) {
-      if (try_to_export(flow_index, false, FLOW_END_EOF)) {
-         put_pkt(packet);
-         return 0;
-      }
+   if (is_tcp_connection_restart(packet, m_flow_table[flow_index]->m_flow)) {
+      try_to_export(flow_index, false, FLOW_END_EOF);
+      put_pkt(packet);
+      return 0;
    }
 
    /* Check if flow record is expired (inactive timeout). */
-   if (!flow_is_waiting_for_export
-         && try_to_export_on_inactive_timeout(flow_index, packet.ts)) {
+   if (try_to_export_on_inactive_timeout(flow_index, packet.ts)) {
       return put_pkt(packet);
    }
 
-   if (!flow_is_waiting_for_export
-         && try_to_export_on_active_timeout(flow_index, packet.ts)) {
+   if (try_to_export_on_active_timeout(flow_index, packet.ts)) {
       return put_pkt(packet);
    }
 
    const size_t pre_update_return_flags = plugins_pre_update(m_flow_table[flow_index]->m_flow, packet);
-   if ((pre_update_return_flags & ProcessPlugin::FlowAction::FLUSH)
-      && !flow_is_waiting_for_export) {
+   if ((pre_update_return_flags & ProcessPlugin::FlowAction::FLUSH)) {
       flush(packet, flow_index, pre_update_return_flags);
       return 0;
    }
 
    m_flow_table[flow_index]->update(packet);
    const size_t post_update_return_flags = plugins_post_update(m_flow_table[flow_index]->m_flow, packet);
-   if ((post_update_return_flags & ProcessPlugin::FlowAction::FLUSH)
-         && !flow_is_waiting_for_export) {
+   if ((post_update_return_flags & ProcessPlugin::FlowAction::FLUSH)) {
       flush(packet, flow_index, post_update_return_flags);
       return 0;
    }
@@ -340,28 +335,22 @@ int NHTFlowCache::update_flow(Packet& packet, size_t flow_index, bool flow_is_wa
    return 0;
 }
 
-bool NHTFlowCache::try_to_export(size_t flow_index, bool call_pre_export) noexcept
+void NHTFlowCache::try_to_export(size_t flow_index, bool call_pre_export) noexcept
 {
-   return try_to_export(flow_index, call_pre_export, get_export_reason(m_flow_table[flow_index]->m_flow));
+   try_to_export(flow_index, call_pre_export, get_export_reason(m_flow_table[flow_index]->m_flow));
 }
 
-bool NHTFlowCache::try_to_export(size_t flow_index, bool call_pre_export, int reason) noexcept
+void NHTFlowCache::try_to_export(size_t flow_index, bool call_pre_export, int reason) noexcept
 {
    if (call_pre_export) {
       plugins_pre_export(m_flow_table[flow_index]->m_flow);
    }
    export_flow(flow_index, reason);
-   return true;
 }
 
 static bool check_ip_version(const Packet& pkt) noexcept
 {
    return pkt.ip_version == IP::v4 || pkt.ip_version == IP::v6;
-}
-
-bool NHTFlowCache::can_be_exported([[maybe_unused]]size_t flow_index) const noexcept
-{
-   return true;
 }
 
 int NHTFlowCache::put_pkt(Packet& packet)
@@ -395,7 +384,6 @@ int NHTFlowCache::put_pkt(Packet& packet)
 
    size_t flow_index = *flow_search.flow_index;
 
-   const bool cant_be_exported = !can_be_exported(flow_index);
    /* Existing flow record was found, put flow record at the first index of flow line. */
    const size_t relative_flow_index = flow_index % m_line_size;
    m_cache_stats.lookups += relative_flow_index + 1;
@@ -403,7 +391,7 @@ int NHTFlowCache::put_pkt(Packet& packet)
    m_cache_stats.hits++;
 
    flow_search.cache_row.advance_flow(relative_flow_index);
-   return update_flow(packet, flow_index - relative_flow_index, cant_be_exported);
+   return update_flow(packet, flow_index - relative_flow_index);
 }
 
 size_t NHTFlowCache::find_victim([[maybe_unused]] CacheRowSpan& row) const noexcept
@@ -424,15 +412,14 @@ size_t NHTFlowCache::get_empty_place(CacheRowSpan& row) noexcept
    row.advance_flow_to(victim_index, m_new_flow_insert_index);
 
    try_to_export(&row[m_new_flow_insert_index] - m_flow_table.get(), true, FLOW_END_NO_RES);
-   //plugins_pre_export(row[m_new_flow_insert_index]->m_flow);
-   //export_flow(&row[m_new_flow_insert_index] - m_flow_table.get(), FLOW_END_NO_RES);
    return m_new_flow_insert_index;
 }
 
 bool NHTFlowCache::try_to_export_on_active_timeout(size_t flow_index, const timeval& now) noexcept
 {
    if (!m_flow_table[flow_index]->is_empty() && now.tv_sec - m_flow_table[flow_index]->m_flow.time_first.tv_sec >= m_active) {
-      return try_to_export(flow_index, true, FLOW_END_ACTIVE);
+      try_to_export(flow_index, true, FLOW_END_ACTIVE);
+      return true;
    }
    return false;
 }

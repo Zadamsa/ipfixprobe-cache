@@ -118,9 +118,9 @@ struct CttMetadata {
         metadata.l3_ptype        = static_cast<L3PType>(extract(data, 220, 4));
         metadata.l4_ptype        = static_cast<L4PType>(extract(data, 224, 4));
         
-        if (metadata.parser_status != ParserStatus::PA_OK) {
+        //if (metadata.parser_status != ParserStatus::PA_OK) {
             //return std::nullopt;
-        }
+        //}
         return metadata;
     }
     struct timeval ts;             ///< Timestamp; invalid if all bits are 1

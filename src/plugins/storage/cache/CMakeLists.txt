@@ -24,13 +24,15 @@ add_library(ipfixprobe-storage-cache MODULE
 	src/xxhash.h
 )
 
+add_compile_definitions(maybe_virtual=)
+
 set_target_properties(ipfixprobe-storage-cache PROPERTIES
 	CXX_VISIBILITY_PRESET hidden
 	VISIBILITY_INLINES_HIDDEN YES
 )
 
 target_compile_options(ipfixprobe-storage-cache PRIVATE
-  $<$<CONFIG:Release>: -O4 -flto>
+  $<$<CONFIG:Release>: -O4 -flto=auto -fopt-info-optimized -fopt-info-inline>
 )
 
 target_include_directories(ipfixprobe-storage-cache PRIVATE

@@ -88,13 +88,9 @@ private:
    void terminate_input() noexcept override;
 
    void finish() override;
-   //bool try_to_export_on_inactive_timeout(size_t flow_index, const timeval& now) noexcept override;
-   //bool try_to_export_on_inactive_timeout(size_t flow_index, const timeval& now) noexcept override;
    void create_record(const Packet& packet, size_t flow_index, size_t hash_value) noexcept override;
-   int update_flow(Packet& packet, size_t flow_index, bool flow_is_waiting_for_export) noexcept override;
-   bool try_to_export(size_t flow_index, bool call_pre_export, int reason) noexcept override;
-   //size_t get_empty_place(CacheRowSpan& row, const timeval& now) noexcept override;
-   bool can_be_exported(size_t flow_index) const noexcept override;
+   int update_flow(Packet& packet, size_t flow_index) noexcept override;
+   void try_to_export(size_t flow_index, bool call_pre_export, int reason) noexcept override;
    bool requires_input() const override;
    void init_ctt(const CttConfig& ctt_config) override;
    void allocate_table() override;
@@ -108,7 +104,6 @@ private:
    std::optional<feta::OffloadMode> get_offload_mode(size_t flow_index) noexcept;
    void offload_flow_to_ctt(size_t flow_index, feta::OffloadMode offload_mode) noexcept;
    void try_to_add_flow_to_ctt(size_t flow_index) noexcept;
-   bool try_to_export_delayed_flow(const Packet& packet, size_t flow_index) noexcept;
    void send_export_request_to_ctt(size_t ctt_flow_hash) noexcept;
    void update_ctt_export_stats(feta::ExportReason ctt_reason, feta::MuExportReason mu_reason) noexcept;
    void update_advanced_ctt_export_stats(const feta::CttExportPkt& export_data) noexcept;
@@ -126,8 +121,7 @@ private:
    std::unique_ptr<FlowRecordCtt[]> m_flows;
    CttRemoveQueue m_ctt_remove_queue;
    size_t m_ctt_remove_queue_size{1024};
+   size_t m_offload_threshold{std::numeric_limits<size_t>::max()};
 
-  //std::unordered_map<uint32_t, size_t> m_vlan_bad;
-   
 };
 }

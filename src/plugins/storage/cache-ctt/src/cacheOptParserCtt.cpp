@@ -25,6 +25,7 @@
 #include "cacheOptParserCtt.hpp"
 
 #include <ipfixprobe/cttmeta.hpp>
+#include <ipfixprobe/utils.hpp>
 #include <cstring>
 
 namespace ipxp {
@@ -46,5 +47,13 @@ CacheOptParserCtt::CacheOptParserCtt()
             return true;
          },
          OptionFlags::RequiredArgument);
+      register_option("ot", "offload-threshold", "count", "Flow is ctt offloaded if count of packets is more than threshold. Must be at least 10. Default is 1000.", [this](const char *arg) {
+         try {
+            m_offload_threshold = str2num<decltype(m_offload_threshold)>(arg);
+         } catch(std::invalid_argument &e) {
+            return false;
+         }
+         return m_offload_threshold >= 10;
+      });
    }
 } // ipxp

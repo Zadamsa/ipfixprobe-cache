@@ -18,7 +18,7 @@ public:
    create_direct_key(const Int* src_ip, const Int* dst_ip,
       uint16_t src_port, uint16_t dst_port, uint8_t proto, IP ip_version, uint16_t vlan_id) noexcept
    {
-      alignas(16) FlowKey res{};
+      FlowKey res{};
       if (ip_version == IP::v4) {   
          *reinterpret_cast<uint64_t*>(&res.src_ip[0]) = 0;
          *reinterpret_cast<uint32_t*>(&res.src_ip[8]) = htobe32(0x0000FFFF);
@@ -53,7 +53,7 @@ public:
    {
       const int ip_diff = std::memcmp(src_ip, dst_ip, 16);
 
-      if (ip_diff < 0 || (ip_diff == 0 && src_port < dst_port)) {
+      if (src_port < dst_port || (src_port == dst_port && ip_diff < 0)) {
          return {create_direct_key(src_ip, dst_ip, src_port, dst_port, proto, ip_version, vlan_id), false};
       }
       return {create_reversed_key(src_ip, dst_ip, src_port, dst_port, proto, ip_version, vlan_id), true};

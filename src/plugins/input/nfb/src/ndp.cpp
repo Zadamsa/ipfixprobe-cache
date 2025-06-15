@@ -71,7 +71,7 @@ std::optional<CttConfig> NdpPacketReader::get_ctt_config() const
 
 InputPlugin::Result NdpPacketReader::get(PacketBlock &packets)
 {
-   const auto parsing_callback = [](parser_opt_t *opt, ParserStats& stats, struct timeval ts, const ndp_packet* packet){
+   constexpr auto parsing_callback = [](parser_opt_t *opt, ParserStats& stats, struct timeval ts, const ndp_packet* packet){
       parse_packet(opt, stats, ts, packet->data, packet->data_length, packet->data_length);
    };
    return NdpPacketReaderCore::getBurst(packets, parsing_callback);

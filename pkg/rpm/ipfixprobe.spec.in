@@ -91,8 +91,8 @@ BuildRequires: libctt-devel
 BuildRequires: libfeta-devel
 Requires: nfb-framework
 Requires: numactl
-Requires: libctt-5.2.1
-Requires: libfeta-0.0.1
+Requires: libctt
+Requires: libfeta
 Requires: cttctl
 Requires: ndk-nic-ctl
 

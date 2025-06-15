@@ -102,9 +102,9 @@ struct Packet : public Record {
 
 	bool source_pkt; /**< Direction of packet from flow point of view */
 	
-	CttMetadata cttmeta; /**< Metadata from CTT */
-	bool cttmeta_valid; /**< True if CTT metadata is valid */
-	bool external_export; /**< True if the flow defined by packet payload is exported by external system */
+	std::optional<CttMetadata> cttmeta; /**< Metadata from CTT */
+	//bool cttmeta_valid; /**< True if CTT metadata is valid */
+	bool external_export; /**< True if packet payload is ctt export data */
  
 	/**
 	 * \brief Constructor.
@@ -147,7 +147,7 @@ struct Packet : public Record {
 		, buffer(nullptr)
 		, buffer_size(0)
 		, source_pkt(true)
-		, cttmeta_valid(false)
+		//, cttmeta_valid(false)
       	, external_export(false)
 	{
 	}

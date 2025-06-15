@@ -3,8 +3,6 @@ project(ipfixprobe-storage-cache-ctt VERSION 1.0.0 DESCRIPTION "ipfixprobe-stora
 set(CMAKE_MODULE_PATH ${CMAKE_CURRENT_SOURCE_DIR}/cmake/)
 
 add_library(ipfixprobe-storage-cache-ctt MODULE
-	src/asyncCommanderFactory.hpp
-	src/asyncCommanderFactory.cpp
 	src/cacheCtt.hpp
 	src/cacheCtt.cpp
 	src/cacheOptParserCtt.hpp
@@ -36,13 +34,15 @@ add_library(ipfixprobe-storage-cache-ctt MODULE
 	../cache/src/xxhash.h
 )
 
+add_compile_definitions(maybe_virtual=virtual)
+
 set_target_properties(ipfixprobe-storage-cache-ctt PROPERTIES
 	CXX_VISIBILITY_PRESET hidden
 	VISIBILITY_INLINES_HIDDEN YES
 )
 
 target_compile_options(ipfixprobe-storage-cache-ctt PRIVATE
-  $<$<CONFIG:Release>: -O4 -flto>
+  $<$<CONFIG:Release>: -O4 -flto=auto -fwhole-program>
 )
 
 target_include_directories(ipfixprobe-storage-cache-ctt PRIVATE

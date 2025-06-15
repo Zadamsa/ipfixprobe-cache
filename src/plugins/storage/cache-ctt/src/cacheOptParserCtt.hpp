@@ -34,6 +34,7 @@ namespace ipxp {
 class CacheOptParserCtt : public CacheOptParser {
 public:
    std::optional<feta::OffloadMode> m_offload_mode;
+   size_t m_offload_threshold{1000};
 
    ~CacheOptParserCtt() override = default;
    CacheOptParserCtt();

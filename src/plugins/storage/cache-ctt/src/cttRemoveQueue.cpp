@@ -73,14 +73,14 @@ size_t CttRemoveQueue::resend_lost_requests(const timeval now) noexcept
     size_t lost_requests = 0;
 
     for (size_t index = m_export_index; index < m_export_index + BLOCK_SIZE && index < m_last_index; index++) {
-        if (!m_flow_table[index]->is_empty() && m_flow_table[index]->is_in_ctt) {
-            if (!m_flow_table[index]->is_waiting_ctt_response || now > m_flow_table[index]->last_request_time + CTT_REQUEST_TIMEOUT) {
-                if (m_flow_table[index]->is_waiting_ctt_response) {
+        if (!m_flow_table[index]->is_empty() && m_flow_table[index]->is_in_ctt()) {
+            if (!m_flow_table[index]->is_waiting_ctt_response() || now > *m_flow_table[index]->last_request_time + CTT_REQUEST_TIMEOUT) {
+                if (m_flow_table[index]->is_waiting_ctt_response()) {
                     lost_requests++;
                 }
-                m_ctt_controller->get_state(m_flow_table[index]->m_flow.flow_hash_ctt);
+                m_ctt_controller->export_record(m_flow_table[index]->m_flow.flow_hash_ctt);
                 m_flow_table[index]->last_request_time = now;
-                m_flow_table[index]->is_waiting_ctt_response = true;
+                //m_flow_table[index]->is_waiting_ctt_response = true;
             }
         } 
     } 

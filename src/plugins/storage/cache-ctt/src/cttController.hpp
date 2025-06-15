@@ -99,9 +99,6 @@ private:
    * @return A byte vector representing the assembled key vector.
    */
   std::array<std::byte, KEY_SIZE> assemble_key(uint64_t flow_hash_ctt);
-
-   /*std::pair<std::vector<std::byte>, std::vector<std::byte>>
-   get_key_and_state(uint64_t flow_hash_ctt, const Flow& flow, uint8_t dma_channel);*/
 };
 
 } // ipxp

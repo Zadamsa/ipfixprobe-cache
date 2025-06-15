@@ -81,7 +81,6 @@ void NdpMetadataPacketReader::init(const char *params)
    if (parser.m_metadata != "ctt") {
       throw PluginError("Only ctt metadata are supported");
    }
-   std::cout << "\0337" << std::flush; // Save cursor position
 }
 
 
@@ -118,9 +117,8 @@ InputPlugin::Result NdpMetadataPacketReader::get(PacketBlock &packets)
          }
          size_t count = opt->pblock->cnt;
          parse_packet(opt, stats, ts, packet->data, packet->data_length, packet->data_length);
-         if (opt->pblock->cnt != count) {
+         if (opt->pblock->cnt != count && metadata.flow_hash != 0) {
             opt->pblock->pkts[opt->pblock->cnt - 1].cttmeta = metadata;
-            opt->pblock->pkts[opt->pblock->cnt - 1].cttmeta_valid = metadata.flow_hash != 0;
          }
          break;
       }

@@ -49,8 +49,12 @@ public:
     FlowRecord();
     ~FlowRecord();
 
-    virtual void erase();
+    maybe_virtual void erase();
     void reuse();
+
+    maybe_virtual void create(const Packet &pkt, uint64_t pkt_hash);
+
+    void update(const Packet &pkt);
 
     __attribute__((always_inline)) bool is_empty() const noexcept
     {
@@ -61,9 +65,6 @@ public:
     {
         return hash == m_hash;
     }
-
-    virtual void create(const Packet &pkt, uint64_t pkt_hash);
-    void update(const Packet &pkt);
 };
 
 } // ipxp

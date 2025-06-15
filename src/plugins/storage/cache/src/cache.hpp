@@ -94,10 +94,10 @@ protected:
    void flush(Packet &pkt, size_t flow_index, int return_flags);
 
    static uint8_t get_export_reason(const Flow &flow);
-   virtual void allocate_table();
+   maybe_virtual void allocate_table();
    void update_flow_end_reason_stats(uint8_t reason);
    void update_flow_record_stats(uint64_t packets_count);
-   virtual telemetry::Dict get_cache_telemetry();
+   maybe_virtual telemetry::Dict get_cache_telemetry();
    void prefetch_export_expired() const;
    void get_parser_options(CacheOptParser& parser) noexcept;
    void push_to_export_queue(size_t flow_index) noexcept;
@@ -118,25 +118,25 @@ protected:
    bool try_to_export_on_inactive_timeout(size_t flow_index, const timeval& now) noexcept;
    bool try_to_export_on_active_timeout(size_t flow_index, const timeval& now) noexcept;
    void export_flow(size_t flow_index, int reason);
-   virtual void export_flow(FlowRecord** flow, int reason);
+   maybe_virtual void export_flow(FlowRecord** flow, int reason);
    void export_flow(FlowRecord** flow);
    void export_flow(size_t flow_index);
    
-   virtual int update_flow(Packet& packet, size_t flow_index, bool flow_is_waiting_for_export) noexcept;
+   maybe_virtual int update_flow(Packet& packet, size_t flow_index) noexcept;
    bool try_to_export_delayed_flow(const Packet& packet, size_t flow_index) noexcept;
-   virtual void create_record(const Packet& packet, size_t flow_index, size_t hash_value) noexcept;
-   virtual bool try_to_export(size_t flow_index, bool call_pre_export, int reason) noexcept;
-   bool try_to_export(size_t flow_index, bool call_pre_export) noexcept;
+   maybe_virtual void create_record(const Packet& packet, size_t flow_index, size_t hash_value) noexcept;
+   maybe_virtual void try_to_export(size_t flow_index, bool call_pre_export, int reason) noexcept;
+   void try_to_export(size_t flow_index, bool call_pre_export) noexcept;
    virtual void print_report() const;
    void send_export_request_to_ctt(size_t ctt_flow_hash) noexcept;
-   virtual void export_expired(const timeval& now);
+   maybe_virtual void export_expired(const timeval& now);
    void try_to_add_flow_to_ctt(size_t flow_index) noexcept; 
    size_t get_empty_place(CacheRowSpan& row) noexcept;
-   virtual bool can_be_exported(size_t flow_index) const noexcept;
-   virtual size_t find_victim(CacheRowSpan& row) const noexcept;
-   virtual void export_and_reuse_flow(size_t flow_index) noexcept;
+   maybe_virtual size_t find_victim(CacheRowSpan& row) const noexcept;
+   maybe_virtual void export_and_reuse_flow(size_t flow_index) noexcept;
 private:
    const bool m_vlan_is_flow_key{true};
 
 };
+
 }
