@@ -120,6 +120,7 @@ void NHTFlowCacheCtt::finish()
    std::for_each(m_flow_table, m_flow_table + m_cache_size, [&](FlowRecordCtt*& flow_record) {
       if (!flow_record->is_empty()) {
          if (flow_record->is_in_ctt()) {
+            throw PluginError("Flow record is in CTT, but it was not exported before cache termination");
             m_ctt_stats.total_requests_count++;
             m_ctt_controller->remove_record_without_notification(flow_record->m_flow.flow_hash_ctt);
          }
@@ -278,6 +279,7 @@ void NHTFlowCacheCtt::try_to_export(size_t flow_index, bool call_pre_export, int
 {
    if (m_flow_table[flow_index]->is_in_ctt()) {
       m_flow_table[flow_index] = m_ctt_remove_queue.add(m_flow_table[flow_index]);
+      return;
    }
    if (call_pre_export) {
       plugins_pre_export(m_flow_table[flow_index]->m_flow);

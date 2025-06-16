@@ -185,6 +185,9 @@ void NHTFlowCache::export_flow(size_t flow_index, int reason)
 void NHTFlowCache::export_flow(FlowRecord** flow_ptr, int reason)
 {
    FlowRecord*& flow = *flow_ptr;
+   if (flow->is_empty()) {
+      return;
+   }
    flow->m_flow.end_reason = reason;
    update_flow_record_stats(flow->m_flow.src_packets + flow->m_flow.dst_packets);
    update_flow_end_reason_stats(flow->m_flow.end_reason);

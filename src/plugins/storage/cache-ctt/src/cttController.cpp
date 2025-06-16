@@ -32,7 +32,7 @@ namespace ipxp {
 
 CttController::CttController(const std::string& nfb_dev, unsigned ctt_comp_index) {
     ctt::Card<KEY_SIZE, STATE_SIZE, MASK_SIZE> card(nfb_dev);   
-    m_commander = card.get_async_commander(ctt_comp_index);
+    m_commander = card.get_async_commander(ctt_comp_index, std::nullopt, 10'000'000);
     try {
         // Get UserInfo to determine key, state, and state_mask sizes
         ctt::UserInfo user_info = m_commander->get_user_info();
@@ -71,38 +71,48 @@ void CttController::create_record(const Flow& flow, uint8_t dma_channel, feta::O
 void CttController::get_state(uint64_t flow_hash_ctt)
 {
     MAYBE_DISABLED_CODE(std::cout << "Getting state of " << std::hex << flow_hash_ctt << std::endl;)
-    try {
-        std::array<std::byte, KEY_SIZE> key = assemble_key(flow_hash_ctt);
-        m_commander->export_record(std::move(key));
-    }
-    catch (const std::exception& e) {
-        throw;
-    }
+    bool success = false;
+    std::array<std::byte, KEY_SIZE> key = assemble_key(flow_hash_ctt);
+    while (!success) {
+        try {
+            m_commander->export_record(std::move(key));
+            success = true;
+        }
+        catch (const ctt::CttException& e) {
+            sleep(1); 
+        }
+    } 
+    
 }
 
 void CttController::remove_record_without_notification(uint64_t flow_hash_ctt)
 {
-    try {
-        std::array<std::byte, KEY_SIZE> key = assemble_key(flow_hash_ctt);
-        m_commander->delete_record(std::move(key));
-        MAYBE_DISABLED_CODE(std::cout << "Deliting without export key " << std::hex << flow_hash_ctt << std::endl;)
-    }
-    catch (const std::exception& e) {
-        throw;
-    }
+    bool success = false;
+    std::array<std::byte, KEY_SIZE> key = assemble_key(flow_hash_ctt);
+    while (!success) {
+        try {
+            m_commander->delete_record(std::move(key));
+            success = true;
+        }
+        catch (const ctt::CttException& e) {
+            sleep(1); 
+        }
+    } 
 }
 
 void CttController::export_record(uint64_t flow_hash_ctt)
 {
-    try {
-        std::array<std::byte, KEY_SIZE> key = assemble_key(flow_hash_ctt);
-        m_commander->export_and_delete_record(std::move(key));
-        MAYBE_DISABLED_CODE(std::cout << "Exporting and deliting key " << std::hex << flow_hash_ctt << std::endl;)
-
-    }
-    catch (const std::exception& e) {
-        throw;
-    }
+    bool success = false;
+    std::array<std::byte, KEY_SIZE> key = assemble_key(flow_hash_ctt);
+    while (!success) {
+        try {
+            m_commander->export_and_delete_record(std::move(key));
+            success = true;
+        }
+        catch (const ctt::CttException& e) {
+            sleep(1); 
+        }
+    } 
 }
 
 std::array<std::byte, KEY_SIZE> CttController::assemble_key(uint64_t flow_hash_ctt)
