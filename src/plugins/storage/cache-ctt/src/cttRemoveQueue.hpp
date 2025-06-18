@@ -26,7 +26,12 @@ public:
 
     size_t size() const noexcept;
 
-    size_t resend_lost_requests(const timeval now) noexcept;
+    struct RequestCounts {
+        size_t sent_requests{0};
+        size_t lost_requests{0};
+    };
+
+    RequestCounts resend_lost_requests(const timeval now) noexcept;
 
 private:
     FlowRecordCtt* m_flows;

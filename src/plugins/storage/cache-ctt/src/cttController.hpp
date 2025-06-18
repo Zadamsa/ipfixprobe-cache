@@ -74,12 +74,26 @@ public:
    void remove_record_without_notification(uint64_t flow_hash_ctt);
 
    void get_state(uint64_t flow_hash_ctt);
+
+   struct RequestStats{
+    size_t create_record_requests{0};
+    size_t export_and_delete_requests{0};   
+   };
+
+   const RequestStats& get_stats() const noexcept {
+      return m_stats;
+   };
 private:
    
    std::shared_ptr<ctt::AsyncCommander<KEY_SIZE, sizeof(feta::CttRecord), MASK_SIZE>> m_commander;
    size_t m_key_size_bytes;
    size_t m_state_size_bytes;
    size_t m_state_mask_size_bytes;
+
+   RequestStats m_stats;
+
+
+
 
    /**
    * @brief Assembles the state vector from the given values.

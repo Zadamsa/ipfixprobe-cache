@@ -51,9 +51,7 @@ public:
    create_sorted_key(const Int* src_ip, const Int* dst_ip,
       uint16_t src_port, uint16_t dst_port, uint8_t proto, IP ip_version, uint16_t vlan_id) noexcept
    {
-      const int ip_diff = std::memcmp(src_ip, dst_ip, 16);
-
-      if (src_port < dst_port || (src_port == dst_port && ip_diff < 0)) {
+      if (src_port < dst_port || (src_port == dst_port && std::memcmp(src_ip, dst_ip, ip_version == IP::v4 ? 4 : 16) < 0)) {
          return {create_direct_key(src_ip, dst_ip, src_port, dst_port, proto, ip_version, vlan_id), false};
       }
       return {create_reversed_key(src_ip, dst_ip, src_port, dst_port, proto, ip_version, vlan_id), true};

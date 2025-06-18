@@ -105,9 +105,8 @@ private:
    void offload_flow_to_ctt(size_t flow_index, feta::OffloadMode offload_mode) noexcept;
    void try_to_add_flow_to_ctt(size_t flow_index) noexcept;
    void send_export_request_to_ctt(size_t ctt_flow_hash) noexcept;
-   void update_ctt_export_stats(feta::ExportReason ctt_reason, feta::MuExportReason mu_reason) noexcept;
    void update_advanced_ctt_export_stats(const feta::CttExportPkt& export_data) noexcept;
-
+   void set_telemetry_dir(std::shared_ptr<telemetry::Directory> dir) override;
    CttStats m_ctt_stats = {};
    uint8_t m_dma_channel{0};
    std::optional<CttController> m_ctt_controller;
@@ -122,6 +121,7 @@ private:
    CttRemoveQueue m_ctt_remove_queue;
    size_t m_ctt_remove_queue_size{1024};
    size_t m_offload_threshold{std::numeric_limits<size_t>::max()};
+   bool stop = false;
 
 };
 }

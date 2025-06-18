@@ -50,8 +50,12 @@ struct CttStats {
    uint64_t packet_right_after_offload{0};
    uint64_t remove_queue_lost_requests{0};
    uint64_t flush_ctt_lost_requests{0};
+   uint64_t wb_before_pv1[2]{0, 0};
+   uint64_t wb_after_pv1[2]{0, 0};
+   uint64_t SW_WB1{0};
    uint64_t pv_zero{0};
-   struct {
+   uint64_t export_by_sw_including_pvzero{0};
+   struct ExportReasons{
       uint64_t counter_overflow{0};
       uint64_t tcp_eof{0};
       uint64_t active_timeout{0};
@@ -59,7 +63,9 @@ struct CttStats {
       uint64_t ctt_full{0};
       uint64_t hash_collision{0};
       uint64_t reserved{0};
-   } export_reasons;
+   };
+   ExportReasons export_reasons_before_pv1;
+   ExportReasons export_reasons_after_pv1;
    struct {
       uint64_t counter_overflow[2]{0, 0};
       uint64_t tcp_eof[2]{0, 0};

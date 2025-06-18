@@ -65,6 +65,7 @@ public:
     {
         return hash == m_hash;
     }
+
 };
 
 } // ipxp

@@ -48,7 +48,7 @@
 
 namespace ipxp {
 
-class NHTFlowCache : TelemetryUtils, public StoragePlugin
+class NHTFlowCache : protected TelemetryUtils, public StoragePlugin
 {
 public:
    NHTFlowCache(bool vlan_is_flow_key = true);

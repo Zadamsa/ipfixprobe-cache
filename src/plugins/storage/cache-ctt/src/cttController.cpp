@@ -32,7 +32,8 @@ namespace ipxp {
 
 CttController::CttController(const std::string& nfb_dev, unsigned ctt_comp_index) {
     ctt::Card<KEY_SIZE, STATE_SIZE, MASK_SIZE> card(nfb_dev);   
-    m_commander = card.get_async_commander(ctt_comp_index, std::nullopt, 10'000'000);
+    m_commander = card.get_async_commander(ctt_comp_index);
+    //m_commander = card.get_async_commander(ctt_comp_index);
     try {
         // Get UserInfo to determine key, state, and state_mask sizes
         ctt::UserInfo user_info = m_commander->get_user_info();
@@ -54,18 +55,23 @@ CttController::CttController(const std::string& nfb_dev, unsigned ctt_comp_index
 
 void CttController::create_record(const Flow& flow, uint8_t dma_channel, feta::OffloadMode offload_mode)
 {
-    try {
-        std::array<std::byte, KEY_SIZE> key = assemble_key(flow.flow_hash_ctt);
-        std::array<std::byte, sizeof(feta::CttRecord)> state = assemble_state(
-              offload_mode,
-              feta::MetaType::FULL_META,
-              flow, dma_channel);
-        m_commander->write_record(std::move(key), std::move(state));
-        MAYBE_DISABLED_CODE(std::cout << "Create record with key" << std::hex << flow.flow_hash_ctt << std::endl;)
-    }
-    catch (const std::exception& e) {
-        throw;
-    }
+    bool success = false;
+    std::array<std::byte, KEY_SIZE> key = assemble_key(flow.flow_hash_ctt);
+    std::array<std::byte, sizeof(feta::CttRecord)> state = assemble_state(
+            offload_mode,
+            feta::MetaType::FULL_META,
+            flow, dma_channel);
+    while (!success) {
+        try {
+            m_stats.create_record_requests++;
+            MAYBE_DISABLED_CODE(std::cout << "Create record with key" << std::hex << flow.flow_hash_ctt << std::endl;)
+            m_commander->export_and_write_record(std::move(key), std::move(state));
+            success = true;
+        }
+        catch (const ctt::CttException& e) {
+            sleep(1); 
+        }
+    } 
 }
 
 void CttController::get_state(uint64_t flow_hash_ctt)
@@ -106,6 +112,7 @@ void CttController::export_record(uint64_t flow_hash_ctt)
     std::array<std::byte, KEY_SIZE> key = assemble_key(flow_hash_ctt);
     while (!success) {
         try {
+            m_stats.export_and_delete_requests++;
             m_commander->export_and_delete_record(std::move(key));
             success = true;
         }

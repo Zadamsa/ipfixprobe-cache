@@ -103,14 +103,15 @@ struct CttMetadata {
         //metadata.flow_hash       = extract(data, 128, 64);
         metadata.flow_hash = *reinterpret_cast<const uint64_t*>(data + 16);
 
-        return metadata;
-        metadata.ip_csum_status  = static_cast<CsumStatus>(extract(data, 82,  2));
-        metadata.l4_csum_status  = static_cast<CsumStatus>(extract(data, 84,  2));
-        metadata.filter_bitmap   = extract(data, 96,  16);
         metadata.ctt_export_trig = extract(data, 112, 1);
         metadata.ctt_rec_matched = extract(data, 113, 1);
         metadata.ctt_rec_created = extract(data, 114, 1);
         metadata.ctt_rec_deleted = extract(data, 115, 1);
+        return metadata;
+        metadata.ip_csum_status  = static_cast<CsumStatus>(extract(data, 82,  2));
+        metadata.l4_csum_status  = static_cast<CsumStatus>(extract(data, 84,  2));
+        metadata.filter_bitmap   = extract(data, 96,  16);
+        
         metadata.l2_len          = extract(data, 192, 7);
         metadata.l3_len          = extract(data, 199, 9);
         metadata.l4_len          = extract(data, 208, 8);
@@ -145,7 +146,7 @@ struct CttMetadata {
     L4PType l4_ptype : 4;          ///< Type of the L4 layer
 };
 
-constexpr static timeval CTT_REQUEST_TIMEOUT = {1, 0}; ///< Timeout for CTT request
+constexpr static timeval CTT_REQUEST_TIMEOUT = {10, 0}; ///< Timeout for CTT request
 
 static constexpr size_t KEY_SIZE = 8;
 static constexpr size_t STATE_SIZE = sizeof(feta::CttRecord);
