@@ -6,6 +6,8 @@
 #include <limits>
 #include <stdexcept>
 
+namespace ipxp {
+
 /**
  * @brief Represents a handle to a single field within a FlowRecord.
  *
@@ -90,3 +92,5 @@ private:
 	static constexpr std::size_t s_invalidIndex = std::numeric_limits<std::size_t>::max();
 	std::size_t m_bitIndex;
 };
+
+} // namespace ipxp

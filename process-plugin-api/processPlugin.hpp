@@ -3,9 +3,12 @@
 #include "fieldHandler.hpp"
 #include "flowRecord.hpp"
 #include "packet.hpp"
+#include "packetOfFlowData.hpp"
 
 #include <cstdint>
 #include <string>
+
+namespace ipxp {
 
 enum class FlowAction : int {
 	/**
@@ -46,10 +49,11 @@ public:
 		return FlowAction::RequestNoData;
 	}
 
-	virtual FlowAction onFlowUpdate(FlowRecord& flowRecord, const Packet& packet)
+	virtual FlowAction onFlowUpdate(FlowRecord& flowRecord, const Packet& packet, const PacketOfFlowData& data)
 	{
 		(void) flowRecord;
 		(void) packet;
+		(void) data;
 
 		return FlowAction::RequestNoData;
 	}
@@ -90,3 +94,5 @@ class FieldHandlers {
 protected:
 	EnumArray<Enum, FieldHandler, enum_size<Enum>()> m_fieldHandlers;
 };
+
+} // namespace ipxp
